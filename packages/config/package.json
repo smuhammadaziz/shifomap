@@ -1,0 +1,9 @@
+{
+    "name": "@shifoyol/config",
+    "version": "0.0.0",
+    "private": true,
+    "main": "index.js",
+    "devDependencies": {
+        "@types/node": "^20.14.9"
+    }
+}

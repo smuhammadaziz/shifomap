@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Environment - never commit
+.env
+.env.*
+!.env.example
+
+# Build / logs
+dist/
+*.log
