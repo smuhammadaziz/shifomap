@@ -37,6 +37,14 @@ interface Branch {
 
 interface ClinicData {
   branches?: Branch[]
+  plan?: {
+    type: string
+    limits: {
+      maxBranches: number
+      maxServices: number
+      maxAdmins: number
+    }
+  }
 }
 
 const DAY_KEYS = ['dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat', 'daySun'] as const
@@ -97,6 +105,8 @@ export default function BranchesPage() {
 
   const branches = clinic?.branches ?? []
   const hasBranches = branches.length > 0
+  const maxBranches = clinic?.plan?.limits?.maxBranches ?? 1
+  const isLimitReached = branches.length >= maxBranches
 
   const handleBranchCreated = () => {
     setModalOpen(false)
@@ -168,11 +178,39 @@ export default function BranchesPage() {
           <h1 className="text-3xl font-bold text-gray-900">{t.branches.title}</h1>
           <p className="text-gray-600 mt-1">{t.branches.subtitle}</p>
         </div>
-        <Button onClick={openCreate} className="shrink-0">
+        <Button onClick={openCreate} className="shrink-0" disabled={isLimitReached}>
           <Plus className="h-4 w-4 mr-2" />
           {t.branches.addBranch}
         </Button>
       </div>
+
+      {isLimitReached && (
+        <div className="rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-amber-900 mb-1">
+                {t.branches.planLimitReached.replace('{max}', String(maxBranches))}
+              </h3>
+              <p className="text-sm text-amber-700">
+                {t.branches.planLimitMessage
+                  .replace('{current}', String(branches.length))
+                  .replace('{max}', String(maxBranches))}
+              </p>
+            </div>
+            <a
+              href="https://t.me/shifoyol_admin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+              </svg>
+              {t.branches.contactAdmin}
+            </a>
+          </div>
+        </div>
+      )}
 
       {!hasBranches ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50">

@@ -9,6 +9,10 @@ import {
   loginDoctorBodySchema,
   updateDoctorByDoctorBodySchema,
   updateDoctorScheduleBodySchema,
+  createCategoryBodySchema,
+  updateCategoryBodySchema,
+  createServiceBodySchema,
+  updateServiceBodySchema,
 } from "./clinics.model"
 import {
   createClinic,
@@ -32,6 +36,14 @@ import {
   getMyDoctorProfile,
   updateMyDoctorProfile,
   updateMyDoctorSchedule,
+  addCategory,
+  updateCategory,
+  deleteCategory,
+  addService,
+  updateService,
+  setServiceStatus,
+  deleteService,
+  runPlanLimitsMigration,
 } from "./clinics.service"
 import { requireAuth } from "@/common/middleware/auth"
 
@@ -396,6 +408,187 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
       return { success: false, error: "Internal server error" }
     }
   })
+  // Clinic owner: add category
+  .post("/my-clinic/categories", async ({ auth, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const parsed = createCategoryBodySchema.safeParse(body ?? {})
+      if (!parsed.success) {
+        set.status = 400
+        return {
+          success: false,
+          error: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        }
+      }
+      const result = await addCategory(clinicId, parsed.data)
+      set.status = 201
+      return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: update category
+  .patch("/my-clinic/categories/:categoryId", async ({ auth, params, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const parsed = updateCategoryBodySchema.safeParse(body ?? {})
+      if (!parsed.success) {
+        set.status = 400
+        return {
+          success: false,
+          error: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        }
+      }
+      await updateCategory(clinicId, params.categoryId, parsed.data)
+      set.status = 200
+      return { success: true, data: { message: "Category updated successfully" } }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: delete category
+  .delete("/my-clinic/categories/:categoryId", async ({ auth, params, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      await deleteCategory(clinicId, params.categoryId)
+      set.status = 200
+      return { success: true, data: { message: "Category deleted successfully" } }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: add service (requires branch, doctor, category)
+  .post("/my-clinic/services", async ({ auth, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const parsed = createServiceBodySchema.safeParse(body ?? {})
+      if (!parsed.success) {
+        set.status = 400
+        return {
+          success: false,
+          error: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        }
+      }
+      const result = await addService(clinicId, parsed.data)
+      set.status = 201
+      return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: update service
+  .patch("/my-clinic/services/:serviceId", async ({ auth, params, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const parsed = updateServiceBodySchema.safeParse(body ?? {})
+      if (!parsed.success) {
+        set.status = 400
+        return {
+          success: false,
+          error: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        }
+      }
+      await updateService(clinicId, params.serviceId, parsed.data)
+      set.status = 200
+      return { success: true, data: { message: "Service updated successfully" } }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: set service active/inactive
+  .patch("/my-clinic/services/:serviceId/status", async ({ auth, params, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const isActive = (body as { isActive?: boolean })?.isActive === true
+      await setServiceStatus(clinicId, params.serviceId, isActive)
+      set.status = 200
+      return { success: true, data: { message: isActive ? "Service activated" : "Service set inactive" } }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: delete service
+  .delete("/my-clinic/services/:serviceId", async ({ auth, params, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      await deleteService(clinicId, params.serviceId)
+      set.status = 200
+      return { success: true, data: { message: "Service deleted successfully" } }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
   // Create clinic endpoint (platform admin only)
   .post("/create", async ({ body, set }) => {
     try {
@@ -504,5 +697,16 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
       }
       set.status = 500
       return { success: false, error: "Internal server error" }
+    }
+  })
+  // Migration: update all clinics with latest plan limits (run once)
+  .post("/migrate-plan-limits", async ({ set }) => {
+    try {
+      const result = await runPlanLimitsMigration()
+      set.status = 200
+      return { success: true, data: result }
+    } catch (error: any) {
+      set.status = 500
+      return { success: false, error: error.message || "Migration failed" }
     }
   })

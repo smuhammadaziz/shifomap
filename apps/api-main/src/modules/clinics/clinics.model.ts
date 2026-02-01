@@ -46,6 +46,7 @@ export interface ClinicDoc {
   branches: ClinicBranch[]
   services: ClinicService[]
   doctors: ClinicDoctor[]
+  categories?: ClinicCategory[]
   stats: {
     branchesCount: number
     servicesCount: number
@@ -96,17 +97,28 @@ export interface ClinicBranch {
   updatedAt: Date
 }
 
+export interface ClinicCategory {
+  _id: ObjectId
+  name: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface ClinicService {
   _id: ObjectId
   title: string
   description: string
-  category: string
+  serviceImage: string | null
+  categoryId: ObjectId
   durationMin: number
   price: {
-    amount: number
+    amount?: number
+    minAmount?: number
+    maxAmount?: number
     currency: string
   }
   branchIds: ObjectId[]
+  doctorIds: ObjectId[]
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -191,6 +203,56 @@ export const createBranchBodySchema = z.object({
   workingHours: z.array(workingHourSchema).min(0).max(7),
 })
 export type CreateBranchBody = z.infer<typeof createBranchBodySchema>
+
+// Create category body (clinic owner)
+export const createCategoryBodySchema = z.object({
+  name: z.string().min(1, "Category name is required").max(128),
+})
+export type CreateCategoryBody = z.infer<typeof createCategoryBodySchema>
+
+// Update category body (partial)
+export const updateCategoryBodySchema = z.object({
+  name: z.string().min(1).max(128).optional(),
+})
+export type UpdateCategoryBody = z.infer<typeof updateCategoryBodySchema>
+
+// Create service body (clinic owner; requires branches, doctors, categories)
+const priceSchema = z
+  .object({
+    amount: z.number().min(0).optional(),
+    minAmount: z.number().min(0).optional(),
+    maxAmount: z.number().min(0).optional(),
+    currency: z.string().min(1).max(8).default("UZS"),
+  })
+  .refine(
+    (p) =>
+      (p.amount != null && p.amount >= 0) ||
+      (p.minAmount != null && p.maxAmount != null && p.minAmount <= p.maxAmount),
+    { message: "Use amount (fixed) or minAmount and maxAmount (range)" }
+  )
+export const createServiceBodySchema = z.object({
+  title: z.string().min(1, "Title is required").max(128),
+  description: z.string().max(2000).default(""),
+  serviceImage: z.string().url().nullable().optional(),
+  categoryId: z.string().min(1, "Category is required"),
+  durationMin: z.number().min(1).max(480),
+  price: priceSchema,
+  branchIds: z.array(z.string()).min(1, "Select at least one branch"),
+  doctorIds: z.array(z.string()).min(1, "Select at least one doctor"),
+})
+export type CreateServiceBody = z.infer<typeof createServiceBodySchema>
+
+export const updateServiceBodySchema = z.object({
+  title: z.string().min(1).max(128).optional(),
+  description: z.string().max(2000).optional(),
+  serviceImage: z.string().url().nullable().optional(),
+  categoryId: z.string().min(1).optional(),
+  durationMin: z.number().min(1).max(480).optional(),
+  price: priceSchema.optional(),
+  branchIds: z.array(z.string()).min(0).optional(),
+  doctorIds: z.array(z.string()).min(0).optional(),
+})
+export type UpdateServiceBody = z.infer<typeof updateServiceBodySchema>
 
 // Create doctor body (clinic owner; requires existing branch)
 export const createDoctorBodySchema = z.object({
@@ -315,13 +377,23 @@ export function mapDocToDetailedClinic(doc: ClinicDoc) {
       createdAt: b.createdAt.toISOString(),
       updatedAt: b.updatedAt.toISOString(),
     })),
-    services: doc.services.map((s) => ({
-      ...s,
-      _id: s._id.toHexString(),
-      branchIds: s.branchIds.map((id) => id.toHexString()),
-      createdAt: s.createdAt.toISOString(),
-      updatedAt: s.updatedAt.toISOString(),
-    })),
+    services: doc.services.map((s) => {
+      const svc = s as ClinicService & { category?: string; categoryId?: ObjectId }
+      return {
+        _id: svc._id.toHexString(),
+        title: svc.title,
+        description: svc.description,
+        serviceImage: svc.serviceImage ?? null,
+        categoryId: svc.categoryId ? svc.categoryId.toHexString() : (typeof svc.category === "string" ? svc.category : ""),
+        durationMin: svc.durationMin,
+        price: svc.price,
+        branchIds: svc.branchIds.map((id) => id.toHexString()),
+        doctorIds: (svc.doctorIds ?? []).map((id) => id.toHexString()),
+        isActive: svc.isActive,
+        createdAt: svc.createdAt.toISOString(),
+        updatedAt: svc.updatedAt.toISOString(),
+      }
+    }),
     doctors: doc.doctors.map((d) => ({
       _id: d._id.toHexString(),
       fullName: d.fullName,
@@ -336,6 +408,12 @@ export function mapDocToDetailedClinic(doc: ClinicDoc) {
       lastLoginAt: d.security.lastLoginAt?.toISOString() ?? null,
       createdAt: d.createdAt.toISOString(),
       updatedAt: d.updatedAt.toISOString(),
+    })),
+    categories: (doc.categories ?? []).map((c) => ({
+      _id: c._id.toHexString(),
+      name: c.name,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
     })),
   }
 }

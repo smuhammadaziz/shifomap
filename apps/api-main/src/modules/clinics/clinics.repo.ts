@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb"
 import { getDb, CLINICS_COLLECTION } from "@/db/mongo"
-import type { ClinicDoc, ClinicOwner, ClinicBranch, ClinicDoctor } from "./clinics.model"
+import type { ClinicDoc, ClinicOwner, ClinicBranch, ClinicDoctor, ClinicCategory, ClinicService } from "./clinics.model"
 import { toObjectId } from "@/common/utils/id"
 
 export interface InsertClinicInput {
@@ -14,6 +14,33 @@ export interface InsertClinicInput {
   }
 }
 
+export const PLAN_LIMITS = {
+  starter: { maxBranches: 1, maxServices: 5, maxAdmins: 1 },
+  pro: { maxBranches: 5, maxServices: 20, maxAdmins: 3 },
+} as const
+
+/**
+ * Migrate all existing clinics to use the latest plan limits
+ */
+export async function migratePlanLimits(): Promise<{ updated: number }> {
+  const db = getDb()
+  const now = new Date()
+  
+  // Update starter clinics
+  const starterResult = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateMany(
+    { "plan.type": "starter" },
+    { $set: { "plan.limits": PLAN_LIMITS.starter, updatedAt: now } }
+  )
+  
+  // Update pro clinics
+  const proResult = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateMany(
+    { "plan.type": "pro" },
+    { $set: { "plan.limits": PLAN_LIMITS.pro, updatedAt: now } }
+  )
+  
+  return { updated: starterResult.modifiedCount + proResult.modifiedCount }
+}
+
 /**
  * Insert a new clinic with initial owner
  */
@@ -21,10 +48,7 @@ export async function insertClinic(input: InsertClinicInput): Promise<ClinicDoc>
   const db = getDb()
   const now = new Date()
 
-  const planLimits = {
-    starter: { maxBranches: 1, maxServices: 10, maxAdmins: 2 },
-    pro: { maxBranches: 10, maxServices: 100, maxAdmins: 10 },
-  }
+  const planLimits = PLAN_LIMITS
 
   const owner: ClinicOwner = {
     _id: new ObjectId(),
@@ -80,6 +104,7 @@ export async function insertClinic(input: InsertClinicInput): Promise<ClinicDoc>
     branches: [],
     services: [],
     doctors: [],
+    categories: [],
     stats: {
       branchesCount: 0,
       servicesCount: 0,
@@ -180,7 +205,7 @@ export async function updateOwnerLastLogin(
  */
 export async function getAllClinics(skip: number = 0, limit: number = 100, search?: string): Promise<ClinicDoc[]> {
   const db = getDb()
-  
+
   // Build search filter if search query is provided
   const searchFilter = search ? {
     $or: [
@@ -190,7 +215,7 @@ export async function getAllClinics(skip: number = 0, limit: number = 100, searc
       { "owners.userName": { $regex: search, $options: "i" } },
     ]
   } : {}
-  
+
   return db
     .collection<ClinicDoc>(CLINICS_COLLECTION)
     .find(searchFilter) // Show all clinics including inactive with search
@@ -205,7 +230,7 @@ export async function getAllClinics(skip: number = 0, limit: number = 100, searc
  */
 export async function countClinics(search?: string): Promise<number> {
   const db = getDb()
-  
+
   // Build search filter if search query is provided
   const searchFilter = search ? {
     $or: [
@@ -215,7 +240,7 @@ export async function countClinics(search?: string): Promise<number> {
       { "owners.userName": { $regex: search, $options: "i" } },
     ]
   } : {}
-  
+
   return db.collection<ClinicDoc>(CLINICS_COLLECTION).countDocuments(searchFilter)
 }
 
@@ -234,24 +259,24 @@ export async function updateClinicStatus(clinicId: string, status: "active" | "i
   const db = getDb()
   const id = toObjectId(clinicId)
   const now = new Date()
-  
+
   const update: any = {
     status,
     updatedAt: now,
   }
-  
+
   // Set deletedAt when making inactive, unset when making active
   if (status === "inactive") {
     update.deletedAt = now
   } else {
     update.deletedAt = null
   }
-  
+
   const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
     { _id: id },
     { $set: update }
   )
-  
+
   return result.modifiedCount > 0
 }
 
@@ -261,28 +286,30 @@ export async function updateClinicStatus(clinicId: string, status: "active" | "i
 export async function deleteClinicPermanently(clinicId: string) {
   const db = getDb()
   const id = toObjectId(clinicId)
-  
+
   const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).deleteOne({ _id: id })
   return result.deletedCount > 0
 }
 
 /**
- * Update clinic plan
+ * Update clinic plan (also updates the limits based on plan type)
  */
 export async function updateClinicPlan(clinicId: string, planType: "starter" | "pro") {
   const db = getDb()
   const id = toObjectId(clinicId)
-  
+  const newLimits = PLAN_LIMITS[planType]
+
   const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
     { _id: id },
-    { 
-      $set: { 
+    {
+      $set: {
         "plan.type": planType,
+        "plan.limits": newLimits,
         updatedAt: new Date(),
-      } 
+      }
     }
   )
-  
+
   return result.modifiedCount > 0
 }
 
@@ -637,4 +664,260 @@ export async function removeDoctorFromClinic(clinicId: string, doctorId: string)
     }
   )
   return result.modifiedCount > 0
+}
+
+// --- Categories ---
+
+/**
+ * Add a category to a clinic
+ */
+export async function addCategoryToClinic(clinicId: string, name: string): Promise<ClinicCategory> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const now = new Date()
+  const categoryId = new ObjectId()
+  const category: ClinicCategory = {
+    _id: categoryId,
+    name,
+    createdAt: now,
+    updatedAt: now,
+  }
+  const clinic = await db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: cId })
+  if (!clinic) throw new Error("Clinic not found")
+  const currentCategories = clinic.categories ?? []
+  const updated = [...currentCategories, category]
+  await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId },
+    { $set: { categories: updated, updatedAt: now } }
+  )
+  return category
+}
+
+/**
+ * Update a category in a clinic
+ */
+export async function updateCategoryInClinic(
+  clinicId: string,
+  categoryId: string,
+  name: string
+): Promise<boolean> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const catId = toObjectId(categoryId)
+  const now = new Date()
+  const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId, "categories._id": catId },
+    {
+      $set: {
+        "categories.$.name": name,
+        "categories.$.updatedAt": now,
+        updatedAt: now,
+      },
+    }
+  )
+  return result.modifiedCount > 0
+}
+
+/**
+ * Remove a category from a clinic
+ */
+export async function removeCategoryFromClinic(clinicId: string, categoryId: string): Promise<boolean> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const catId = toObjectId(categoryId)
+  const clinic = await db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: cId })
+  if (!clinic) return false
+  const current = clinic.categories ?? []
+  const updated = current.filter((c) => !c._id.equals(catId))
+  if (updated.length === current.length) return false
+  const now = new Date()
+  await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId },
+    { $set: { categories: updated, updatedAt: now } }
+  )
+  return true
+}
+
+// --- Services --- (doctor serviceIds sync helpers)
+
+/**
+ * Add a service ID to the serviceIds array of the given doctors
+ */
+export async function addServiceIdToDoctors(
+  clinicId: string,
+  doctorIds: ObjectId[],
+  serviceId: ObjectId
+): Promise<void> {
+  if (doctorIds.length === 0) return
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId },
+    { $addToSet: { "doctors.$[d].serviceIds": serviceId } },
+    { arrayFilters: [{ "d._id": { $in: doctorIds } }] }
+  )
+}
+
+/**
+ * Remove a service ID from the serviceIds array of the given doctors
+ */
+export async function removeServiceIdFromDoctors(
+  clinicId: string,
+  doctorIds: ObjectId[],
+  serviceId: ObjectId
+): Promise<void> {
+  if (doctorIds.length === 0) return
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId },
+    { $pull: { "doctors.$[d].serviceIds": serviceId } },
+    { arrayFilters: [{ "d._id": { $in: doctorIds } }] }
+  )
+}
+
+export interface AddServiceInput {
+  title: string
+  description: string
+  serviceImage: string | null
+  categoryId: string
+  durationMin: number
+  price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string }
+  branchIds: string[]
+  doctorIds: string[]
+}
+
+/**
+ * Add a service to a clinic (updates stats.servicesCount)
+ */
+export async function addServiceToClinic(clinicId: string, input: AddServiceInput): Promise<ClinicService> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const now = new Date()
+  const serviceId = new ObjectId()
+  const service: ClinicService = {
+    _id: serviceId,
+    title: input.title,
+    description: input.description,
+    serviceImage: input.serviceImage,
+    categoryId: toObjectId(input.categoryId),
+    durationMin: input.durationMin,
+    price: input.price,
+    branchIds: input.branchIds.map((id) => toObjectId(id)),
+    doctorIds: input.doctorIds.map((id) => toObjectId(id)),
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  }
+  const clinic = await db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: cId })
+  if (!clinic) throw new Error("Clinic not found")
+  const currentServices = clinic.services ?? []
+  const newCount = currentServices.length + 1
+  await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId },
+    {
+      $push: { services: service },
+      $set: { "stats.servicesCount": newCount, "stats.updatedAt": now, updatedAt: now },
+    }
+  )
+  const doctorObjectIds = input.doctorIds.map((id) => toObjectId(id))
+  await addServiceIdToDoctors(clinicId, doctorObjectIds, serviceId)
+  return service
+}
+
+/**
+ * Update a service in a clinic. When doctorIds change, syncs doctor.serviceIds.
+ */
+export async function updateServiceInClinic(
+  clinicId: string,
+  serviceId: string,
+  input: Partial<AddServiceInput>
+): Promise<boolean> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const sId = toObjectId(serviceId)
+  const now = new Date()
+
+  if (input.doctorIds != null) {
+    const clinic = await db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: cId })
+    if (clinic) {
+      const service = (clinic.services ?? []).find((s) => s._id.equals(sId))
+      const oldDoctorIds = service?.doctorIds ?? []
+      const newDoctorIds = input.doctorIds.map((id) => toObjectId(id))
+      const added = newDoctorIds.filter((n) => !oldDoctorIds.some((o) => o.equals(n)))
+      const removed = oldDoctorIds.filter((o) => !newDoctorIds.some((n) => n.equals(o)))
+      await removeServiceIdFromDoctors(clinicId, removed, sId)
+      await addServiceIdToDoctors(clinicId, added, sId)
+    }
+  }
+
+  const set: Record<string, unknown> = { "services.$.updatedAt": now }
+  if (input.title != null) set["services.$.title"] = input.title
+  if (input.description != null) set["services.$.description"] = input.description
+  if (input.serviceImage !== undefined) set["services.$.serviceImage"] = input.serviceImage
+  if (input.categoryId != null) set["services.$.categoryId"] = toObjectId(input.categoryId)
+  if (input.durationMin != null) set["services.$.durationMin"] = input.durationMin
+  if (input.price != null) set["services.$.price"] = input.price
+  if (input.branchIds != null) set["services.$.branchIds"] = input.branchIds.map((id) => toObjectId(id))
+  if (input.doctorIds != null) set["services.$.doctorIds"] = input.doctorIds.map((id) => toObjectId(id))
+  const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId, "services._id": sId },
+    { $set: set }
+  )
+  return result.modifiedCount > 0
+}
+
+/**
+ * Set service active/inactive
+ */
+export async function setServiceStatusInClinic(
+  clinicId: string,
+  serviceId: string,
+  isActive: boolean
+): Promise<boolean> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const sId = toObjectId(serviceId)
+  const now = new Date()
+  const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId, "services._id": sId },
+    {
+      $set: {
+        "services.$.isActive": isActive,
+        "services.$.updatedAt": now,
+        updatedAt: now,
+      },
+    }
+  )
+  return result.modifiedCount > 0
+}
+
+/**
+ * Remove a service from a clinic (updates stats.servicesCount and doctor.serviceIds)
+ */
+export async function removeServiceFromClinic(clinicId: string, serviceId: string): Promise<boolean> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const sId = toObjectId(serviceId)
+  const clinic = await db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: cId })
+  if (!clinic) return false
+  const current = clinic.services ?? []
+  const service = current.find((s) => s._id.equals(sId))
+  const doctorIds = service?.doctorIds ?? []
+  const updated = current.filter((s) => !s._id.equals(sId))
+  if (updated.length === current.length) return false
+  const now = new Date()
+  await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId },
+    {
+      $set: {
+        services: updated,
+        "stats.servicesCount": updated.length,
+        "stats.updatedAt": now,
+        updatedAt: now,
+      },
+    }
+  )
+  await removeServiceIdFromDoctors(clinicId, doctorIds, sId)
+  return true
 }

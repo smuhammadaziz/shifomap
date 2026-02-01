@@ -1,13 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useLanguage } from '@/contexts/language-context'
 import { getApiUrl } from '@/lib/api'
 import Cookies from 'js-cookie'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2 } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
+
+const PANEL_WIDTH = 'min(100%, 42rem)'
+const ANIMATION_MS = 300
+const OPEN_EASING = 'cubic-bezier(0.32, 0.72, 0, 1)'
+const OPEN_DURATION_MS = 380
 
 export interface BranchOption {
   _id: string
@@ -50,6 +56,7 @@ export function CreateDoctorModal({
   const { t } = useLanguage()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [closing, setClosing] = useState(false)
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
   const [specialty, setSpecialty] = useState('')
@@ -59,6 +66,16 @@ export function CreateDoctorModal({
 
   const isEdit = !!editDoctor?._id
   const hasBranches = branches.length > 0
+  const visible = open || closing
+
+  const closePanel = useCallback(() => {
+    setClosing(true)
+    const id = setTimeout(() => {
+      onClose()
+      setClosing(false)
+    }, ANIMATION_MS)
+    return () => clearTimeout(id)
+  }, [onClose])
 
   useEffect(() => {
     if (!open) {
@@ -148,38 +165,94 @@ export function CreateDoctorModal({
     }
   }
 
-  if (!open) return null
+  if (!visible) return null
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="min-h-full flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
-        <div
-          className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-6 sm:p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+  const panelOpen = open && !closing
+
+  const panelContent = (
+    <div
+      className="fixed inset-0 z-50 flex justify-end"
+      style={{
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        minHeight: '100vh',
+      }}
+      aria-modal="true"
+      role="dialog"
+    >
+      {/* Overlay */}
+      <div
+        className="absolute bg-black/50"
+        style={{
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          minHeight: '100vh',
+          opacity: panelOpen ? 1 : 0,
+          pointerEvents: panelOpen ? 'auto' : 'none',
+          transition: `opacity ${OPEN_DURATION_MS}ms ${OPEN_EASING}`,
+        }}
+        onClick={closePanel}
+        aria-hidden
+      />
+
+      {/* Side panel */}
+      <div
+        className="relative flex w-full max-w-[42rem] flex-col bg-white shadow-2xl"
+        style={{
+          width: PANEL_WIDTH,
+          top: 0,
+          bottom: 0,
+          height: '100vh',
+          minHeight: '100vh',
+          transform: panelOpen ? 'translateX(0)' : 'translateX(100%)',
+          opacity: panelOpen ? 1 : 0.97,
+          transition: `transform ${OPEN_DURATION_MS}ms ${OPEN_EASING}, opacity ${OPEN_DURATION_MS}ms ${OPEN_EASING}`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
               {isEdit ? t.doctors.modalEditTitle : t.doctors.modalTitle}
             </h2>
-            <p className="text-gray-600 mb-6">{t.doctors.modalDesc}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{t.doctors.modalDesc}</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={closePanel}
+            disabled={loading}
+            className="h-9 w-9 rounded-lg shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
 
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5">
             {!hasBranches && !isEdit && (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 mb-6">
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 mb-5">
                 {t.doctors.noBranchAlert}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
+            {error && (
+              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="doctor-fullName">{t.doctors.fullName}</Label>
+                  <Label htmlFor="doctor-fullName" className="text-sm text-gray-600">{t.doctors.fullName}</Label>
                   <Input
                     id="doctor-fullName"
                     value={fullName}
@@ -187,10 +260,11 @@ export function CreateDoctorModal({
                     placeholder={t.doctors.fullNamePlaceholder}
                     required
                     disabled={loading}
+                    className="w-full"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="doctor-username">{t.doctors.username}</Label>
+                  <Label htmlFor="doctor-username" className="text-sm text-gray-600">{t.doctors.username}</Label>
                   <Input
                     id="doctor-username"
                     value={username}
@@ -198,13 +272,14 @@ export function CreateDoctorModal({
                     placeholder={t.doctors.usernamePlaceholder}
                     required
                     disabled={loading}
+                    className="w-full"
                   />
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="doctor-specialty">{t.doctors.specialty}</Label>
+                  <Label htmlFor="doctor-specialty" className="text-sm text-gray-600">{t.doctors.specialty}</Label>
                   <Input
                     id="doctor-specialty"
                     value={specialty}
@@ -212,11 +287,12 @@ export function CreateDoctorModal({
                     placeholder={t.doctors.specialtyPlaceholder}
                     required
                     disabled={loading}
+                    className="w-full"
                   />
                 </div>
                 {hasBranches && (
                   <div className="space-y-2">
-                    <Label htmlFor="doctor-branch">{t.doctors.branch}</Label>
+                    <Label htmlFor="doctor-branch" className="text-sm text-gray-600">{t.doctors.branch}</Label>
                     <select
                       id="doctor-branch"
                       value={branchId}
@@ -237,21 +313,22 @@ export function CreateDoctorModal({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="doctor-bio">{t.doctors.bio}</Label>
+                <Label htmlFor="doctor-bio" className="text-sm text-gray-600">{t.doctors.bio}</Label>
                 <Input
                   id="doctor-bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder={t.doctors.bioPlaceholder}
                   disabled={loading}
+                  className="w-full"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="doctor-password">
+                <Label htmlFor="doctor-password" className="text-sm text-gray-600">
                   {t.doctors.password}
                   {isEdit && (
-                    <span className="text-gray-500 font-normal ml-1">({t.doctors.passwordOptionalHint})</span>
+                    <span className="text-gray-500 font-normal ml-1 text-xs">({t.doctors.passwordOptionalHint})</span>
                   )}
                 </Label>
                 <Input
@@ -263,30 +340,30 @@ export function CreateDoctorModal({
                   required={!isEdit}
                   disabled={loading}
                   minLength={8}
+                  className="w-full"
                 />
               </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-                  {t.doctors.cancel}
-                </Button>
-                <Button type="submit" disabled={loading || (!hasBranches && !isEdit)}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {isEdit ? t.doctors.save : t.doctors.create}
-                    </>
-                  ) : isEdit ? (
-                    t.doctors.save
-                  ) : (
-                    t.doctors.create
-                  )}
-                </Button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
+
+          {/* Footer */}
+          <div className="shrink-0 border-t border-gray-200 px-6 py-4 flex flex-row justify-end gap-3">
+            <Button type="button" variant="outline" onClick={closePanel} disabled={loading}>
+              {t.doctors.cancel}
+            </Button>
+            <Button type="submit" disabled={loading || (!hasBranches && !isEdit)}>
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              {isEdit ? t.doctors.save : t.doctors.create}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined'
+    ? createPortal(panelContent, document.body)
+    : null
 }

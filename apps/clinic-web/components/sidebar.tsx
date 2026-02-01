@@ -37,10 +37,10 @@ export default function Sidebar() {
     () => [
       { name: t.sidebar.dashboard, href: '/dashboard', icon: LayoutDashboard },
       { name: t.sidebar.branches, href: '/dashboard/branches', icon: GitBranch },
+      { name: t.sidebar.categories, href: '/dashboard/categories', icon: FolderTree },
       { name: t.sidebar.services, href: '/dashboard/services', icon: Briefcase },
       { name: t.sidebar.doctors, href: '/dashboard/doctors', icon: Stethoscope },
       { name: t.sidebar.owners, href: '/dashboard/owners', icon: Users },
-      { name: t.sidebar.categories, href: '/dashboard/categories', icon: FolderTree },
       { name: t.sidebar.planInformation, href: '/dashboard/plan', icon: CreditCard },
       { name: t.sidebar.rankingRating, href: '/dashboard/ranking-rating', icon: Star },
       { name: t.sidebar.stats, href: '/dashboard/stats', icon: BarChart3 },

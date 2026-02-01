@@ -21,8 +21,17 @@ import {
   findClinicDoctorByUsername,
   updateDoctorLastLogin,
   updateDoctorScheduleInClinic,
+  addCategoryToClinic,
+  updateCategoryInClinic,
+  removeCategoryFromClinic,
+  addServiceToClinic,
+  updateServiceInClinic,
+  setServiceStatusInClinic,
+  removeServiceFromClinic,
+  migratePlanLimits,
 } from "./clinics.repo"
 import type {
+  ClinicService,
   CreateClinicBody,
   LoginClinicOwnerBody,
   ChangePlanBody,
@@ -32,6 +41,10 @@ import type {
   LoginDoctorBody,
   UpdateDoctorByDoctorBody,
   UpdateDoctorScheduleBody,
+  CreateCategoryBody,
+  UpdateCategoryBody,
+  CreateServiceBody,
+  UpdateServiceBody,
 } from "./clinics.model"
 import { mapDocToPublicClinic, mapDocToDetailedClinic } from "./clinics.model"
 import { conflict, unauthorized, notFound } from "@/common/errors"
@@ -132,7 +145,7 @@ export async function loginClinicOwner(body: LoginClinicOwnerBody, clientIP?: st
 export async function getClinics(page: number = 1, limit: number = 100, search?: string) {
   const skip = (page - 1) * limit
   const [clinics, total] = await Promise.all([
-    getAllClinics(skip, limit, search), 
+    getAllClinics(skip, limit, search),
     countClinics(search)
   ])
 
@@ -179,12 +192,12 @@ export async function stopClinic(clinicId: string) {
   if (!clinic) {
     throw notFound("Clinic not found")
   }
-  
+
   const success = await updateClinicStatus(clinicId, "inactive")
   if (!success) {
     throw new Error("Failed to stop clinic")
   }
-  
+
   return { message: "Clinic stopped successfully" }
 }
 
@@ -196,12 +209,12 @@ export async function activateClinic(clinicId: string) {
   if (!clinic) {
     throw notFound("Clinic not found")
   }
-  
+
   const success = await updateClinicStatus(clinicId, "active")
   if (!success) {
     throw new Error("Failed to activate clinic")
   }
-  
+
   return { message: "Clinic activated successfully" }
 }
 
@@ -213,12 +226,12 @@ export async function permanentlyDeleteClinic(clinicId: string) {
   if (!clinic) {
     throw notFound("Clinic not found")
   }
-  
+
   const success = await deleteClinicPermanently(clinicId)
   if (!success) {
     throw new Error("Failed to delete clinic")
   }
-  
+
   return { message: "Clinic deleted permanently" }
 }
 
@@ -230,12 +243,12 @@ export async function changeClinicPlan(clinicId: string, body: ChangePlanBody) {
   if (!clinic) {
     throw notFound("Clinic not found")
   }
-  
+
   const success = await updateClinicPlan(clinicId, body.plan)
   if (!success) {
     throw new Error("Failed to update clinic plan")
   }
-  
+
   return { message: "Clinic plan updated successfully", plan: body.plan }
 }
 
@@ -249,12 +262,17 @@ export async function resolveClinicIdForOwner(auth: { role?: string; clinicId?: 
 }
 
 /**
- * Add branch to clinic (for clinic owner)
+ * Add branch to clinic (for clinic owner). Checks plan limits.
  */
 export async function addBranch(clinicId: string, body: CreateBranchBody) {
   const clinic = await findClinicById(new ObjectId(clinicId))
   if (!clinic) {
     throw notFound("Clinic not found")
+  }
+  const currentBranchCount = clinic.branches?.length ?? 0
+  const maxBranches = clinic.plan.limits.maxBranches
+  if (currentBranchCount >= maxBranches) {
+    throw conflict(`Branch limit reached. Your ${clinic.plan.type} plan allows up to ${maxBranches} branch(es). Upgrade to add more.`)
   }
   const branch = await addBranchToClinic(clinicId, body)
   return {
@@ -457,19 +475,19 @@ export async function getMyDoctorProfile(auth: { role?: string; clinicId?: strin
     },
     branch: branches[0]
       ? {
-          _id: branches[0]._id.toHexString(),
-          name: branches[0].name,
-          phone: branches[0].phone,
-          address: branches[0].address,
-          workingHours: branches[0].workingHours,
-          isActive: branches[0].isActive,
-        }
+        _id: branches[0]._id.toHexString(),
+        name: branches[0].name,
+        phone: branches[0].phone,
+        address: branches[0].address,
+        workingHours: branches[0].workingHours,
+        isActive: branches[0].isActive,
+      }
       : null,
     services: services.map((s) => ({
       _id: s._id.toHexString(),
       title: s.title,
       description: s.description,
-      category: s.category,
+      categoryId: s.categoryId.toHexString(),
       durationMin: s.durationMin,
       price: s.price,
     })),
@@ -515,6 +533,182 @@ export async function updateMyDoctorSchedule(auth: { role?: string; clinicId?: s
   return { message: "Schedule updated successfully" }
 }
 
+/**
+ * Add category (clinic owner)
+ */
+export async function addCategory(clinicId: string, body: CreateCategoryBody) {
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const category = await addCategoryToClinic(clinicId, body.name)
+  return {
+    message: "Category created successfully",
+    category: {
+      _id: category._id.toHexString(),
+      name: category.name,
+      createdAt: category.createdAt.toISOString(),
+      updatedAt: category.updatedAt.toISOString(),
+    },
+  }
+}
+
+/**
+ * Update category (clinic owner)
+ */
+export async function updateCategory(clinicId: string, categoryId: string, body: UpdateCategoryBody) {
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const hasCategory = (clinic.categories ?? []).some((c) => c._id.toHexString() === categoryId)
+  if (!hasCategory) throw notFound("Category not found")
+  if (body.name == null) return { message: "No changes" }
+  const success = await updateCategoryInClinic(clinicId, categoryId, body.name)
+  if (!success) throw new Error("Failed to update category")
+  return { message: "Category updated successfully" }
+}
+
+/**
+ * Delete category (clinic owner)
+ */
+export async function deleteCategory(clinicId: string, categoryId: string) {
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const success = await removeCategoryFromClinic(clinicId, categoryId)
+  if (!success) throw notFound("Category not found")
+  return { message: "Category deleted successfully" }
+}
+
+// --- Services ---
+
+/**
+ * Add service (clinic owner). Requires at least one branch, one doctor, and one category. Checks plan limits.
+ */
+export async function addService(clinicId: string, body: CreateServiceBody) {
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  if (!clinic.branches?.length) throw conflict("Cannot create a service without an existing branch. Create a branch first.")
+  if (!clinic.doctors?.length) throw conflict("Cannot create a service without an existing doctor. Create a doctor first.")
+  if (!clinic.categories?.length) throw conflict("Cannot create a service without an existing category. Create a category first.")
+  const currentServiceCount = clinic.services?.length ?? 0
+  const maxServices = clinic.plan.limits.maxServices
+  if (currentServiceCount >= maxServices) {
+    throw conflict(`Service limit reached. Your ${clinic.plan.type} plan allows up to ${maxServices} service(s). Upgrade to add more.`)
+  }
+  const hasCategory = (clinic.categories ?? []).some((c) => c._id.toHexString() === body.categoryId)
+  if (!hasCategory) throw notFound("Category not found")
+  for (const bid of body.branchIds) {
+    const hasBranch = clinic.branches.some((b) => b._id.toHexString() === bid)
+    if (!hasBranch) throw notFound(`Branch not found: ${bid}`)
+  }
+  for (const did of body.doctorIds) {
+    const hasDoctor = clinic.doctors.some((d) => d._id.toHexString() === did)
+    if (!hasDoctor) throw notFound(`Doctor not found: ${did}`)
+  }
+  const price = {
+    ...body.price,
+    currency: body.price.currency ?? "UZS",
+  }
+  const service = await addServiceToClinic(clinicId, {
+    title: body.title,
+    description: body.description ?? "",
+    serviceImage: body.serviceImage ?? null,
+    categoryId: body.categoryId,
+    durationMin: body.durationMin,
+    price,
+    branchIds: body.branchIds,
+    doctorIds: body.doctorIds,
+  })
+  return {
+    message: "Service created successfully",
+    service: mapServiceToResponse(service),
+  }
+}
+
+/**
+ * Update service (clinic owner)
+ */
+export async function updateService(clinicId: string, serviceId: string, body: UpdateServiceBody) {
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const existing = (clinic.services ?? []).find((s) => s._id.toHexString() === serviceId)
+  if (!existing) throw notFound("Service not found")
+  if (body.categoryId != null) {
+    const hasCategory = (clinic.categories ?? []).some((c) => c._id.toHexString() === body.categoryId)
+    if (!hasCategory) throw notFound("Category not found")
+  }
+  if (body.branchIds != null && body.branchIds.length > 0) {
+    for (const bid of body.branchIds) {
+      const hasBranch = clinic.branches?.some((b) => b._id.toHexString() === bid)
+      if (!hasBranch) throw notFound(`Branch not found: ${bid}`)
+    }
+  }
+  if (body.doctorIds != null && body.doctorIds.length > 0) {
+    for (const did of body.doctorIds) {
+      const hasDoctor = clinic.doctors?.some((d) => d._id.toHexString() === did)
+      if (!hasDoctor) throw notFound(`Doctor not found: ${did}`)
+    }
+  }
+  const updates: Parameters<typeof updateServiceInClinic>[2] = {}
+  if (body.title != null) updates.title = body.title
+  if (body.description != null) updates.description = body.description
+  if (body.serviceImage !== undefined) updates.serviceImage = body.serviceImage ?? null
+  if (body.categoryId != null) updates.categoryId = body.categoryId
+  if (body.durationMin != null) updates.durationMin = body.durationMin
+  if (body.price != null) updates.price = { ...body.price, currency: body.price.currency ?? "UZS" }
+  if (body.branchIds != null) updates.branchIds = body.branchIds
+  if (body.doctorIds != null) updates.doctorIds = body.doctorIds
+  const success = await updateServiceInClinic(clinicId, serviceId, updates)
+  if (!success) throw new Error("Failed to update service")
+  return { message: "Service updated successfully" }
+}
+
+/**
+ * Set service active/inactive (clinic owner)
+ */
+export async function setServiceStatus(clinicId: string, serviceId: string, isActive: boolean) {
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const hasService = (clinic.services ?? []).some((s) => s._id.toHexString() === serviceId)
+  if (!hasService) throw notFound("Service not found")
+  const success = await setServiceStatusInClinic(clinicId, serviceId, isActive)
+  if (!success) throw new Error("Failed to update service status")
+  return { message: isActive ? "Service activated" : "Service set inactive" }
+}
+
+/**
+ * Delete service (clinic owner)
+ */
+export async function deleteService(clinicId: string, serviceId: string) {
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const success = await removeServiceFromClinic(clinicId, serviceId)
+  if (!success) throw notFound("Service not found")
+  return { message: "Service deleted successfully" }
+}
+
+function mapServiceToResponse(service: ClinicService) {
+  return {
+    _id: service._id.toHexString(),
+    title: service.title,
+    description: service.description,
+    serviceImage: service.serviceImage,
+    categoryId: service.categoryId.toHexString(),
+    durationMin: service.durationMin,
+    price: service.price,
+    branchIds: (service.branchIds ?? []).map((id) => id.toHexString()),
+    doctorIds: (service.doctorIds ?? []).map((id) => id.toHexString()),
+    isActive: service.isActive,
+    createdAt: service.createdAt.toISOString(),
+    updatedAt: service.updatedAt.toISOString(),
+  }
+}
+
 function toObjectId(id: string): ObjectId {
   return new ObjectId(id)
+}
+
+/**
+ * Run migration to update all clinics with the latest plan limits
+ */
+export async function runPlanLimitsMigration() {
+  const result = await migratePlanLimits()
+  return { message: `Successfully updated ${result.updated} clinic(s) with new plan limits` }
 }

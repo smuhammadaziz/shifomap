@@ -28,6 +28,7 @@ interface Doctor {
   bio: string
   avatarUrl: string | null
   branchIds: string[]
+  serviceIds?: string[]
   isActive: boolean
   lastLoginAt?: string | null
   createdAt?: string
@@ -39,9 +40,15 @@ interface Branch {
   name: string
 }
 
+interface Service {
+  _id: string
+  title: string
+}
+
 interface ClinicData {
   branches?: Branch[]
   doctors?: Doctor[]
+  services?: Service[]
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -103,6 +110,10 @@ export default function DoctorsPage() {
   const hasBranches = branches.length > 0
   const branchNames: Record<string, string> = (clinic?.branches ?? []).reduce(
     (acc, b) => ({ ...acc, [b._id]: b.name }),
+    {}
+  )
+  const serviceNames: Record<string, string> = (clinic?.services ?? []).reduce(
+    (acc, s) => ({ ...acc, [s._id]: s.title }),
     {}
   )
 
@@ -380,6 +391,7 @@ export default function DoctorsPage() {
       <DoctorDetailsModal
         doctor={detailsDoctor}
         branchNames={branchNames}
+        serviceNames={serviceNames}
         onClose={() => setDetailsDoctor(null)}
       />
     </div>

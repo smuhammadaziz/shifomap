@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@/contexts/language-context'
 import { Button } from '@/components/ui/button'
-import { X, Briefcase, FileText, MapPin, Clock } from 'lucide-react'
+import { X, Briefcase, FileText, MapPin, Clock, Stethoscope } from 'lucide-react'
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop'
 
@@ -14,24 +14,21 @@ interface Doctor {
   bio: string
   avatarUrl: string | null
   branchIds: string[]
+  serviceIds?: string[]
   isActive: boolean
   lastLoginAt?: string | null
   createdAt?: string
   updatedAt?: string
 }
 
-interface Branch {
-  _id: string
-  name: string
-}
-
 interface DoctorDetailsModalProps {
   doctor: Doctor | null
   branchNames: Record<string, string>
+  serviceNames?: Record<string, string>
   onClose: () => void
 }
 
-export function DoctorDetailsModal({ doctor, branchNames, onClose }: DoctorDetailsModalProps) {
+export function DoctorDetailsModal({ doctor, branchNames, serviceNames = {}, onClose }: DoctorDetailsModalProps) {
   const { t } = useLanguage()
 
   if (!doctor) return null
@@ -39,6 +36,11 @@ export function DoctorDetailsModal({ doctor, branchNames, onClose }: DoctorDetai
   const avatarUrl = doctor.avatarUrl || DEFAULT_AVATAR
   const branchId = doctor.branchIds?.[0]
   const branchName = branchId ? branchNames[branchId] ?? branchId : '—'
+  const serviceIds = doctor.serviceIds ?? []
+  const assignedServiceNames = serviceIds
+    .map((id) => serviceNames[id])
+    .filter(Boolean) as string[]
+  const hasServices = assignedServiceNames.length > 0
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -105,6 +107,18 @@ export function DoctorDetailsModal({ doctor, branchNames, onClose }: DoctorDetai
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wide">{t.doctors.branch}</p>
                   <p className="text-sm font-medium text-gray-900">{branchName}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 shrink-0">
+                  <Stethoscope className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">{t.services.title}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {hasServices ? assignedServiceNames.join(', ') : '—'}
+                  </p>
                 </div>
               </div>
 

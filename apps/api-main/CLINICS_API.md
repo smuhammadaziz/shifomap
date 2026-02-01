@@ -56,8 +56,8 @@ Authorization: Bearer <platform-admin-token>
       "expiresAt": null,
       "limits": {
         "maxBranches": 1,
-        "maxServices": 10,
-        "maxAdmins": 2
+        "maxServices": 5,
+        "maxAdmins": 1
       }
     },
     "ranking": {
