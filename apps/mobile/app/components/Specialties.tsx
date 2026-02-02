@@ -1,30 +1,36 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '../../store/auth-store';
+import { getTranslations } from '../../lib/translations';
 
 const categories = [
-    { name: 'Diagnostics', icon: 'pulse' },
-    { name: 'Dentist', icon: 'medkit' },
-    { name: 'Cardiology', icon: 'heart' },
-    { name: 'Neurology', icon: 'headset' },
+  { nameKey: 'Diagnostics' as const, nameUz: 'Diagnostika', nameRu: 'Диагностика', icon: 'pulse' as const },
+  { nameKey: 'Dentist' as const, nameUz: 'Stomatolog', nameRu: 'Стоматолог', icon: 'medkit' as const },
+  { nameKey: 'Cardiology' as const, nameUz: 'Kardiologiya', nameRu: 'Кардиология', icon: 'heart' as const },
+  { nameKey: 'Neurology' as const, nameUz: 'Nevrologiya', nameRu: 'Неврология', icon: 'headset' as const },
 ];
 
 const Specialties = () => {
-    return (
-        <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Quick Categories</Text>
+  const language = useAuthStore((s) => s.language);
+  const t = getTranslations(language);
+  return (
+    <View style={styles.sectionContainer}>
+      <Text style={styles.sectionTitle}>{t.quickCategories}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {categories.map((item, index) => (
-                    <TouchableOpacity key={index} style={[styles.chip, index === 0 && styles.chipActive]}>
-                        <Ionicons
-                            name={item.icon as any}
-                            size={20}
-                            color={index === 0 ? '#ffffff' : '#a1a1aa'}
-                            style={styles.chipIcon}
-                        />
-                        <Text style={[styles.chipText, index === 0 && styles.chipTextActive]}>{item.name}</Text>
-                    </TouchableOpacity>
-                ))}
+      {categories.map((item, index) => (
+        <TouchableOpacity key={index} style={[styles.chip, index === 0 && styles.chipActive]}>
+          <Ionicons
+            name={item.icon}
+            size={20}
+            color={index === 0 ? '#ffffff' : '#a1a1aa'}
+            style={styles.chipIcon}
+          />
+          <Text style={[styles.chipText, index === 0 && styles.chipTextActive]}>
+            {language === 'ru' ? item.nameRu : item.nameUz}
+          </Text>
+        </TouchableOpacity>
+      ))}
             </ScrollView>
         </View>
     );

@@ -12,6 +12,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1, "JWT_SECRET is required"),
   JWT_ISSUER: z.string().default("api-main"),
   JWT_EXPIRES_IN: z.string().default("7d"),
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -29,6 +30,7 @@ function loadEnv(): Env {
     JWT_SECRET: process.env.JWT_SECRET,
     JWT_ISSUER: process.env.JWT_ISSUER,
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   })
 
   if (!parsed.success) {

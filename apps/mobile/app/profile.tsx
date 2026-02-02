@@ -1,132 +1,115 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuthStore, DEFAULT_AVATAR } from '../store/auth-store';
+import { getTranslations } from '../lib/translations';
 
 const ProfileDashboard = () => {
-    const router = useRouter();
+  const router = useRouter();
+  const language = useAuthStore((s) => s.language);
+  const patient = useAuthStore((s) => s.patient);
+  const logout = useAuthStore((s) => s.logout);
+  const t = getTranslations(language);
 
-    return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={24} color="#ffffff" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Profile Dashboard</Text>
-                <View style={{ width: 32 }} />
+  const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi');
+  const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
+
+  const onLogout = async () => {
+    await logout();
+    router.replace('/(auth)/login');
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{t.profileDashboard}</Text>
+        <View style={{ width: 32 }} />
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.userSection}>
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            <View style={styles.onlineBadge} />
+          </View>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{displayName}</Text>
+            <View style={styles.premiumTag}>
+              <FontAwesome5 name="crown" size={12} color="#8b5cf6" style={{ marginRight: 6 }} />
+              <Text style={styles.premiumText}>{t.premiumMember}</Text>
             </View>
+          </View>
+        </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>{t.upNext}</Text>
+          <TouchableOpacity><Text style={styles.seeAll}>{t.seeAll}</Text></TouchableOpacity>
+        </View>
 
-                {/* User Info */}
-                <View style={styles.userSection}>
-                    <View style={styles.avatarContainer}>
-                        <Image source={{ uri: 'https://i.pravatar.cc/150?u=a' }} style={styles.avatar} />
-                        <View style={styles.onlineBadge} />
-                    </View>
-                    <View style={styles.userInfo}>
-                        <Text style={styles.userName}>Alex Morgan</Text>
-                        <View style={styles.premiumTag}>
-                            <FontAwesome5 name="crown" size={12} color="#8b5cf6" style={{ marginRight: 6 }} />
-                            <Text style={styles.premiumText}>Premium Member</Text>
-                        </View>
-                    </View>
-                </View>
+        <View style={styles.upNextCard}>
+          <View style={styles.upNextHeader}>
+            <View style={styles.consultationTag}>
+              <Text style={styles.consultationText}>{t.consultation}</Text>
+            </View>
+            <TouchableOpacity style={styles.videoButton}>
+              <Ionicons name="videocam" size={20} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.timeText}>10:00 AM</Text>
+          <Text style={styles.dateText}>Today, Oct 24</Text>
+          <View style={styles.doctorRow}>
+            <Image source={{ uri: 'https://i.pravatar.cc/150?u=dr' }} style={styles.doctorAvatar} />
+            <View style={styles.doctorInfo}>
+              <Text style={styles.doctorName}>Dr. Sarah Jenkins</Text>
+              <Text style={styles.doctorSpecialty}>Cardiologist</Text>
+            </View>
+          </View>
+        </View>
 
-                {/* Up Next Card */}
-                <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionTitle}>Up Next</Text>
-                    <TouchableOpacity><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
-                </View>
+        <TouchableOpacity style={styles.historyCard}>
+          <View style={styles.historyIconBox}>
+            <Ionicons name="time-outline" size={24} color="#ffffff" />
+          </View>
+          <View style={styles.historyInfo}>
+            <Text style={styles.historyTitle}>{t.visitHistory}</Text>
+            <Text style={styles.historySubtitle}>{t.visitHistorySubtitle}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#a1a1aa" />
+        </TouchableOpacity>
 
-                <View style={styles.upNextCard}>
-                    <View style={styles.upNextHeader}>
-                        <View style={styles.consultationTag}>
-                            <Text style={styles.consultationText}>CONSULTATION</Text>
-                        </View>
-                        <TouchableOpacity style={styles.videoButton}>
-                            <Ionicons name="videocam" size={20} color="#ffffff" />
-                        </TouchableOpacity>
-                    </View>
-                    <Text style={styles.timeText}>10:00 AM</Text>
-                    <Text style={styles.dateText}>Today, Oct 24</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 16 }]}>{t.dailyMeds}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.medsScroll}>
+          <MedCard name="Vitamin D" schedule={`8:00 AM • ${t.taken}`} icon="capsules" color="#22c55e" bgColor="rgba(34, 197, 94, 0.1)" />
+          <MedCard name="Amoxicillin" schedule={`2:00 PM • ${t.upcoming}`} icon="pills" color="#f97316" bgColor="rgba(249, 115, 22, 0.1)" />
+          <MedCard name="Iron Supp" schedule={`8:00 PM • ${t.upcoming}`} icon="glass-whiskey" color="#3b82f6" bgColor="rgba(59, 130, 246, 0.1)" />
+        </ScrollView>
 
-                    <View style={styles.doctorRow}>
-                        <Image source={{ uri: 'https://i.pravatar.cc/150?u=dr' }} style={styles.doctorAvatar} />
-                        <View style={styles.doctorInfo}>
-                            <Text style={styles.doctorName}>Dr. Sarah Jenkins</Text>
-                            <Text style={styles.doctorSpecialty}>Cardiologist</Text>
-                        </View>
-                    </View>
-                </View>
+        <View style={styles.settingsGroup}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/settings')}>
+            <Ionicons name="settings-outline" size={22} color="#a1a1aa" style={styles.settingIcon} />
+            <Text style={styles.settingLabel}>{t.settings}</Text>
+            <Ionicons name="chevron-forward" size={20} color="#52525b" />
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.settingRow}>
+            <Ionicons name="card-outline" size={22} color="#a1a1aa" style={styles.settingIcon} />
+            <Text style={styles.settingLabel}>{t.paymentMethods}</Text>
+            <Ionicons name="chevron-forward" size={20} color="#52525b" />
+          </TouchableOpacity>
+        </View>
 
-                {/* Visit History Button */}
-                <TouchableOpacity style={styles.historyCard}>
-                    <View style={styles.historyIconBox}>
-                        <Ionicons name="time-outline" size={24} color="#ffffff" />
-                    </View>
-                    <View style={styles.historyInfo}>
-                        <Text style={styles.historyTitle}>Visit History</Text>
-                        <Text style={styles.historySubtitle}>View past consultations & notes</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#a1a1aa" />
-                </TouchableOpacity>
-
-                {/* Daily Meds */}
-                <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 16 }]}>Daily Meds</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.medsScroll}>
-                    <MedCard
-                        name="Vitamin D"
-                        schedule="8:00 AM • Taken"
-                        icon="capsules"
-                        color="#22c55e"
-                        bgColor="rgba(34, 197, 94, 0.1)"
-                    />
-                    <MedCard
-                        name="Amoxicillin"
-                        schedule="2:00 PM • Upcoming"
-                        icon="pills"
-                        color="#f97316"
-                        bgColor="rgba(249, 115, 22, 0.1)"
-                    />
-                    <MedCard
-                        name="Iron Supp"
-                        schedule="8:00 PM • Upcoming"
-                        icon="glass-whiskey"
-                        color="#3b82f6"
-                        bgColor="rgba(59, 130, 246, 0.1)"
-                    />
-                </ScrollView>
-
-                {/* Settings Links */}
-                <View style={styles.settingsGroup}>
-                    <TouchableOpacity
-                        style={styles.settingRow}
-                        onPress={() => router.push('/settings')}
-                    >
-                        <Ionicons name="settings-outline" size={22} color="#a1a1aa" style={styles.settingIcon} />
-                        <Text style={styles.settingLabel}>Settings</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#52525b" />
-                    </TouchableOpacity>
-                    <View style={styles.divider} />
-                    <TouchableOpacity style={styles.settingRow}>
-                        <Ionicons name="card-outline" size={22} color="#a1a1aa" style={styles.settingIcon} />
-                        <Text style={styles.settingLabel}>Payment Methods</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#52525b" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Logout */}
-                <TouchableOpacity style={styles.logoutButton}>
-                    <Ionicons name="log-out-outline" size={20} color="#ef4444" style={{ marginRight: 8 }} />
-                    <Text style={styles.logoutText}>Log Out</Text>
-                </TouchableOpacity>
-
-            </ScrollView>
-        </SafeAreaView>
-    );
+        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#ef4444" style={{ marginRight: 8 }} />
+          <Text style={styles.logoutText}>{t.logOut}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const MedCard = ({ name, schedule, icon, color, bgColor }: any) => (

@@ -5,79 +5,77 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Specialties from '../components/Specialties';
 import FeaturedClinics from '../components/FeaturedClinics';
+import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
+import { getTranslations } from '../../lib/translations';
 
 const HomeScreen = () => {
-    const router = useRouter();
+  const router = useRouter();
+  const language = useAuthStore((s) => s.language);
+  const patient = useAuthStore((s) => s.patient);
+  const t = getTranslations(language);
 
-    return (
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {/* Header Section */}
-                <View style={styles.header}>
-                    <View style={styles.headerTextContainer}>
-                        <View style={styles.greetingRow}>
-                            <Text style={styles.greeting}>Hi, Aziz</Text>
-                            <Text style={styles.waveEmoji}>👋</Text>
-                        </View>
-                        <Text style={styles.subtitle}>Find and book medical services easily</Text>
-                    </View>
-                    <TouchableOpacity
-                        style={styles.avatarContainer}
-                        onPress={() => router.push('/profile')}
-                    >
-                        <Image
-                            source={{ uri: 'https://i.pravatar.cc/150?u=aziz' }}
-                            style={styles.avatar}
-                        />
-                        <View style={styles.onlineIndicator} />
-                    </TouchableOpacity>
-                </View>
+  const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Гость' : 'Mehmon');
+  const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
 
-                {/* Search Section */}
-                <View style={styles.searchSection}>
-                    <View style={styles.searchContainer}>
-                        <Ionicons name="search" size={20} color="#a1a1aa" style={styles.searchIcon} />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search clinics or services"
-                            placeholderTextColor="#a1a1aa"
-                        />
-                    </View>
-                    <TouchableOpacity style={styles.filterButton}>
-                        <Ionicons name="options-outline" size={24} color="#ffffff" />
-                    </TouchableOpacity>
-                </View>
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <View style={styles.headerTextContainer}>
+            <View style={styles.greetingRow}>
+              <Text style={styles.greeting}>{t.greeting}, {displayName}</Text>
+              <Text style={styles.waveEmoji}>👋</Text>
+            </View>
+            <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={() => router.push('/profile')}
+          >
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            <View style={styles.onlineIndicator} />
+          </TouchableOpacity>
+        </View>
 
-                {/* Dashboard Cards */}
-                <View style={styles.dashboardContainer}>
-                    <TouchableOpacity style={styles.dashboardCard}>
-                        <View style={[styles.iconContainer, { backgroundColor: '#3b0764' }]}>
-                            <Ionicons name="calendar" size={24} color="#a78bfa" />
-                        </View>
-                        <Text style={styles.cardTitle}>My Appointments</Text>
-                        <Text style={styles.cardSubtitle}>Next: Tomorrow, 10 AM</Text>
-                    </TouchableOpacity>
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#a1a1aa" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t.searchPlaceholder}
+              placeholderTextColor="#a1a1aa"
+            />
+          </View>
+          <TouchableOpacity style={styles.filterButton}>
+            <Ionicons name="options-outline" size={24} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
 
-                    <TouchableOpacity style={styles.dashboardCard}>
-                        <View style={[styles.iconContainer, { backgroundColor: '#3b0764' }]}>
-                            <Ionicons name="medical" size={24} color="#a78bfa" />
-                        </View>
-                        <Text style={styles.cardTitle}>Pill Reminders</Text>
-                        <Text style={styles.cardSubtitle}>3 pills remaining today</Text>
-                    </TouchableOpacity>
-                </View>
+        <View style={styles.dashboardContainer}>
+          <TouchableOpacity style={styles.dashboardCard}>
+            <View style={[styles.iconContainer, { backgroundColor: '#3b0764' }]}>
+              <Ionicons name="calendar" size={24} color="#a78bfa" />
+            </View>
+            <Text style={styles.cardTitle}>{t.myAppointments}</Text>
+            <Text style={styles.cardSubtitle}>{t.nextAppointment}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dashboardCard}>
+            <View style={[styles.iconContainer, { backgroundColor: '#3b0764' }]}>
+              <Ionicons name="medical" size={24} color="#a78bfa" />
+            </View>
+            <Text style={styles.cardTitle}>{t.pillReminders}</Text>
+            <Text style={styles.cardSubtitle}>{t.pillsRemaining}</Text>
+          </TouchableOpacity>
+        </View>
 
-                {/* Categories */}
-                <Specialties />
+        <Specialties />
 
-                {/* Featured Clinics */}
-                <FeaturedClinics />
+        <FeaturedClinics />
 
-                {/* Bottom padding for tab bar */}
-                <View style={{ height: 120 }} />
-            </ScrollView>
-        </SafeAreaView>
-    );
+        <View style={{ height: 120 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({

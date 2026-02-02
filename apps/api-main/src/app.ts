@@ -4,6 +4,7 @@ import { healthRoutes } from "@/modules/health/health.routes"
 import { authRoutes } from "@/modules/auth/auth.routes"
 import { usersRoutes } from "@/modules/users/users.routes"
 import { clinicsRoutes } from "@/modules/clinics/clinics.routes"
+import { patientsRoutes } from "@/modules/patients/patients.routes"
 import { AppError } from "@/common/errors"
 
 // V1 API routes
@@ -11,6 +12,7 @@ const v1 = new Elysia({ prefix: "/v1" })
   .use(authRoutes)
   .use(usersRoutes)
   .use(clinicsRoutes)
+  .use(patientsRoutes)
 
 // Main Elysia app
 export const app = new Elysia()

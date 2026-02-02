@@ -1,4 +1,4 @@
-import { getDb, PLATFORM_ADMIN_COLLECTION, CLINICS_COLLECTION } from "./mongo"
+import { getDb, PLATFORM_ADMIN_COLLECTION, CLINICS_COLLECTION, PATIENTS_COLLECTION } from "./mongo"
 
 /**
  * Create indexes for platform_admin collection
@@ -32,6 +32,22 @@ export async function createIndexes(): Promise<void> {
     await clinicsColl.createIndex({ status: 1 })
     await clinicsColl.createIndex({ createdAt: -1 })
     await clinicsColl.createIndex({ deletedAt: 1 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (!msg.includes("already exists") && !msg.includes("duplicate")) {
+      throw e
+    }
+  }
+
+  // Patients indexes
+  const patientsColl = database.collection(PATIENTS_COLLECTION)
+  try {
+    await patientsColl.createIndex({ "contacts.email": 1 }, { sparse: true })
+    await patientsColl.createIndex({ "contacts.phone": 1 }, { unique: true })
+    await patientsColl.createIndex({ "auth.googleId": 1 }, { sparse: true })
+    await patientsColl.createIndex({ status: 1 })
+    await patientsColl.createIndex({ "auth.lastLoginAt": -1 })
+    await patientsColl.createIndex({ deletedAt: 1 })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     if (!msg.includes("already exists") && !msg.includes("duplicate")) {

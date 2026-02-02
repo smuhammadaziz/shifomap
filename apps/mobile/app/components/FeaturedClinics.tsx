@@ -1,35 +1,39 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '../../store/auth-store';
+import { getTranslations } from '../../lib/translations';
 
 const featuredClinics = [
-    {
-        name: 'Prime Health Center',
-        distance: '1.2 km away',
-        description: 'Top-tier cardiology and general diagnostics with expert staff.',
-        rating: 4.9,
-        price: '$80 - $150',
-        image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400'
-    },
-    {
-        name: 'Visionary Dental',
-        distance: '3.5 km away',
-        description: 'Specialized orthodontic treatments and emergency care.',
-        rating: 4.7,
-        price: '$45 - $200',
-        image: 'https://images.unsplash.com/photo-1516549655169-df83a0833360?auto=format&fit=crop&q=80&w=400'
-    },
+  {
+    name: 'Prime Health Center',
+    distanceKey: '1.2',
+    description: 'Top-tier cardiology and general diagnostics with expert staff.',
+    rating: 4.9,
+    price: '$80 - $150',
+    image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400',
+  },
+  {
+    name: 'Visionary Dental',
+    distanceKey: '3.5',
+    description: 'Specialized orthodontic treatments and emergency care.',
+    rating: 4.7,
+    price: '$45 - $200',
+    image: 'https://images.unsplash.com/photo-1516549655169-df83a0833360?auto=format&fit=crop&q=80&w=400',
+  },
 ];
 
 const FeaturedClinics = () => {
-    return (
-        <View style={styles.sectionContainer}>
-            <View style={styles.headerRow}>
-                <Text style={styles.sectionTitle}>FEATURED CLINICS</Text>
-                <TouchableOpacity>
-                    <Text style={styles.viewAll}>View All</Text>
-                </TouchableOpacity>
-            </View>
+  const language = useAuthStore((s) => s.language);
+  const t = getTranslations(language);
+  return (
+    <View style={styles.sectionContainer}>
+      <View style={styles.headerRow}>
+        <Text style={styles.sectionTitle}>{t.featuredClinics}</Text>
+        <TouchableOpacity>
+          <Text style={styles.viewAll}>{t.viewAll}</Text>
+        </TouchableOpacity>
+      </View>
 
             {featuredClinics.map((clinic, index) => (
                 <View key={index} style={styles.clinicCard}>
@@ -48,8 +52,8 @@ const FeaturedClinics = () => {
                                 <Text style={styles.priceText}>{clinic.price}</Text>
                             </View>
                             <View style={styles.distanceRow}>
-                                <Ionicons name="location-outline" size={14} color="#a1a1aa" />
-                                <Text style={styles.distanceText}>{clinic.distance}</Text>
+                              <Ionicons name="location-outline" size={14} color="#a1a1aa" />
+                              <Text style={styles.distanceText}>{clinic.distanceKey} {t.kmAway}</Text>
                             </View>
                         </View>
                     </View>

@@ -1,142 +1,200 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Switch, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useAuthStore, DEFAULT_AVATAR } from '../store/auth-store';
+import { getTranslations } from '../lib/translations';
+import { updateMe } from '../lib/api';
 
 export default function SettingsScreen() {
-    const router = useRouter();
-    const [toggles, setToggles] = useState({
-        appointments: true,
-        pills: true,
-        general: false,
-    });
+  const router = useRouter();
+  const language = useAuthStore((s) => s.language);
+  const patient = useAuthStore((s) => s.patient);
+  const setPatient = useAuthStore((s) => s.setPatient);
+  const setLanguage = useAuthStore((s) => s.setLanguage);
+  const logout = useAuthStore((s) => s.logout);
+  const t = getTranslations(language);
 
-    const toggleSwitch = (key: keyof typeof toggles) => {
-        setToggles(prev => ({ ...prev, [key]: !prev[key] }));
-    };
+  const [toggles, setToggles] = useState({
+    appointments: true,
+    pills: true,
+    general: false,
+  });
 
-    return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={24} color="#ffffff" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Settings</Text>
-                <TouchableOpacity>
-                    <Ionicons name="notifications-outline" size={24} color="#ffffff" />
-                </TouchableOpacity>
-            </View>
+  useEffect(() => {
+    if (patient?.preferences) {
+      setToggles((prev) => ({
+        ...prev,
+        general: patient.preferences.notificationsEnabled ?? prev.general,
+      }));
+    }
+  }, [patient?.preferences?.notificationsEnabled]);
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* User Mini Card */}
-                <View style={styles.userCard}>
-                    <Image source={{ uri: 'https://i.pravatar.cc/150?u=aziz' }} style={styles.avatar} />
-                    <View style={styles.userInfo}>
-                        <Text style={styles.userName}>Aziz Rahmad</Text>
-                        <View style={styles.badgeContainer}>
-                            <Text style={styles.badgeText}>Patient account</Text>
-                        </View>
-                    </View>
-                </View>
+  const toggleSwitch = (key: keyof typeof toggles) => {
+    const next = !toggles[key];
+    setToggles((prev) => ({ ...prev, [key]: next }));
+    if (key === 'general') {
+      updateMe({ preferences: { notificationsEnabled: next } })
+        .then((p) => setPatient(p))
+        .catch(() => {});
+    }
+  };
 
-                {/* Account Settings */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>ACCOUNT SETTINGS</Text>
-                    <View style={styles.card}>
-                        <SettingItem icon="person-circle-outline" label="Edit Profile" />
-                        <SettingItem icon="document-text-outline" label="Personal Information" />
-                        <SettingItem icon="globe-outline" label="Language" value="English" />
-                    </View>
-                </View>
+  const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi');
+  const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
+  const languageLabel = language === 'ru' ? t.langRussian : t.langUzbek;
 
-                {/* Notifications */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
-                    <View style={styles.card}>
-                        <View style={styles.row}>
-                            <View style={styles.rowLeft}>
-                                <View style={[styles.iconBox, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-                                    <Ionicons name="calendar-outline" size={20} color="#22c55e" />
-                                </View>
-                                <Text style={styles.rowLabel}>Appointment reminders</Text>
-                            </View>
-                            <Switch
-                                value={toggles.appointments}
-                                onValueChange={() => toggleSwitch('appointments')}
-                                trackColor={{ false: '#3f3f46', true: '#8b5cf6' }}
-                                thumbColor={'#ffffff'}
-                            />
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.row}>
-                            <View style={styles.rowLeft}>
-                                <View style={[styles.iconBox, { backgroundColor: 'rgba(167, 139, 250, 0.1)' }]}>
-                                    <Ionicons name="medical-outline" size={20} color="#a78bfa" />
-                                </View>
-                                <Text style={styles.rowLabel}>Pill reminders</Text>
-                            </View>
-                            <Switch
-                                value={toggles.pills}
-                                onValueChange={() => toggleSwitch('pills')}
-                                trackColor={{ false: '#3f3f46', true: '#8b5cf6' }}
-                                thumbColor={'#ffffff'}
-                            />
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.row}>
-                            <View style={styles.rowLeft}>
-                                <View style={[styles.iconBox, { backgroundColor: 'rgba(113, 113, 122, 0.1)' }]}>
-                                    <Ionicons name="notifications-outline" size={20} color="#a1a1aa" />
-                                </View>
-                                <Text style={styles.rowLabel}>General notifications</Text>
-                            </View>
-                            <Switch
-                                value={toggles.general}
-                                onValueChange={() => toggleSwitch('general')}
-                                trackColor={{ false: '#3f3f46', true: '#8b5cf6' }}
-                                thumbColor={'#ffffff'}
-                            />
-                        </View>
-                    </View>
-                </View>
-
-                {/* Health & Security */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>HEALTH & SECURITY</Text>
-                    <View style={styles.card}>
-                        <SettingItem icon="alarm-outline" label="Pill reminder settings" />
-                        <SettingItem icon="shield-checkmark-outline" label="Privacy Policy" />
-                        <SettingItem icon="lock-closed-outline" label="Change password" />
-                    </View>
-                </View>
-
-                {/* Support */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>SUPPORT</Text>
-                    <View style={styles.card}>
-                        <SettingItem icon="help-circle-outline" label="Help & Support" isExternal />
-                        <SettingItem icon="mail-outline" label="Contact us" />
-                    </View>
-                </View>
-
-                {/* Logout */}
-                <TouchableOpacity style={styles.logoutButton}>
-                    <Ionicons name="log-out-outline" size={20} color="#a1a1aa" style={{ marginRight: 8 }} />
-                    <Text style={styles.logoutText}>Logout</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.versionText}>Version 2.4.1 (Stable Build)</Text>
-                <View style={{ height: 40 }} />
-            </ScrollView>
-        </SafeAreaView>
+  const onLanguagePress = () => {
+    Alert.alert(
+      t.language,
+      undefined,
+      [
+        { text: t.langUzbek, onPress: async () => {
+          await setLanguage('uz');
+          updateMe({ preferences: { language: 'uz' } }).then((p) => setPatient(p)).catch(() => {});
+        }},
+        { text: t.langRussian, onPress: async () => {
+          await setLanguage('ru');
+          updateMe({ preferences: { language: 'ru' } }).then((p) => setPatient(p)).catch(() => {});
+        }},
+        { text: language === 'ru' ? 'Отмена' : 'Bekor qilish', style: 'cancel' },
+      ]
     );
+  };
+
+  const onLogout = async () => {
+    Alert.alert(
+      language === 'ru' ? 'Выйти?' : "Chiqish?",
+      language === 'ru' ? 'Вы уверены?' : "Ishonchingiz komilmi?",
+      [
+        { text: language === 'ru' ? 'Отмена' : 'Bekor qilish', style: 'cancel' },
+        {
+          text: language === 'ru' ? 'Выйти' : 'Chiqish',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{t.settings}</Text>
+        <TouchableOpacity>
+          <Ionicons name="notifications-outline" size={24} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.userCard}>
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{displayName}</Text>
+            <View style={styles.badgeContainer}>
+              <Text style={styles.badgeText}>{t.patientAccount}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>{t.accountSettings}</Text>
+          <View style={styles.card}>
+            <SettingItem icon="person-circle-outline" label={t.editProfile} />
+            <SettingItem icon="document-text-outline" label={t.personalInfo} />
+            <SettingItem icon="globe-outline" label={t.language} value={languageLabel} onPress={onLanguagePress} />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>{t.notifications}</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.iconBox, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
+                  <Ionicons name="calendar-outline" size={20} color="#22c55e" />
+                </View>
+                <Text style={styles.rowLabel}>{t.appointmentReminders}</Text>
+              </View>
+              <Switch
+                value={toggles.appointments}
+                onValueChange={() => toggleSwitch('appointments')}
+                trackColor={{ false: '#3f3f46', true: '#8b5cf6' }}
+                thumbColor={'#ffffff'}
+              />
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.iconBox, { backgroundColor: 'rgba(167, 139, 250, 0.1)' }]}>
+                  <Ionicons name="medical-outline" size={20} color="#a78bfa" />
+                </View>
+                <Text style={styles.rowLabel}>{t.pillRemindersLabel}</Text>
+              </View>
+              <Switch
+                value={toggles.pills}
+                onValueChange={() => toggleSwitch('pills')}
+                trackColor={{ false: '#3f3f46', true: '#8b5cf6' }}
+                thumbColor={'#ffffff'}
+              />
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.iconBox, { backgroundColor: 'rgba(113, 113, 122, 0.1)' }]}>
+                  <Ionicons name="notifications-outline" size={20} color="#a1a1aa" />
+                </View>
+                <Text style={styles.rowLabel}>{t.generalNotifications}</Text>
+              </View>
+              <Switch
+                value={toggles.general}
+                onValueChange={() => toggleSwitch('general')}
+                trackColor={{ false: '#3f3f46', true: '#8b5cf6' }}
+                thumbColor={'#ffffff'}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>{t.healthSecurity}</Text>
+          <View style={styles.card}>
+            <SettingItem icon="alarm-outline" label={t.pillReminderSettings} />
+            <SettingItem icon="shield-checkmark-outline" label={t.privacyPolicy} />
+            <SettingItem icon="lock-closed-outline" label={t.changePassword} />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>{t.support}</Text>
+          <View style={styles.card}>
+            <SettingItem icon="help-circle-outline" label={t.helpSupport} isExternal />
+            <SettingItem icon="mail-outline" label={t.contactUs} />
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#a1a1aa" style={{ marginRight: 8 }} />
+          <Text style={styles.logoutText}>{t.logout}</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.versionText}>{t.version} 2.4.1</Text>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
-const SettingItem = ({ icon, label, value, isExternal }: { icon: string; label: string; value?: string; isExternal?: boolean }) => (
+const SettingItem = ({ icon, label, value, isExternal, onPress }: { icon: string; label: string; value?: string; isExternal?: boolean; onPress?: () => void }) => (
     <>
-        <TouchableOpacity style={styles.row}>
+        <TouchableOpacity style={styles.row} onPress={onPress} disabled={!onPress}>
             <View style={styles.rowLeft}>
                 <View style={styles.iconBox}>
                     <Ionicons name={icon as any} size={20} color="#a78bfa" />
