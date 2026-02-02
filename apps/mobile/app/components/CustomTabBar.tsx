@@ -1,15 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, LayoutChangeEvent, Animated, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, LayoutChangeEvent, Animated } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const NUM_TABS = 3;
 
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const insets = useSafeAreaInsets();
     const [dimensions, setDimensions] = useState({ height: 20, width: 100 });
 
-    // Animated value for the sliding indicator
     const tabPositionX = useRef(new Animated.Value(0)).current;
+    const labelOpacities = useRef(
+        Array.from({ length: NUM_TABS }, () => new Animated.Value(0))
+    ).current;
 
     const buttonWidth = dimensions.width / state.routes.length;
 
@@ -21,14 +25,23 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
     };
 
     useEffect(() => {
-        // Animate the indicator to the new position
         Animated.spring(tabPositionX, {
             toValue: state.index * buttonWidth,
             useNativeDriver: true,
             damping: 15,
             stiffness: 80,
         }).start();
-    }, [state.index, buttonWidth]);
+    }, [state.index, buttonWidth, tabPositionX]);
+
+    useEffect(() => {
+        state.routes.forEach((_, index) => {
+            Animated.timing(labelOpacities[index], {
+                toValue: state.index === index ? 1 : 0,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        });
+    }, [state.index, state.routes]);
 
     return (
         <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
@@ -52,17 +65,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                                 : route.name;
 
                     const isFocused = state.index === index;
-
-                    // Dedicated animated value for the label opacity
-                    const labelOpacity = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
-
-                    useEffect(() => {
-                        Animated.timing(labelOpacity, {
-                            toValue: isFocused ? 1 : 0,
-                            duration: 200,
-                            useNativeDriver: true,
-                        }).start();
-                    }, [isFocused]);
 
                     const onPress = () => {
                         const event = navigation.emit({
@@ -112,11 +114,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                                 size={22}
                                 color={isFocused ? '#ffffff' : '#a1a1aa'}
                             />
-                            {/* Always render the text but animate its opacity */}
                             <Animated.Text
                                 style={[
                                     styles.tabLabel,
-                                    { opacity: labelOpacity, display: isFocused ? 'flex' : 'none' }
+                                    { opacity: labelOpacities[index], display: isFocused ? 'flex' : 'none' }
                                 ]}
                             >
                                 {label as string}
