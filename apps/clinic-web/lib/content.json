@@ -114,7 +114,9 @@
       "searchPlaceholder": "Filiallarni qidirish...",
       "filters": "Filtrlar",
       "totalBranches": "Jami filiallar",
-      "showPerPage": "Sahifada ko'rsatish"
+      "showPerPage": "Sahifada ko'rsatish",
+      "addNew": "Yangi qo'shish",
+      "mapTitle": "Filiallar xaritada"
     },
     "categories": {
       "title": "Kategoriyalar",
@@ -479,7 +481,9 @@
       "searchPlaceholder": "Поиск филиалов...",
       "filters": "Фильтры",
       "totalBranches": "Всего филиалов",
-      "showPerPage": "Показать на странице"
+      "showPerPage": "Показать на странице",
+      "addNew": "Добавить новый",
+      "mapTitle": "Филиалы на карте"
     },
     "categories": {
       "title": "Категории",

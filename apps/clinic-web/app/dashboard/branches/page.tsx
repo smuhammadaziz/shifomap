@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useLanguage } from '@/contexts/language-context'
@@ -16,13 +17,25 @@ import {
   Play,
   Eye,
   MapPinned,
-  ChevronLeft,
-  ChevronRight,
   MoreVertical,
   Ban,
+  Phone,
+  MapPin,
+  Clock,
 } from 'lucide-react'
 import { CreateBranchModal, type BranchForEdit } from './create-branch-modal'
 import { BranchDetailsModal } from './branch-details-modal'
+
+const DAY_KEYS = ['dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat', 'daySun'] as const
+
+const BranchesMap = dynamic(() => import('./branches-map').then((m) => ({ default: m.BranchesMap })), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-gray-200 bg-gray-100 min-h-[400px] flex items-center justify-center text-gray-500">
+      Map loading…
+    </div>
+  ),
+})
 
 interface Branch {
   _id: string
@@ -59,8 +72,6 @@ function getAuthHeaders(): HeadersInit {
 
 type StatusTab = 'all' | 'active' | 'inactive'
 
-const PER_PAGE_OPTIONS = [5, 10, 20, 50]
-
 interface BranchesPageProps {
   embedded?: boolean
 }
@@ -79,9 +90,6 @@ export default function BranchesPage({ embedded }: BranchesPageProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [cityFilter, setCityFilter] = useState<string>('')
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(10)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -158,17 +166,6 @@ export default function BranchesPage({ embedded }: BranchesPageProps) {
     return list
   }, [rawBranches, statusTab, searchQuery, cityFilter])
 
-  const totalFiltered = filteredBranches.length
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / perPage))
-  const paginatedBranches = useMemo(() => {
-    const start = (page - 1) * perPage
-    return filteredBranches.slice(start, start + perPage)
-  }, [filteredBranches, page, perPage])
-
-  useEffect(() => {
-    if (page > totalPages) setPage(1)
-  }, [page, totalPages])
-
   const handleBranchCreated = () => {
     setModalOpen(false)
     setEditBranch(null)
@@ -214,33 +211,9 @@ export default function BranchesPage({ embedded }: BranchesPageProps) {
         `${getApiUrl()}/v1/clinics/my-clinic/branches/${branchId}`,
         { method: 'DELETE', headers: getAuthHeaders() }
       )
-      if (res.ok) {
-        fetchMyClinic()
-        setSelectedIds((prev) => {
-          const next = new Set(prev)
-          next.delete(branchId)
-          return next
-        })
-      }
+      if (res.ok) fetchMyClinic()
     } finally {
       setActionLoading(null)
-    }
-  }
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === paginatedBranches.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(paginatedBranches.map((b) => b._id)))
     }
   }
 
@@ -265,7 +238,7 @@ export default function BranchesPage({ embedded }: BranchesPageProps) {
   }
 
   return (
-    <div className={`space-y-6 ${hasBranches ? 'pb-20' : ''}`}>
+    <div className="space-y-6">
       {!embedded && (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-md">
@@ -306,311 +279,214 @@ export default function BranchesPage({ embedded }: BranchesPageProps) {
         </div>
       )}
 
-      {!hasBranches ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50">
-          <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-6">
-            <GitBranch className="h-8 w-8 text-blue-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
-            {t.branches.emptyTitle}
-          </h2>
-          <p className="text-gray-600 text-center max-w-md mb-8">
-            {t.branches.emptyDesc}
-          </p>
-          <Button size="lg" onClick={openCreate}>
-            <Plus className="h-5 w-5 mr-2" />
-            {t.branches.addBranch}
-          </Button>
-        </div>
-      ) : (
-        <>
-          {/* Tabs, Search, Filters, and Add Button */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50/50 w-fit">
-              <button
-                type="button"
-                onClick={() => setStatusTab('all')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  statusTab === 'all'
-                    ? 'bg-white text-blue-600 shadow-sm border border-gray-200'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {t.branches.viewAll} {rawBranches.length}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusTab('active')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  statusTab === 'active'
-                    ? 'bg-white text-blue-600 shadow-sm border border-gray-200'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {t.branches.active} {rawBranches.filter((b) => b.isActive).length}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusTab('inactive')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  statusTab === 'inactive'
-                    ? 'bg-white text-blue-600 shadow-sm border border-gray-200'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {t.branches.inactive} {rawBranches.filter((b) => !b.isActive).length}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 flex-1 lg:flex-initial">
-              <div className="relative flex-1 lg:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder={t.branches.searchPlaceholder}
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    setPage(1)
-                  }}
-                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFiltersOpen(!filtersOpen)}
-                  className={`gap-2 h-10 ${cityFilter ? 'border-blue-300 bg-blue-50/50' : ''}`}
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  {t.branches.filters}
-                </Button>
-                {filtersOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      aria-hidden
-                      onClick={() => setFiltersOpen(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-xl border border-gray-200 bg-white py-3 px-3 shadow-lg">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                        {t.branches.city}
-                      </p>
-                      <select
-                        value={cityFilter}
-                        onChange={(e) => {
-                          setCityFilter(e.target.value)
-                          setPage(1)
-                        }}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">{t.branches.viewAll}</option>
-                        {cities.map((city) => (
-                          <option key={city} value={city}>
-                            {city}
-                          </option>
-                        ))}
-                      </select>
-                      {cityFilter && (
-                        <button
-                          type="button"
-                          onClick={() => setCityFilter('')}
-                          className="mt-2 text-sm text-blue-600 hover:underline"
-                        >
-                          {t.branches.cancel}
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              <Button 
-                onClick={openCreate} 
-                className="shrink-0 h-10 gap-2 shadow-sm" 
-                disabled={isLimitReached}
-              >
-                <Plus className="h-4 w-4" />
-                {t.branches.addBranch}
-              </Button>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="rounded-xl border border-gray-200 bg-white">
-            <div className="overflow-x-auto rounded-xl">
-              <table className="w-full min-w-[720px]">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50/80">
-                    <th className="w-12 px-4 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={
-                          paginatedBranches.length > 0 &&
-                          selectedIds.size === paginatedBranches.length
-                        }
-                        onChange={toggleSelectAll}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {t.branches.name}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {t.branches.phone}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {t.branches.address}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {t.branches.status}
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">
-                      {t.branches.actions}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {paginatedBranches.map((branch) => (
-                    <tr
-                      key={branch._id}
-                      className="group hover:bg-blue-50/50 transition-colors"
-                    >
-                      <td className="w-12 px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(branch._id)}
-                          onChange={() => toggleSelect(branch._id)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
-                            <GitBranch className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <span className="font-medium text-gray-900">{branch.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{branch.phone}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        <span className="block truncate max-w-[200px]" title={`${branch.address.street}, ${branch.address.city}`}>
-                          {branch.address.street}, {branch.address.city}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            branch.isActive
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-200 text-gray-600'
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              branch.isActive ? 'bg-blue-500' : 'bg-gray-500'
-                            }`}
-                          />
-                          {branch.isActive ? t.branches.active : t.branches.inactive}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-block" ref={openMenuId === branch._id ? menuRef : undefined}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-lg hover:bg-gray-100"
-                            onClick={(e) => {
-                              if (openMenuId === branch._id) {
-                                setOpenMenuId(null)
-                                setMenuAnchor(null)
-                              } else {
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
-                                setOpenMenuId(branch._id)
-                              }
-                            }}
-                            disabled={!!actionLoading}
-                          >
-                            <MoreVertical className="h-4 w-4 text-gray-500" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Fixed table footer (pagination) - aligned with table card, same horizontal space */}
-          <div className="fixed bottom-4 left-4 right-4 sm:left-6 sm:right-6 lg:left-[calc(16rem+2rem)] lg:right-8 z-30 flex flex-wrap items-center justify-between gap-4 px-4 sm:px-6 py-3 border border-gray-200 border-t rounded-t-xl bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-              <p className="text-sm text-gray-600">
-                {t.branches.totalBranches}: <span className="font-medium text-gray-900">{totalFiltered}</span>
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
+      {/* Two-column: left = list + add box, right = map */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[500px]">
+        {/* Left column: branch list + add box */}
+        <div className="flex flex-col min-h-0">
+          {hasBranches && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 shrink-0">
+                <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50/50 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setStatusTab('all')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      statusTab === 'all' ? 'bg-white text-blue-600 shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let p: number
-                    if (totalPages <= 5) p = i + 1
-                    else if (page <= 3) p = i + 1
-                    else if (page >= totalPages - 2) p = totalPages - 4 + i
-                    else p = page - 2 + i
-                    return (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setPage(p)}
-                        className={`h-8 w-8 rounded-lg text-sm font-medium transition-colors ${
-                          page === p
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-600 hover:bg-gray-200'
+                    {t.branches.viewAll} {rawBranches.length}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusTab('active')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      statusTab === 'active' ? 'bg-white text-blue-600 shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {t.branches.active} {rawBranches.filter((b) => b.isActive).length}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusTab('inactive')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      statusTab === 'inactive' ? 'bg-white text-blue-600 shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {t.branches.inactive} {rawBranches.filter((b) => !b.isActive).length}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder={t.branches.searchPlaceholder}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFiltersOpen(!filtersOpen)}
+                      className={`gap-1.5 h-9 ${cityFilter ? 'border-blue-300 bg-blue-50/50' : ''}`}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {t.branches.filters}
+                    </Button>
+                    {filtersOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" aria-hidden onClick={() => setFiltersOpen(false)} />
+                        <div className="absolute right-0 top-full mt-1 z-20 w-52 rounded-xl border border-gray-200 bg-white py-3 px-3 shadow-lg">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t.branches.city}</p>
+                          <select
+                            value={cityFilter}
+                            onChange={(e) => setCityFilter(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">{t.branches.viewAll}</option>
+                            {cities.map((city) => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </select>
+                          {cityFilter && (
+                            <button type="button" onClick={() => setCityFilter('')} className="mt-2 text-sm text-blue-600 hover:underline">
+                              {t.branches.cancel}
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
+            {!hasBranches && (
+              <div className="flex flex-col items-center justify-center py-12 px-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50">
+                <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                  <GitBranch className="h-7 w-7 text-blue-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 text-center mb-1">{t.branches.emptyTitle}</h2>
+                <p className="text-gray-600 text-center text-sm max-w-sm mb-2">{t.branches.emptyDesc}</p>
+              </div>
+            )}
+
+            {filteredBranches.map((branch, index) => {
+              const accentColors = [
+                'from-blue-50 to-indigo-50 border-blue-100',
+                'from-emerald-50 to-teal-50 border-emerald-100',
+                'from-amber-50 to-orange-50 border-amber-100',
+                'from-violet-50 to-purple-50 border-violet-100',
+              ]
+              const accent = accentColors[index % accentColors.length]
+              return (
+                <div
+                  key={branch._id}
+                  className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className={`relative px-4 pt-3 pb-2 border-b ${accent}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/80 border border-gray-200/80 shadow-sm">
+                          <GitBranch className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900 truncate">{branch.name}</h3>
+                      </div>
+                      <span
+                        className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
+                          branch.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
                         }`}
                       >
-                        {p}
-                      </button>
-                    )
-                  })}
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                        <span className={`h-1.5 w-1.5 rounded-full ${branch.isActive ? 'bg-green-500' : 'bg-gray-500'}`} />
+                        {branch.isActive ? t.branches.active : t.branches.inactive}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="h-4 w-4 shrink-0 text-gray-400" />
+                      <a href={`tel:${branch.phone}`} className="hover:text-blue-600">{branch.phone}</a>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
+                      <span>{branch.address.street}, {branch.address.city}</span>
+                    </div>
+                    {branch.workingHours && branch.workingHours.length > 0 && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="h-4 w-4 text-gray-400" />
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.branches.workingHours}</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-1.5">
+                          {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                            const wh = branch.workingHours.find((w) => w.day === day)
+                            return (
+                              <div key={day} className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600 w-28">{t.branches[DAY_KEYS[day - 1]]}</span>
+                                {wh ? (
+                                  <span className="font-medium text-gray-900 tabular-nums">{wh.from} – {wh.to}</span>
+                                ) : (
+                                  <span className="text-gray-400 italic">{t.branches.closed}</span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-end pt-1">
+                      <div className="inline-block" ref={openMenuId === branch._id ? menuRef : undefined}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg hover:bg-gray-100"
+                          onClick={(e) => {
+                            if (openMenuId === branch._id) {
+                              setOpenMenuId(null)
+                              setMenuAnchor(null)
+                            } else {
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                              setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                              setOpenMenuId(branch._id)
+                            }
+                          }}
+                          disabled={!!actionLoading}
+                        >
+                          <MoreVertical className="h-4 w-4 text-gray-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">{t.branches.showPerPage}</span>
-                  <select
-                    value={perPage}
-                    onChange={(e) => {
-                      setPerPage(Number(e.target.value))
-                      setPage(1)
-                    }}
-                    className="h-8 px-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {PER_PAGE_OPTIONS.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              )
+            })}
+
+            {/* Add new branch box */}
+            <button
+              type="button"
+              onClick={openCreate}
+              disabled={isLimitReached}
+              className="w-full flex flex-col items-center justify-center py-10 px-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 hover:border-blue-300 hover:bg-blue-50/30 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <div className="w-14 h-14 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center mb-3 shadow-sm">
+                <Plus className="h-7 w-7 text-gray-500" />
               </div>
-            </div>
-        </>
-      )}
+              <span className="text-sm font-medium text-gray-600">{t.branches.addNew}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Right column: map */}
+        <div className="flex flex-col min-h-[400px] lg:min-h-0 lg:sticky lg:top-6">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{t.branches.mapTitle}</p>
+          <BranchesMap branches={rawBranches} className="flex-1 max-h-[700px] lg:min-h-0 lg:h-full" />
+        </div>
+      </div>
 
       {/* Popover menu - rendered in portal so it appears above fixed footer */}
       {typeof document !== 'undefined' &&
