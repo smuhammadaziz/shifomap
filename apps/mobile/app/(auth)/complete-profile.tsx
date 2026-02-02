@@ -15,28 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/auth-store';
 import { completeProfile } from '../../lib/api';
-
-const copyUz = {
-  title: "Profilni to'ldiring",
-  fullName: "To'liq ism",
-  age: "Yosh",
-  gender: "Jins",
-  male: "Erkak",
-  female: "Ayol",
-  done: "Tayyor",
-  error: "Iltimos, barcha maydonlarni to'ldiring",
-};
-
-const copyRu = {
-  title: "Заполните профиль",
-  fullName: "Полное имя",
-  age: "Возраст",
-  gender: "Пол",
-  male: "Мужской",
-  female: "Женский",
-  done: "Готово",
-  error: "Заполните все поля",
-};
+import { getTranslations } from '../../lib/translations';
 
 export default function CompleteProfileScreen() {
   const router = useRouter();
@@ -48,17 +27,17 @@ export default function CompleteProfileScreen() {
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [loading, setLoading] = useState(false);
 
-  const t = language === 'ru' ? copyRu : copyUz;
+  const t = getTranslations(language);
 
   const onDone = async () => {
     const name = fullName.trim();
     if (!name) {
-      Alert.alert('', t.error);
+      Alert.alert('', t.completeError);
       return;
     }
     const ageNum = age.trim() ? parseInt(age, 10) : null;
     if (age.trim() && (isNaN(ageNum!) || ageNum! < 1 || ageNum! > 150)) {
-      Alert.alert('', language === 'ru' ? 'Введите корректный возраст' : "Yoshni to'g'ri kiriting");
+      Alert.alert('', t.completeAgeError);
       return;
     }
     setLoading(true);
@@ -91,28 +70,28 @@ export default function CompleteProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>{t.title}</Text>
-          <Text style={styles.label}>{t.fullName}</Text>
+          <Text style={styles.title}>{t.completeTitle}</Text>
+          <Text style={styles.label}>{t.completeFullName}</Text>
           <TextInput
             style={styles.input}
-            placeholder={t.fullName}
+            placeholder={t.completeFullNamePlaceholder}
             placeholderTextColor="#71717a"
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
             editable={!loading}
           />
-          <Text style={styles.label}>{t.age}</Text>
+          <Text style={styles.label}>{t.completeAge}</Text>
           <TextInput
             style={styles.input}
-            placeholder="25"
+            placeholder={t.completeAgePlaceholder}
             placeholderTextColor="#71717a"
             value={age}
             onChangeText={(v) => setAge(v.replace(/\D/g, '').slice(0, 3))}
             keyboardType="number-pad"
             editable={!loading}
           />
-          <Text style={styles.label}>{t.gender}</Text>
+          <Text style={styles.label}>{t.completeGender}</Text>
           <View style={styles.genderRow}>
             <TouchableOpacity
               style={[styles.genderBtn, gender === 'male' && styles.genderBtnActive]}
@@ -120,7 +99,7 @@ export default function CompleteProfileScreen() {
               disabled={loading}
             >
               <Text style={[styles.genderText, gender === 'male' && styles.genderTextActive]}>
-                {t.male}
+                {t.completeMale}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -129,7 +108,7 @@ export default function CompleteProfileScreen() {
               disabled={loading}
             >
               <Text style={[styles.genderText, gender === 'female' && styles.genderTextActive]}>
-                {t.female}
+                {t.completeFemale}
               </Text>
             </TouchableOpacity>
           </View>
@@ -142,7 +121,7 @@ export default function CompleteProfileScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.doneButtonText}>{t.done}</Text>
+              <Text style={styles.doneButtonText}>{t.completeDone}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>

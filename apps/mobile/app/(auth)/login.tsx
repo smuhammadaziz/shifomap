@@ -17,26 +17,9 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '../../store/auth-store';
 import { authGoogle, authPhone, getConnectionErrorMessage } from '../../lib/api';
+import { getTranslations } from '../../lib/translations';
 
 const PHONE_PREFIX = '+998';
-
-const copyUz = {
-  title: "Kirish",
-  google: "Google orqali kirish",
-  phone: "Telefon raqam",
-  next: "Keyingi",
-  placeholder: "90 123 45 67",
-  error: "Iltimos, to'g'ri raqam kiriting",
-};
-
-const copyRu = {
-  title: "Вход",
-  google: "Войти через Google",
-  phone: "Номер телефона",
-  next: "Далее",
-  placeholder: "90 123 45 67",
-  error: "Введите правильный номер",
-};
 
 export default function Login() {
   const router = useRouter();
@@ -48,7 +31,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const t = language === 'ru' ? copyRu : copyUz;
+  const t = getTranslations(language);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
@@ -91,7 +74,7 @@ export default function Login() {
   const onPhoneNext = async () => {
     const digits = phone.replace(/\D/g, '');
     if (digits.length !== 9) {
-      Alert.alert('', t.error);
+      Alert.alert('', t.loginError);
       return;
     }
     const fullPhone = PHONE_PREFIX + digits;
@@ -121,8 +104,8 @@ export default function Login() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboard}
       >
-        <View style={styles.content}>
-          <Text style={styles.title}>{t.title}</Text>
+          <View style={styles.content}>
+          <Text style={styles.title}>{t.loginTitle}</Text>
           <TouchableOpacity
             style={styles.googleButton}
             onPress={onGooglePress}
@@ -134,7 +117,7 @@ export default function Login() {
             ) : (
               <>
                 <Ionicons name="logo-google" size={22} color="#ffffff" />
-                <Text style={styles.googleButtonText}>{t.google}</Text>
+                <Text style={styles.googleButtonText}>{t.loginGoogle}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -143,12 +126,12 @@ export default function Login() {
             <Text style={styles.dividerText}>yoki / или</Text>
             <View style={styles.dividerLine} />
           </View>
-          <Text style={styles.phoneLabel}>{t.phone}</Text>
+          <Text style={styles.phoneLabel}>{t.loginPhone}</Text>
           <View style={styles.phoneRow}>
             <Text style={styles.prefix}>{PHONE_PREFIX}</Text>
             <TextInput
               style={styles.phoneInput}
-              placeholder={t.placeholder}
+              placeholder={t.loginPhonePlaceholder}
               placeholderTextColor="#71717a"
               value={phone}
               onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 9))}
@@ -166,7 +149,7 @@ export default function Login() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.nextButtonText}>{t.next}</Text>
+              <Text style={styles.nextButtonText}>{t.loginNext}</Text>
             )}
           </TouchableOpacity>
         </View>

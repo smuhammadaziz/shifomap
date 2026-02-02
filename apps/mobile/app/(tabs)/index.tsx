@@ -14,7 +14,6 @@ const HomeScreen = () => {
   const patient = useAuthStore((s) => s.patient);
   const t = getTranslations(language);
 
-  const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Гость' : 'Mehmon');
   const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
 
   return (
@@ -23,10 +22,9 @@ const HomeScreen = () => {
         <View style={styles.header}>
           <View style={styles.headerTextContainer}>
             <View style={styles.greetingRow}>
-              <Text style={styles.greeting}>{t.greeting}, {displayName}</Text>
-              <Text style={styles.waveEmoji}>👋</Text>
+              <Text style={styles.greeting}>{t.greeting}</Text>
+              <Text style={styles.waveEmoji}> 👋</Text>
             </View>
-            <Text style={styles.subtitle}>{t.homeSubtitle}</Text>
           </View>
           <TouchableOpacity
             style={styles.avatarContainer}
@@ -43,7 +41,7 @@ const HomeScreen = () => {
             <TextInput
               style={styles.searchInput}
               placeholder={t.searchPlaceholder}
-              placeholderTextColor="#a1a1aa"
+              placeholderTextColor="#71717a"
             />
           </View>
           <TouchableOpacity style={styles.filterButton}>
@@ -86,8 +84,7 @@ const styles = StyleSheet.create({
     headerTextContainer: { flex: 1 },
     greetingRow: { flexDirection: 'row', alignItems: 'center' },
     greeting: { color: '#ffffff', fontSize: 28, fontWeight: 'bold' },
-    waveEmoji: { fontSize: 24, marginLeft: 8 },
-    subtitle: { color: '#a1a1aa', fontSize: 14, marginTop: 4 },
+    waveEmoji: { fontSize: 28, fontWeight: 'bold' },
     avatarContainer: { position: 'relative' },
     avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#27272a' },
     onlineIndicator: { position: 'absolute', bottom: 2, right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#09090b' },
@@ -95,7 +92,7 @@ const styles = StyleSheet.create({
     searchSection: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginTop: 20, marginBottom: 10 },
     searchContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181b', borderRadius: 16, paddingHorizontal: 15, height: 56, marginRight: 12, borderWidth: 1, borderColor: '#27272a' },
     searchIcon: { marginRight: 10 },
-    searchInput: { flex: 1, color: '#ffffff', fontSize: 16 },
+    searchInput: { flex: 1, color: '#ffffff', fontSize: 14 },
     filterButton: { width: 56, height: 56, backgroundColor: '#18181b', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#27272a' },
 
     dashboardContainer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginTop: 10 },

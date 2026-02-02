@@ -3,25 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/auth-store';
-
-const copy = {
-  uz: {
-    title: "ShifoYo'l",
-    subtitle: "Tilni tanlang",
-    uzbek: "O'zbekcha davom etish",
-    russian: "Русский продолжить",
-  },
-  ru: {
-    title: "ShifoYo'l",
-    subtitle: "Выберите язык",
-    uzbek: "Продолжить на узбекском",
-    russian: "Продолжить на русском",
-  },
-};
+import { getTranslations } from '../../lib/translations';
 
 export default function LanguageScreen() {
   const router = useRouter();
   const setLanguage = useAuthStore((s) => s.setLanguage);
+  const tUz = getTranslations('uz');
+  const tRu = getTranslations('ru');
 
   const selectLanguage = async (lang: 'uz' | 'ru') => {
     await setLanguage(lang);
@@ -34,22 +22,22 @@ export default function LanguageScreen() {
       style={styles.container}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>ShifoYo'l</Text>
-        <Text style={styles.subtitle}>Tilni tanlang / Выберите язык</Text>
+        <Text style={styles.title}>{tUz.languageTitle}</Text>
+        <Text style={styles.subtitle}>{tUz.languageSubtitle} / {tRu.languageSubtitle}</Text>
         <View style={styles.buttons}>
           <TouchableOpacity
             style={styles.button}
             onPress={() => selectLanguage('uz')}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>O'zbekcha davom etish</Text>
+            <Text style={styles.buttonText}>{tUz.languageUzbek}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.button}
             onPress={() => selectLanguage('ru')}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>Продолжить на русском</Text>
+            <Text style={styles.buttonText}>{tRu.languageRussian}</Text>
           </TouchableOpacity>
         </View>
       </View>

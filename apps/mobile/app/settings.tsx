@@ -43,24 +43,14 @@ export default function SettingsScreen() {
 
   const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi');
   const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
-  const languageLabel = language === 'ru' ? t.langRussian : t.langUzbek;
 
-  const onLanguagePress = () => {
-    Alert.alert(
-      t.language,
-      undefined,
-      [
-        { text: t.langUzbek, onPress: async () => {
-          await setLanguage('uz');
-          updateMe({ preferences: { language: 'uz' } }).then((p) => setPatient(p)).catch(() => {});
-        }},
-        { text: t.langRussian, onPress: async () => {
-          await setLanguage('ru');
-          updateMe({ preferences: { language: 'ru' } }).then((p) => setPatient(p)).catch(() => {});
-        }},
-        { text: language === 'ru' ? 'Отмена' : 'Bekor qilish', style: 'cancel' },
-      ]
-    );
+  const tUz = getTranslations('uz');
+  const tRu = getTranslations('ru');
+
+  const selectLanguage = async (lang: 'uz' | 'ru') => {
+    if (lang === language) return;
+    await setLanguage(lang);
+    updateMe({ preferences: { language: lang } }).then((p) => setPatient(p)).catch(() => {});
   };
 
   const onLogout = async () => {
@@ -109,7 +99,35 @@ export default function SettingsScreen() {
           <View style={styles.card}>
             <SettingItem icon="person-circle-outline" label={t.editProfile} />
             <SettingItem icon="document-text-outline" label={t.personalInfo} />
-            <SettingItem icon="globe-outline" label={t.language} value={languageLabel} onPress={onLanguagePress} />
+            <View style={styles.languageRow}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.iconBox, { backgroundColor: 'rgba(167, 139, 250, 0.1)' }]}>
+                  <Ionicons name="globe-outline" size={20} color="#a78bfa" />
+                </View>
+                <Text style={styles.rowLabel}>{t.language}</Text>
+              </View>
+            </View>
+            <View style={styles.divider} />
+          </View>
+          <View style={styles.languageSwitcher}>
+            <TouchableOpacity
+              style={[styles.langOption, language === 'uz' && styles.langOptionActive]}
+              onPress={() => selectLanguage('uz')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.langOptionText, language === 'uz' && styles.langOptionTextActive]}>
+                {tUz.langUzbek}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.langOption, language === 'ru' && styles.langOptionActive]}
+              onPress={() => selectLanguage('ru')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.langOptionText, language === 'ru' && styles.langOptionTextActive]}>
+                {tRu.langRussian}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -225,6 +243,21 @@ const styles = StyleSheet.create({
     section: { marginBottom: 24 },
     sectionHeader: { color: '#a1a1aa', fontSize: 12, fontWeight: '600', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
     card: { backgroundColor: '#18181b', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#27272a' },
+    languageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+    languageSwitcher: { flexDirection: 'row', gap: 12, marginTop: 12 },
+    langOption: {
+      flex: 1,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 14,
+      backgroundColor: '#18181b',
+      borderWidth: 1,
+      borderColor: '#27272a',
+      alignItems: 'center',
+    },
+    langOptionActive: { borderColor: '#7c3aed', backgroundColor: 'rgba(124, 58, 237, 0.15)' },
+    langOptionText: { color: '#a1a1aa', fontSize: 15, fontWeight: '500' },
+    langOptionTextActive: { color: '#a78bfa', fontWeight: '600' },
     row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
     rowLeft: { flexDirection: 'row', alignItems: 'center' },
     iconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(167, 139, 250, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
