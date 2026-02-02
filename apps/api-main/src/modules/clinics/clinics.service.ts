@@ -3,6 +3,9 @@ import {
   findClinicByUniqueName,
   findClinicOwnerByUsername,
   updateOwnerLastLogin,
+  addOwnerToClinic,
+  setOwnerStatusInClinic,
+  removeOwnerFromClinic,
   getAllClinics,
   countClinics,
   findClinicById,
@@ -36,6 +39,7 @@ import type {
   CreateClinicBody,
   LoginClinicOwnerBody,
   ChangePlanBody,
+  AddOwnerBody,
   CreateBranchBody,
   CreateDoctorBody,
   UpdateDoctorBody,
@@ -286,6 +290,63 @@ export async function resolveClinicIdForOwner(auth: { role?: string; clinicId?: 
   if (!auth.role?.startsWith("clinic_")) return null
   if (auth.clinicId) return auth.clinicId
   return findClinicIdByOwnerId(auth.sub)
+}
+
+/**
+ * Add admin (owner with role super_admin) to my clinic. Checks plan maxAdmins limit.
+ */
+export async function addOwnerToMyClinic(auth: { sub: string; role?: string; clinicId?: string }, body: AddOwnerBody) {
+  const clinicId = await resolveClinicIdForOwner(auth)
+  if (!clinicId) throw unauthorized("Clinic owner only")
+  const passwordHash = await hashPassword(body.password)
+  const owner = await addOwnerToClinic(clinicId, {
+    userName: body.userName,
+    displayName: body.displayName,
+    passwordHash,
+    role: "super_admin",
+  })
+  return {
+    message: "Admin added successfully",
+    owner: {
+      _id: owner._id.toHexString(),
+      role: owner.role,
+      userName: owner.userName,
+      displayName: owner.displayName,
+      addedAt: owner.addedAt.toISOString(),
+      isActive: owner.isActive,
+    },
+  }
+}
+
+/**
+ * Set owner (admin) active/inactive (for clinic owner)
+ */
+export async function setOwnerStatus(auth: { sub: string; role?: string; clinicId?: string }, ownerId: string, isActive: boolean) {
+  const clinicId = await resolveClinicIdForOwner(auth)
+  if (!clinicId) throw unauthorized("Clinic owner only")
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const hasOwner = clinic.owners?.some((o) => o._id.toHexString() === ownerId)
+  if (!hasOwner) throw notFound("Owner not found")
+  const success = await setOwnerStatusInClinic(clinicId, ownerId, isActive)
+  if (!success) throw new Error("Failed to update owner status")
+  return { message: isActive ? "Admin activated" : "Admin set inactive" }
+}
+
+/**
+ * Remove owner (admin/super_admin only) from clinic (for clinic owner). Cannot remove role "owner" or the last owner.
+ */
+export async function removeOwner(auth: { sub: string; role?: string; clinicId?: string }, ownerId: string) {
+  const clinicId = await resolveClinicIdForOwner(auth)
+  if (!clinicId) throw unauthorized("Clinic owner only")
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) throw notFound("Clinic not found")
+  const target = clinic.owners?.find((o) => o._id.toHexString() === ownerId)
+  if (!target) throw notFound("Owner not found")
+  if (target.role === "owner") throw conflict("Cannot remove the clinic owner")
+  const success = await removeOwnerFromClinic(clinicId, ownerId)
+  if (!success) throw new Error("Failed to remove owner")
+  return { message: "Admin removed successfully" }
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   createServiceBodySchema,
   updateServiceBodySchema,
   updateClinicInfoBodySchema,
+  addOwnerBodySchema,
 } from "./clinics.model"
 import {
   createClinic,
@@ -35,6 +36,9 @@ import {
   deleteDoctor,
   resolveClinicIdForOwner,
   updateMyClinicInfo,
+  addOwnerToMyClinic,
+  setOwnerStatus,
+  removeOwner,
   getMyDoctorProfile,
   updateMyDoctorProfile,
   updateMyDoctorSchedule,
@@ -229,6 +233,77 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
       const result = await updateMyClinicInfo(auth, parsed.data)
       set.status = 200
       return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: add admin (super_admin) to my clinic
+  .post("/my-clinic/owners", async ({ auth, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const parsed = addOwnerBodySchema.safeParse(body ?? {})
+      if (!parsed.success) {
+        set.status = 400
+        return {
+          success: false,
+          error: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        }
+      }
+      const result = await addOwnerToMyClinic(auth, parsed.data)
+      set.status = 201
+      return { success: true, ...result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: set admin (owner) active/inactive
+  .patch("/my-clinic/owners/:ownerId/status", async ({ auth, params, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const isActive = (body as { isActive?: boolean })?.isActive ?? false
+      const result = await setOwnerStatus(auth, params.ownerId, isActive)
+      set.status = 200
+      return { success: true, ...result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: remove admin (cannot remove role "owner" or last owner)
+  .delete("/my-clinic/owners/:ownerId", async ({ auth, params, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const result = await removeOwner(auth, params.ownerId)
+      set.status = 200
+      return { success: true, ...result }
     } catch (error: any) {
       if (error.statusCode) {
         set.status = error.statusCode

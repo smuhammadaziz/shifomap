@@ -3,35 +3,29 @@
 import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/contexts/language-context'
 import { useCallback, useMemo } from 'react'
-import { GitBranch, FolderTree, Briefcase, Building2, CreditCard } from 'lucide-react'
+import { Users, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
-import BranchesPage from '../branches/page'
-import CategoriesPage from '../categories/page'
-import ServicesPage from '../services/page'
-import { ClinicInfoTab } from './clinic-info-tab'
-import { PlanInfoTab } from './plan-info-tab'
+import { AdminsTab } from './admins-tab'
+import { DoctorsTab } from './doctors-tab'
 
 const TABS = [
-  { id: 'branches', icon: GitBranch },
-  { id: 'categories', icon: FolderTree },
-  { id: 'services', icon: Briefcase },
-  { id: 'info', icon: Building2 },
-  { id: 'plan', icon: CreditCard },
+  { id: 'admins', icon: Users },
+  { id: 'doctors', icon: Stethoscope },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
 
 function isValidTab(tab: string | null): tab is TabId {
-  return tab === 'branches' || tab === 'categories' || tab === 'services' || tab === 'info' || tab === 'plan'
+  return tab === 'admins' || tab === 'doctors'
 }
 
-export default function ClinicPage() {
+export default function AccountsPage() {
   const searchParams = useSearchParams()
   const { t } = useLanguage()
 
   const activeTab = useMemo(() => {
     const tab = searchParams.get('tab')
-    return isValidTab(tab) ? tab : 'branches'
+    return isValidTab(tab) ? tab : 'admins'
   }, [searchParams])
 
   const setTab = useCallback(
@@ -45,31 +39,22 @@ export default function ClinicPage() {
 
   const tabLabels: Record<TabId, string> = useMemo(
     () => ({
-      branches: t.sidebar.branches,
-      categories: t.sidebar.categories,
-      services: t.sidebar.services,
-      info: t.sidebar.clinicInformations,
-      plan: t.sidebar.planInformation,
+      admins: t.accounts.admins,
+      doctors: t.accounts.doctors,
     }),
-    [t.sidebar]
+    [t.accounts]
   )
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">{t.sidebar.clinic}</h1>
-        <p className="text-gray-600 mt-1">
-          {activeTab === 'branches' && t.branches.subtitle}
-          {activeTab === 'categories' && t.categories.subtitle}
-          {activeTab === 'services' && t.services.subtitle}
-          {activeTab === 'info' && t.sidebar.clinicInformations}
-          {activeTab === 'plan' && t.clinicPlan.subtitle}
-        </p>
+        <h1 className="text-3xl font-bold text-gray-900">{t.accounts.title}</h1>
+        <p className="text-gray-600 mt-1">{t.accounts.subtitle}</p>
       </div>
 
       {/* Tab navigation */}
       <div className="border-b border-gray-200">
-        <nav className="flex gap-1" aria-label="Clinic sections">
+        <nav className="flex gap-1" aria-label="Accounts sections">
           {TABS.map(({ id, icon: Icon }) => {
             const isActive = activeTab === id
             const href = setTab(id)
@@ -93,11 +78,8 @@ export default function ClinicPage() {
 
       {/* Tab content */}
       <div className="min-h-[400px]">
-        {activeTab === 'branches' && <BranchesPage embedded />}
-        {activeTab === 'categories' && <CategoriesPage embedded />}
-        {activeTab === 'services' && <ServicesPage embedded />}
-        {activeTab === 'info' && <ClinicInfoTab />}
-        {activeTab === 'plan' && <PlanInfoTab />}
+        {activeTab === 'admins' && <AdminsTab />}
+        {activeTab === 'doctors' && <DoctorsTab />}
       </div>
     </div>
   )

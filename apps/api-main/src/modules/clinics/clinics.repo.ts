@@ -200,6 +200,126 @@ export async function updateOwnerLastLogin(
   )
 }
 
+export interface AddOwnerInput {
+  userName: string
+  displayName: string
+  passwordHash: string
+  role: "admin" | "super_admin"
+}
+
+/**
+ * Add an owner (admin/super_admin) to a clinic. Checks maxAdmins limit and unique userName.
+ */
+export async function addOwnerToClinic(
+  clinicId: string,
+  input: AddOwnerInput
+): Promise<ClinicOwner> {
+  const db = getDb()
+  const id = toObjectId(clinicId)
+  const now = new Date()
+
+  const clinic = await db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: id })
+  if (!clinic) throw new Error("Clinic not found")
+
+  const currentCount = clinic.owners?.length ?? 0
+  const maxAdmins = clinic.plan?.limits?.maxAdmins ?? 1
+  if (currentCount >= maxAdmins) {
+    throw new Error(`Plan limit: max ${maxAdmins} admin(s) allowed`)
+  }
+
+  const userNameLower = input.userName.toLowerCase()
+  const existing = await findClinicOwnerByUsername(userNameLower)
+  if (existing) throw new Error("Username already exists")
+
+  const owner: ClinicOwner = {
+    _id: new ObjectId(),
+    adminId: new ObjectId(),
+    role: input.role,
+    userName: userNameLower,
+    displayName: input.displayName,
+    security: {
+      passwordHash: input.passwordHash,
+      passwordUpdatedAt: now,
+      lastLoginAt: null,
+      lastLoginIP: null,
+    },
+    addedAt: now,
+    removedAt: null,
+    isActive: true,
+  }
+
+  const newCount = currentCount + 1
+  await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: id },
+    {
+      $push: { owners: owner },
+      $set: {
+        "stats.adminsCount": newCount,
+        "stats.updatedAt": now,
+        updatedAt: now,
+      },
+    }
+  )
+
+  return owner
+}
+
+/**
+ * Set owner (admin) active/inactive in a clinic
+ */
+export async function setOwnerStatusInClinic(
+  clinicId: string,
+  ownerId: string,
+  isActive: boolean
+): Promise<boolean> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const oId = toObjectId(ownerId)
+  const now = new Date()
+  const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId, "owners._id": oId },
+    {
+      $set: {
+        "owners.$.isActive": isActive,
+        "owners.$.removedAt": isActive ? null : now,
+        updatedAt: now,
+      },
+    }
+  )
+  return result.modifiedCount > 0
+}
+
+/**
+ * Remove an owner (admin/super_admin only, not owner) from a clinic. Cannot remove the last owner or role "owner".
+ */
+export async function removeOwnerFromClinic(clinicId: string, ownerId: string): Promise<boolean> {
+  const db = getDb()
+  const cId = toObjectId(clinicId)
+  const oId = toObjectId(ownerId)
+  const clinic = await db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: cId })
+  if (!clinic) return false
+  const target = (clinic.owners ?? []).find((o) => o._id.equals(oId))
+  if (!target) return false
+  if (target.role === "owner") return false
+  const newOwners = (clinic.owners ?? []).filter((o) => !o._id.equals(oId))
+  if (newOwners.length === 0) return false
+  if (newOwners.length === clinic.owners?.length) return false
+  const now = new Date()
+  const newCount = newOwners.length
+  const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: cId },
+    {
+      $set: {
+        owners: newOwners,
+        "stats.adminsCount": newCount,
+        "stats.updatedAt": now,
+        updatedAt: now,
+      },
+    }
+  )
+  return result.modifiedCount > 0
+}
+
 /**
  * Get all clinics (paginated) - including inactive with optional search
  */

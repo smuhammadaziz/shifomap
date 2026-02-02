@@ -15,6 +15,9 @@ const nextConfig = {
       { source: '/dashboard/categories', destination: '/dashboard/clinic?tab=categories', permanent: true },
       { source: '/dashboard/services', destination: '/dashboard/clinic?tab=services', permanent: true },
       { source: '/dashboard/clinic-info', destination: '/dashboard/clinic?tab=info', permanent: true },
+      { source: '/dashboard/doctors', destination: '/dashboard/accounts?tab=doctors', permanent: true },
+      { source: '/dashboard/owners', destination: '/dashboard/accounts?tab=admins', permanent: true },
+      { source: '/dashboard/plan', destination: '/dashboard/clinic?tab=plan', permanent: true },
     ]
   },
 }

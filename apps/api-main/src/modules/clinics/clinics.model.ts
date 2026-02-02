@@ -64,7 +64,7 @@ export interface ClinicDoc {
 export interface ClinicOwner {
   _id: ObjectId
   adminId: ObjectId
-  role: "owner" | "admin"
+  role: "owner" | "admin" | "super_admin"
   userName: string
   displayName: string
   security: {
@@ -177,6 +177,18 @@ export const loginClinicOwnerBodySchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 })
+
+// Add admin (owner with role super_admin) to my clinic
+export const addOwnerBodySchema = z.object({
+  userName: z
+    .string()
+    .min(2, "Username must be at least 2 characters")
+    .max(64)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, _ and -"),
+  displayName: z.string().min(1, "Display name is required").max(128),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+})
+export type AddOwnerBody = z.infer<typeof addOwnerBodySchema>
 
 // Validation schema for changing plan
 export const changePlanBodySchema = z.object({
