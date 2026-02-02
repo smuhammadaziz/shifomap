@@ -240,7 +240,7 @@ export function ClinicInfoTab() {
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
             {t.clinicInfo.mobilePreview}
           </p>
-          <div className="rounded-[2rem] border-[8px] border-gray-800 bg-gray-800 p-1.5 shadow-2xl w-full">
+          <div className="rounded-[20px] border-[4px] border-gray-800 bg-gray-800 p-1.5 shadow-2xl w-full">
             <div className="rounded-[1.1rem] overflow-hidden bg-white flex flex-col aspect-[9/19] max-h-[70vh] w-full">
               {/* Status bar */}
               <div className="h-8 bg-white shrink-0 flex items-end justify-center pb-2">
