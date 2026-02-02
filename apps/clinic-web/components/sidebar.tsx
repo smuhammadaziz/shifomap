@@ -7,11 +7,9 @@ import { useLanguage } from '@/contexts/language-context'
 import {
   LayoutDashboard,
   Home,
-  GitBranch,
   Briefcase,
   Stethoscope,
   Users,
-  FolderTree,
   CreditCard,
   Star,
   BarChart3,
@@ -36,15 +34,12 @@ export default function Sidebar() {
   const ownerNavigation = useMemo(
     () => [
       { name: t.sidebar.dashboard, href: '/dashboard', icon: LayoutDashboard },
-      { name: t.sidebar.branches, href: '/dashboard/branches', icon: GitBranch },
-      { name: t.sidebar.categories, href: '/dashboard/categories', icon: FolderTree },
-      { name: t.sidebar.services, href: '/dashboard/services', icon: Briefcase },
+      { name: t.sidebar.clinic, href: '/dashboard/clinic', icon: Building2 },
       { name: t.sidebar.doctors, href: '/dashboard/doctors', icon: Stethoscope },
       { name: t.sidebar.owners, href: '/dashboard/owners', icon: Users },
       { name: t.sidebar.planInformation, href: '/dashboard/plan', icon: CreditCard },
       { name: t.sidebar.rankingRating, href: '/dashboard/ranking-rating', icon: Star },
       { name: t.sidebar.stats, href: '/dashboard/stats', icon: BarChart3 },
-      { name: t.sidebar.clinicInformations, href: '/dashboard/clinic-info', icon: Building2 },
     ],
     [t.sidebar]
   )

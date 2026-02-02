@@ -109,7 +109,12 @@
       "coordinates": "Koordinatalar",
       "noWorkingHours": "Ish vaqti ko'rsatilmagan",
       "workingDays": "Ish kunlari",
-      "closed": "Yopiq"
+      "closed": "Yopiq",
+      "viewAll": "Barchasi",
+      "searchPlaceholder": "Filiallarni qidirish...",
+      "filters": "Filtrlar",
+      "totalBranches": "Jami filiallar",
+      "showPerPage": "Sahifada ko'rsatish"
     },
     "categories": {
       "title": "Kategoriyalar",
@@ -226,11 +231,17 @@
       "updatedSuccess": "Xizmat muvaffaqiyatli yangilandi",
       "deletedSuccess": "Xizmat o'chirildi",
       "statusSetInactive": "Xizmat vaqtinchalik to'xtatildi",
-      "statusSetActive": "Xizmat qayta faollashtirildi"
+      "statusSetActive": "Xizmat qayta faollashtirildi",
+      "selectServicePrompt": "Ro'yxatdan xizmatni tanlang — tafsilotlar, rasm va shifokorlar o'ng panelda ko'rsatiladi.",
+      "viewAll": "Barchasi",
+      "searchPlaceholder": "Xizmatlarni qidirish...",
+      "filters": "Filtrlar",
+      "noResults": "Hech qanday xizmat topilmadi"
     },
     "sidebar": {
       "dashboard": "Boshqaruv paneli",
       "home": "Bosh sahifa",
+      "clinic": "Klinika",
       "branches": "Filiallar",
       "services": "Xizmatlar",
       "doctors": "Shifokorlar",
@@ -437,7 +448,12 @@
       "coordinates": "Координаты",
       "noWorkingHours": "Часы работы не указаны",
       "workingDays": "Рабочие дни",
-      "closed": "Закрыто"
+      "closed": "Закрыто",
+      "viewAll": "Все",
+      "searchPlaceholder": "Поиск филиалов...",
+      "filters": "Фильтры",
+      "totalBranches": "Всего филиалов",
+      "showPerPage": "Показать на странице"
     },
     "categories": {
       "title": "Категории",
@@ -554,11 +570,17 @@
       "updatedSuccess": "Услуга успешно обновлена",
       "deletedSuccess": "Услуга удалена",
       "statusSetInactive": "Услуга временно отключена",
-      "statusSetActive": "Услуга снова активирована"
+      "statusSetActive": "Услуга снова активирована",
+      "selectServicePrompt": "Выберите услугу из списка — детали, изображение и врачи отобразятся справа.",
+      "viewAll": "Все",
+      "searchPlaceholder": "Поиск услуг...",
+      "filters": "Фильтры",
+      "noResults": "Услуги не найдены"
     },
     "sidebar": {
       "dashboard": "Панель управления",
       "home": "Главная",
+      "clinic": "Клиника",
       "branches": "Филиалы",
       "services": "Услуги",
       "doctors": "Врачи",

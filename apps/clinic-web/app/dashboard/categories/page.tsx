@@ -28,7 +28,11 @@ function getAuthHeaders(): HeadersInit {
   }
 }
 
-export default function CategoriesPage() {
+interface CategoriesPageProps {
+  embedded?: boolean
+}
+
+export default function CategoriesPage({ embedded }: CategoriesPageProps) {
   const { t } = useLanguage()
   const { toast } = useToast()
   const [clinic, setClinic] = useState<ClinicData | null>(null)
@@ -134,16 +138,26 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t.categories.title}</h1>
-          <p className="text-gray-600 mt-1">{t.categories.subtitle}</p>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{t.categories.title}</h1>
+            <p className="text-gray-600 mt-1">{t.categories.subtitle}</p>
+          </div>
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus className="h-4 w-4 mr-2" />
+            {t.categories.addCategory}
+          </Button>
         </div>
-        <Button onClick={openCreate} className="shrink-0">
-          <Plus className="h-4 w-4 mr-2" />
-          {t.categories.addCategory}
-        </Button>
-      </div>
+      )}
+      {embedded && (
+        <div className="flex justify-end">
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus className="h-4 w-4 mr-2" />
+            {t.categories.addCategory}
+          </Button>
+        </div>
+      )}
 
       {categories.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50">
