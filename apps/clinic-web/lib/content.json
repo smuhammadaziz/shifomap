@@ -256,6 +256,7 @@
       "planInformation": "Reja ma'lumotlari",
       "rankingRating": "Reyting va baho",
       "stats": "Statistika",
+      "analytics": "Tahlillar",
       "clinicInformations": "Klinika ma'lumotlari"
     },
     "clinicInfo": {
@@ -340,6 +341,25 @@
       "delete": "O'chirish",
       "deleteConfirm": "Ushbu adminni o'chirmoqchimisiz?",
       "deleteSuccess": "Admin o'chirildi"
+    },
+    "analytics": {
+      "title": "Tahlillar",
+      "subtitle": "Statistika va reyting",
+      "stats": "Statistika",
+      "ranking": "Reyting va baho",
+      "overview": "Umumiy ko'rinish",
+      "overviewDesc": "Klinikangiz resurslari",
+      "resourcesCount": "Resurslar soni",
+      "branchesLabel": "Filiallar",
+      "servicesLabel": "Xizmatlar",
+      "doctorsLabel": "Shifokorlar",
+      "adminsLabel": "Adminlar",
+      "weeklyActivity": "Haftalik faoliyat (namuna)",
+      "comingSoonTitle": "Bu bo'lim ustida ishlayapmiz",
+      "comingSoonDesc": "Reyting va baho tez orada qo'shiladi.",
+      "upgradeGateTitle": "Tahlillaringizni ko'rish uchun joriy rejangizni o'zgartiring",
+      "upgradeGateChangePlan": "Rejani o'zgartirish",
+      "upgradeGateContactAdmin": "Admin bilan bog'lanish"
     },
     "dashboard": {
       "title": "Boshqaruv paneli",
@@ -681,6 +701,7 @@
       "planInformation": "Информация о плане",
       "rankingRating": "Рейтинг и оценка",
       "stats": "Статистика",
+      "analytics": "Аналитика",
       "clinicInformations": "Информация о клинике"
     },
     "clinicInfo": {
@@ -765,6 +786,25 @@
       "delete": "Удалить",
       "deleteConfirm": "Удалить этого админа?",
       "deleteSuccess": "Админ удалён"
+    },
+    "analytics": {
+      "title": "Аналитика",
+      "subtitle": "Статистика и рейтинг",
+      "stats": "Статистика",
+      "ranking": "Рейтинг и оценка",
+      "overview": "Обзор",
+      "overviewDesc": "Ресурсы вашей клиники",
+      "resourcesCount": "Количество ресурсов",
+      "branchesLabel": "Филиалы",
+      "servicesLabel": "Услуги",
+      "doctorsLabel": "Врачи",
+      "adminsLabel": "Админы",
+      "weeklyActivity": "Недельная активность (пример)",
+      "comingSoonTitle": "Мы работаем над этой функцией",
+      "comingSoonDesc": "Рейтинг и оценка скоро будут добавлены.",
+      "upgradeGateTitle": "Чтобы видеть аналитику, смените текущий план",
+      "upgradeGateChangePlan": "Сменить план",
+      "upgradeGateContactAdmin": "Связаться с администратором"
     },
     "dashboard": {
       "title": "Панель управления",

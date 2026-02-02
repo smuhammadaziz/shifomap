@@ -18,6 +18,8 @@ const nextConfig = {
       { source: '/dashboard/doctors', destination: '/dashboard/accounts?tab=doctors', permanent: true },
       { source: '/dashboard/owners', destination: '/dashboard/accounts?tab=admins', permanent: true },
       { source: '/dashboard/plan', destination: '/dashboard/clinic?tab=plan', permanent: true },
+      { source: '/dashboard/stats', destination: '/dashboard/analytics?tab=stats', permanent: true },
+      { source: '/dashboard/ranking-rating', destination: '/dashboard/analytics?tab=ranking', permanent: true },
     ]
   },
 }

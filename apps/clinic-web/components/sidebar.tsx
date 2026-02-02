@@ -9,7 +9,6 @@ import {
   Home,
   Briefcase,
   Users,
-  Star,
   BarChart3,
   Building2,
   Calendar,
@@ -34,8 +33,7 @@ export default function Sidebar() {
       { name: t.sidebar.dashboard, href: '/dashboard', icon: LayoutDashboard },
       { name: t.sidebar.clinic, href: '/dashboard/clinic', icon: Building2 },
       { name: t.sidebar.accounts, href: '/dashboard/accounts', icon: Users },
-      { name: t.sidebar.rankingRating, href: '/dashboard/ranking-rating', icon: Star },
-      { name: t.sidebar.stats, href: '/dashboard/stats', icon: BarChart3 },
+      { name: t.sidebar.analytics, href: '/dashboard/analytics', icon: BarChart3 },
     ],
     [t.sidebar]
   )
