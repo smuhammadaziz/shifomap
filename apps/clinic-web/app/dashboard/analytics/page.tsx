@@ -146,7 +146,7 @@ export default function AnalyticsPage() {
     return (
       <div className="relative min-h-[calc(100vh-8rem)] overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
         {/* Slightly blurred analytics background */}
-        <div className="absolute inset-0 blur-[3px] select-none pointer-events-none opacity-30" aria-hidden>
+        <div className="absolute inset-0 blur-[5px] select-none pointer-events-none opacity-30" aria-hidden>
           {pageContent}
         </div>
         {/* Centered upgrade card - integrated design */}
