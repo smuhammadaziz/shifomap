@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+const BG = '#09090b';
+
 const screenOptions = {
   headerShown: false,
   animation: 'slide_from_right' as const,
   animationDuration: 300,
   gestureEnabled: true,
-  contentStyle: { backgroundColor: 'transparent' },
+  contentStyle: { backgroundColor: BG },
 };
 
 export default function RootLayout() {

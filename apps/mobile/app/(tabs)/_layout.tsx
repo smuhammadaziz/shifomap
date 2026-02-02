@@ -20,6 +20,7 @@ export default function TabLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         title: t[tabTitleKey[route.name] ?? 'tabHome'],
+        contentStyle: { backgroundColor: '#09090b' },
       })}
     >
       <Tabs.Screen name="index" />
