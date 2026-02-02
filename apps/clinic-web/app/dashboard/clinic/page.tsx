@@ -8,6 +8,7 @@ import Link from 'next/link'
 import BranchesPage from '../branches/page'
 import CategoriesPage from '../categories/page'
 import ServicesPage from '../services/page'
+import { ClinicInfoTab } from './clinic-info-tab'
 
 const TABS = [
   { id: 'branches', icon: GitBranch },
@@ -91,19 +92,7 @@ export default function ClinicPage() {
         {activeTab === 'branches' && <BranchesPage embedded />}
         {activeTab === 'categories' && <CategoriesPage embedded />}
         {activeTab === 'services' && <ServicesPage embedded />}
-        {activeTab === 'info' && (
-          <div className="flex flex-col items-center justify-center py-16 px-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50">
-            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-6">
-              <Building2 className="h-8 w-8 text-blue-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
-              {t.sidebar.clinicInformations}
-            </h2>
-            <p className="text-gray-600 text-center max-w-md">
-              {t.dashboard.clinicSettingsDesc}
-            </p>
-          </div>
-        )}
+        {activeTab === 'info' && <ClinicInfoTab />}
       </div>
     </div>
   )

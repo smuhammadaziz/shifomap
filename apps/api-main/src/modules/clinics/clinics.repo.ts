@@ -25,19 +25,19 @@ export const PLAN_LIMITS = {
 export async function migratePlanLimits(): Promise<{ updated: number }> {
   const db = getDb()
   const now = new Date()
-  
+
   // Update starter clinics
   const starterResult = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateMany(
     { "plan.type": "starter" },
     { $set: { "plan.limits": PLAN_LIMITS.starter, updatedAt: now } }
   )
-  
+
   // Update pro clinics
   const proResult = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateMany(
     { "plan.type": "pro" },
     { $set: { "plan.limits": PLAN_LIMITS.pro, updatedAt: now } }
   )
-  
+
   return { updated: starterResult.modifiedCount + proResult.modifiedCount }
 }
 
@@ -250,6 +250,44 @@ export async function countClinics(search?: string): Promise<number> {
 export async function findClinicById(clinicId: ObjectId): Promise<ClinicDoc | null> {
   const db = getDb()
   return db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: clinicId })
+}
+
+/**
+ * Update clinic info (branding, contacts, description)
+ */
+export async function updateClinicInfo(
+  clinicId: string,
+  input: {
+    branding?: { logoUrl?: string | null; coverUrl?: string | null }
+    contacts?: { phone?: string | null; email?: string | null; telegram?: string | null }
+    description?: { short?: string | null; full?: string | null }
+  }
+): Promise<boolean> {
+  const db = getDb()
+  const id = toObjectId(clinicId)
+  const now = new Date()
+  const set: Record<string, unknown> = { updatedAt: now }
+
+  if (input.branding !== undefined) {
+    if (input.branding.logoUrl !== undefined) set["branding.logoUrl"] = input.branding.logoUrl
+    if (input.branding.coverUrl !== undefined) set["branding.coverUrl"] = input.branding.coverUrl
+  }
+  if (input.contacts !== undefined) {
+    if (input.contacts.phone !== undefined) set["contacts.phone"] = input.contacts.phone
+    if (input.contacts.email !== undefined) set["contacts.email"] = input.contacts.email
+    if (input.contacts.telegram !== undefined) set["contacts.telegram"] = input.contacts.telegram
+  }
+  if (input.description !== undefined) {
+    if (input.description.short !== undefined) set["description.short"] = input.description.short
+    if (input.description.full !== undefined) set["description.full"] = input.description.full
+  }
+
+  if (Object.keys(set).length <= 1) return true // only updatedAt
+  const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).updateOne(
+    { _id: id },
+    { $set: set }
+  )
+  return result.modifiedCount > 0
 }
 
 /**

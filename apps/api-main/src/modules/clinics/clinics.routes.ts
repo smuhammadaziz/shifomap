@@ -13,6 +13,7 @@ import {
   updateCategoryBodySchema,
   createServiceBodySchema,
   updateServiceBodySchema,
+  updateClinicInfoBodySchema,
 } from "./clinics.model"
 import {
   createClinic,
@@ -33,6 +34,7 @@ import {
   setDoctorStatus,
   deleteDoctor,
   resolveClinicIdForOwner,
+  updateMyClinicInfo,
   getMyDoctorProfile,
   updateMyDoctorProfile,
   updateMyDoctorSchedule,
@@ -195,6 +197,36 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
     }
     try {
       const result = await getClinicDetails(clinicId)
+      set.status = 200
+      return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: update my clinic info (branding, contacts, description)
+  .patch("/my-clinic", async ({ auth, body, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const parsed = updateClinicInfoBodySchema.safeParse(body ?? {})
+      if (!parsed.success) {
+        set.status = 400
+        return {
+          success: false,
+          error: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        }
+      }
+      const result = await updateMyClinicInfo(auth, parsed.data)
       set.status = 200
       return { success: true, data: result }
     } catch (error: any) {

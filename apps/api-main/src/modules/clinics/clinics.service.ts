@@ -7,6 +7,7 @@ import {
   countClinics,
   findClinicById,
   findClinicIdByOwnerId,
+  updateClinicInfo,
   updateClinicStatus,
   deleteClinicPermanently,
   updateClinicPlan,
@@ -45,6 +46,7 @@ import type {
   UpdateCategoryBody,
   CreateServiceBody,
   UpdateServiceBody,
+  UpdateClinicInfoBody,
 } from "./clinics.model"
 import { mapDocToPublicClinic, mapDocToDetailedClinic } from "./clinics.model"
 import { conflict, unauthorized, notFound } from "@/common/errors"
@@ -172,6 +174,31 @@ export async function getClinicDetails(clinicId: string) {
   }
 
   return mapDocToDetailedClinic(clinic)
+}
+
+/**
+ * Update my clinic info (branding, contacts, description) - clinic owner only
+ */
+export async function updateMyClinicInfo(
+  auth: { role?: string; clinicId?: string; sub: string },
+  body: UpdateClinicInfoBody
+) {
+  const clinicId = await resolveClinicIdForOwner(auth)
+  if (!clinicId) {
+    throw unauthorized("Clinic owner only")
+  }
+
+  const updates: Parameters<typeof updateClinicInfo>[1] = {}
+  if (body.branding !== undefined) updates.branding = body.branding
+  if (body.contacts !== undefined) updates.contacts = body.contacts
+  if (body.description !== undefined) updates.description = body.description
+
+  if (Object.keys(updates).length === 0) {
+    return { message: "No updates" }
+  }
+
+  await updateClinicInfo(clinicId, updates)
+  return { message: "Clinic info updated successfully" }
 }
 
 // Hash password using Bun's bcrypt implementation

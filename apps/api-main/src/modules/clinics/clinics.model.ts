@@ -183,6 +183,30 @@ export const changePlanBodySchema = z.object({
   plan: z.enum(["starter", "pro"]),
 })
 
+// Update clinic info body (branding, contacts, description - clinic owner)
+export const updateClinicInfoBodySchema = z.object({
+  branding: z
+    .object({
+      logoUrl: z.string().url().nullable().optional(),
+      coverUrl: z.string().url().nullable().optional(),
+    })
+    .optional(),
+  contacts: z
+    .object({
+      phone: z.string().max(32).nullable().optional(),
+      email: z.string().email().max(128).nullable().optional(),
+      telegram: z.string().max(128).nullable().optional(),
+    })
+    .optional(),
+  description: z
+    .object({
+      short: z.string().max(512).nullable().optional(),
+      full: z.string().max(4000).nullable().optional(),
+    })
+    .optional(),
+})
+export type UpdateClinicInfoBody = z.infer<typeof updateClinicInfoBodySchema>
+
 // Create branch body (for clinic owner)
 const workingHourSchema = z.object({
   day: z.number().min(1).max(7),
