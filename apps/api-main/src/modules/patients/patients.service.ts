@@ -8,11 +8,13 @@ import {
   findPatientById,
   updatePatientLastLogin,
   updatePatientProfile,
+  updatePatientPassword,
 } from "./patients.repo"
 import { logger } from "@/common/logger"
 import type {
   AuthGoogleBody,
   AuthPhoneBody,
+  AuthPhonePasswordBody,
   CompleteProfileBody,
   UpdatePatientBody,
 } from "./patients.model"
@@ -27,6 +29,14 @@ const GOOGLE_JWKS = createRemoteJWKSet(
 )
 
 const DEFAULT_AVATAR = "https://i.pravatar.cc/150?u=default"
+
+function hashPassword(plain: string): Promise<string> {
+  return Bun.password.hash(plain, { algorithm: "bcrypt", cost: 10 })
+}
+
+function verifyPassword(plain: string, hash: string): Promise<boolean> {
+  return Bun.password.verify(plain, hash, "bcrypt")
+}
 
 export async function authGoogle(body: AuthGoogleBody) {
   if (!env.GOOGLE_CLIENT_ID) {
@@ -146,6 +156,71 @@ export async function authPhone(body: AuthPhoneBody, preferredLanguage: PatientL
   const token = await signPatientToken(patient._id.toHexString())
   const needsProfile = !patient.fullName || patient.fullName === ""
   logger.info("[patients.service] authPhone success", {
+    patientId: patient._id.toHexString(),
+    needsProfile,
+  })
+  return {
+    token,
+    patient: mapDocToPublicPatient(patient),
+    expiresIn: env.JWT_EXPIRES_IN,
+    needsProfile,
+  }
+}
+
+export async function authPhonePassword(
+  body: AuthPhonePasswordBody,
+  preferredLanguage: PatientLanguage = "uz"
+) {
+  logger.info("[patients.service] authPhonePassword start", { phone: body.phone })
+  let patient = await findPatientByPhone(body.phone)
+  if (!patient) {
+    logger.info("[patients.service] authPhonePassword: new user, creating with password")
+    const passwordHash = await hashPassword(body.password)
+    patient = await insertPatient({
+      fullName: "",
+      gender: "male",
+      age: null,
+      avatarUrl: DEFAULT_AVATAR,
+      contacts: { phone: body.phone, email: null, telegram: null },
+      status: "active",
+      auth: {
+        passwordHash,
+        type: "phone",
+        lastLoginAt: null,
+      },
+      location: { city: "Tashkent" },
+      preferences: { language: preferredLanguage, notificationsEnabled: true },
+    })
+    await updatePatientLastLogin(patient._id)
+    patient = await findPatientById(patient._id)
+    if (!patient) throw unauthorized("Patient not found")
+    const token = await signPatientToken(patient._id.toHexString())
+    logger.info("[patients.service] authPhonePassword success (new user)", {
+      patientId: patient._id.toHexString(),
+    })
+    return {
+      token,
+      patient: mapDocToPublicPatient(patient),
+      expiresIn: env.JWT_EXPIRES_IN,
+      needsProfile: true,
+    }
+  }
+  if (patient.status !== "active") {
+    throw unauthorized("Account is not active")
+  }
+  if (patient.auth.passwordHash) {
+    const valid = await verifyPassword(body.password, patient.auth.passwordHash)
+    if (!valid) throw unauthorized("Invalid password")
+  } else {
+    const passwordHash = await hashPassword(body.password)
+    await updatePatientPassword(patient._id, passwordHash)
+  }
+  await updatePatientLastLogin(patient._id)
+  patient = await findPatientById(patient._id)
+  if (!patient) throw unauthorized("Patient not found")
+  const token = await signPatientToken(patient._id.toHexString())
+  const needsProfile = !patient.fullName || patient.fullName === ""
+  logger.info("[patients.service] authPhonePassword success (existing)", {
     patientId: patient._id.toHexString(),
     needsProfile,
   })

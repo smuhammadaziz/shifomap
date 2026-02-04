@@ -49,6 +49,12 @@ export const authPhoneBodySchema = z.object({
   phone: z.string().regex(/^\+998\d{9}$/, "Phone must be +998 followed by 9 digits"),
 })
 
+// Validation: Phone + password auth (login or signup: one field checks or creates password)
+export const authPhonePasswordBodySchema = z.object({
+  phone: z.string().regex(/^\+998\d{9}$/, "Phone must be +998 followed by 9 digits"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+})
+
 // Validation: Complete profile after phone signup
 export const completeProfileBodySchema = z.object({
   fullName: z.string().min(1, "Full name is required").max(128),
@@ -74,6 +80,7 @@ export const updatePatientBodySchema = z.object({
 
 export type AuthGoogleBody = z.infer<typeof authGoogleBodySchema>
 export type AuthPhoneBody = z.infer<typeof authPhoneBodySchema>
+export type AuthPhonePasswordBody = z.infer<typeof authPhonePasswordBodySchema>
 export type CompleteProfileBody = z.infer<typeof completeProfileBodySchema>
 export type UpdatePatientBody = z.infer<typeof updatePatientBodySchema>
 

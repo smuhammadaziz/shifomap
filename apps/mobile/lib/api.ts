@@ -20,6 +20,13 @@ export function getConnectionErrorMessage(err: unknown): string {
   return msg;
 }
 
+/** Get error message from API response (response.data.error from backend). */
+export function getApiErrorMessage(err: unknown): string | null {
+  const ax = err as { response?: { data?: { error?: string; message?: string } } };
+  const msg = ax.response?.data?.error ?? ax.response?.data?.message ?? null;
+  return typeof msg === 'string' ? msg : null;
+}
+
 export const api = axios.create({
   baseURL: `${API_BASE}/v1`,
   headers: { 'Content-Type': 'application/json' },
@@ -77,6 +84,20 @@ export async function authPhone(
   const { data } = await api.post<{ success: boolean; data: AuthPhoneResponse }>(
     '/patients/auth/phone',
     { phone },
+    { headers: { 'X-Preferred-Language': preferredLanguage } }
+  );
+  if (!data.success) throw new Error('Auth failed');
+  return data.data;
+}
+
+export async function authPhonePassword(
+  phone: string,
+  password: string,
+  preferredLanguage: 'uz' | 'ru' | 'en' = 'uz'
+): Promise<AuthPhoneResponse> {
+  const { data } = await api.post<{ success: boolean; data: AuthPhoneResponse }>(
+    '/patients/auth/phone-password',
+    { phone, password },
     { headers: { 'X-Preferred-Language': preferredLanguage } }
   );
   if (!data.success) throw new Error('Auth failed');

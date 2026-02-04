@@ -19,6 +19,7 @@
       "backgroundColor": "#09090b"
     },
     "android": {
+      "package": "uz.shifoyol.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#09090b"
@@ -29,6 +30,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "13912f13-ec0a-4586-b1c5-0ef17cf8613f"
+      }
     }
   }
 }

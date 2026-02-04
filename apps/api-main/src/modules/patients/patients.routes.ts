@@ -2,12 +2,14 @@ import { Elysia } from "elysia"
 import {
   authGoogleBodySchema,
   authPhoneBodySchema,
+  authPhonePasswordBodySchema,
   completeProfileBodySchema,
   updatePatientBodySchema,
 } from "./patients.model"
 import {
   authGoogle,
   authPhone,
+  authPhonePassword,
   getMe,
   completeProfile,
   updateMe,
@@ -63,6 +65,30 @@ export const patientsRoutes = new Elysia({ prefix: "/patients" })
       return { success: true, data: result }
     } catch (err) {
       logger.error("[patients] POST /auth/phone error", {
+        err: err instanceof Error ? err.message : String(err),
+      })
+      throw err
+    }
+  })
+  // POST /v1/patients/auth/phone-password - Phone + password (login or signup; one field sets or verifies password)
+  .post("/auth/phone-password", async ({ body, request, set }) => {
+    const parsed = authPhonePasswordBodySchema.safeParse(body ?? {})
+    if (!parsed.success) {
+      set.status = 400
+      return {
+        success: false,
+        error: "Validation failed",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten().fieldErrors,
+      }
+    }
+    const lang = (request.headers.get("x-preferred-language") ?? "uz") as "uz" | "ru" | "en"
+    try {
+      const result = await authPhonePassword(parsed.data, lang)
+      set.status = 200
+      return { success: true, data: result }
+    } catch (err) {
+      logger.error("[patients] POST /auth/phone-password error", {
         err: err instanceof Error ? err.message : String(err),
       })
       throw err

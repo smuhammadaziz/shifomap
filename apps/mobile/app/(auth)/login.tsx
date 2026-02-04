@@ -13,143 +13,124 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '../../store/auth-store';
-import { authGoogle, authPhone, getConnectionErrorMessage } from '../../lib/api';
 import { getTranslations } from '../../lib/translations';
 
 const PHONE_PREFIX = '+998';
 
+/** Format 9 digits as 99 999 99 99 (e.g. 901234567 → 90 123 45 67) */
+function formatPhoneDisplay(digits: string): string {
+  const d = digits.replace(/\D/g, '').slice(0, 9);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)} ${d.slice(2)}`;
+  if (d.length <= 7) return `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`;
+  return `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 7)} ${d.slice(7)}`;
+}
+
 export default function Login() {
   const router = useRouter();
   const language = useAuthStore((s) => s.language) ?? 'uz';
-  const setToken = useAuthStore((s) => s.setToken);
-  const setPatient = useAuthStore((s) => s.setPatient);
-
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [digits, setDigits] = useState('');
+  const [navigating, setNavigating] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const t = getTranslations(language);
+  const setPendingPhone = useAuthStore((s) => s.setPendingPhone);
 
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  });
-
-  React.useEffect(() => {
-    if (response?.type === 'success' && response.params.id_token) {
-      handleGoogleToken(response.params.id_token);
-    } else if (response?.type === 'error') {
-      setGoogleLoading(false);
-    }
-  }, [response]);
-
-  async function handleGoogleToken(idToken: string) {
-    try {
-      const data = await authGoogle(idToken);
-      setToken(data.token);
-      setPatient(data.patient);
-      router.replace('/(tabs)');
-    } catch (e) {
-      Alert.alert('Error', getConnectionErrorMessage(e));
-    } finally {
-      setGoogleLoading(false);
-    }
-  }
-
-  const onGooglePress = async () => {
-    if (!request) return;
-    setGoogleLoading(true);
-    try {
-      await promptAsync();
-      if (response?.type !== 'success') setGoogleLoading(false);
-    } catch {
-      setGoogleLoading(false);
-    }
-  };
-
-  const onPhoneNext = async () => {
-    const digits = phone.replace(/\D/g, '');
+  const onPhoneNext = () => {
     if (digits.length !== 9) {
       Alert.alert('', t.loginError);
       return;
     }
     const fullPhone = PHONE_PREFIX + digits;
-    setLoading(true);
-    try {
-      const data = await authPhone(fullPhone, language as 'uz' | 'ru' | 'en');
-      setToken(data.token);
-      setPatient(data.patient);
-      if (data.needsProfile) {
-        router.replace('/(auth)/complete-profile');
-      } else {
-        router.replace('/(tabs)');
-      }
-    } catch (e) {
-      Alert.alert('Error', getConnectionErrorMessage(e));
-    } finally {
-      setLoading(false);
-    }
+    setPendingPhone(fullPhone);
+    setNavigating(true);
+    // Defer navigation so store update is committed first (fixes first-tap flicker)
+    const href = `/(auth)/password?phone=${encodeURIComponent(fullPhone)}`;
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        router.push(href);
+        setNavigating(false);
+      }, 0);
+    });
   };
+
+  const onPhoneChange = (text: string) => {
+    const next = text.replace(/\D/g, '').slice(0, 9);
+    setDigits(next);
+  };
+
+  const isValid = digits.length === 9;
+  const displayValue = formatPhoneDisplay(digits);
 
   return (
     <LinearGradient
-      colors={['#09090b', '#18181b', '#27272a']}
+      colors={['#0a0a0f', '#12121a', '#1a1a24']}
       style={styles.container}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboard}
       >
-          <View style={styles.content}>
+        <View style={styles.content}>
+          <View style={styles.iconWrap}>
+            <Ionicons name="call-outline" size={40} color="#8b5cf6" />
+          </View>
           <Text style={styles.title}>{t.loginTitle}</Text>
+          <Text style={styles.subtitle}>{t.loginSubtitle}</Text>
+
+          <View style={[styles.phoneCard, focused && styles.phoneCardFocused]}>
+            <View style={styles.phoneRow}>
+              <View style={styles.prefixWrap}>
+                <Text style={styles.prefix}>{PHONE_PREFIX}</Text>
+              </View>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder={t.loginPhonePlaceholder}
+                  placeholderTextColor="#52525b"
+                  value={displayValue}
+                  onChangeText={onPhoneChange}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  keyboardType="phone-pad"
+                  maxLength={12}
+                  editable={!navigating}
+                />
+                {digits.length > 0 && (
+                  <View style={styles.digitChips}>
+                    {[0, 1, 2].map((i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.digitChip,
+                          digits.length > i * 3 ? styles.digitChipFilled : null,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+            <View style={styles.phoneHint}>
+              <Ionicons name="information-circle-outline" size={14} color="#71717a" />
+              <Text style={styles.phoneHintText}>{t.loginPhoneHint}</Text>
+            </View>
+          </View>
+
           <TouchableOpacity
-            style={styles.googleButton}
-            onPress={onGooglePress}
-            disabled={googleLoading || !request}
-            activeOpacity={0.8}
+            style={[styles.nextButton, (!isValid || navigating) && styles.nextButtonDisabled]}
+            onPress={onPhoneNext}
+            disabled={!isValid || navigating}
+            activeOpacity={0.85}
           >
-            {googleLoading ? (
-              <ActivityIndicator color="#fff" />
+            {navigating ? (
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons name="logo-google" size={22} color="#ffffff" />
-                <Text style={styles.googleButtonText}>{t.loginGoogle}</Text>
+                <Text style={styles.nextButtonText}>{t.loginNext}</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
               </>
-            )}
-          </TouchableOpacity>
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>yoki / или</Text>
-            <View style={styles.dividerLine} />
-          </View>
-          <Text style={styles.phoneLabel}>{t.loginPhone}</Text>
-          <View style={styles.phoneRow}>
-            <Text style={styles.prefix}>{PHONE_PREFIX}</Text>
-            <TextInput
-              style={styles.phoneInput}
-              placeholder={t.loginPhonePlaceholder}
-              placeholderTextColor="#71717a"
-              value={phone}
-              onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 9))}
-              keyboardType="phone-pad"
-              maxLength={9}
-              editable={!loading}
-            />
-          </View>
-          <TouchableOpacity
-            style={[styles.nextButton, loading && styles.nextButtonDisabled]}
-            onPress={onPhoneNext}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.nextButtonText}>{t.loginNext}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -161,43 +142,117 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   keyboard: { flex: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: 24 },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#ffffff', marginBottom: 32, textAlign: 'center' },
-  googleButton: {
-    flexDirection: 'row',
+  content: { paddingHorizontal: 28 },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    backgroundColor: '#18181b',
-    borderWidth: 1,
-    borderColor: '#27272a',
-    borderRadius: 20,
-    paddingVertical: 18,
-    marginBottom: 24,
+    marginBottom: 28,
   },
-  googleButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#27272a' },
-  dividerText: { color: '#71717a', fontSize: 12, marginHorizontal: 12 },
-  phoneLabel: { color: '#a1a1aa', fontSize: 14, marginBottom: 8 },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fafafa',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#a1a1aa',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  phoneCard: {
+    backgroundColor: '#18181b',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#27272a',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  phoneCardFocused: {
+    borderColor: '#8b5cf6',
+    backgroundColor: '#1c1c22',
+  },
   phoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181b',
-    borderWidth: 1,
-    borderColor: '#27272a',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    marginBottom: 20,
   },
-  prefix: { color: '#a1a1aa', fontSize: 16, marginRight: 8 },
-  phoneInput: { flex: 1, color: '#ffffff', fontSize: 16, paddingVertical: 18 },
-  nextButton: {
-    backgroundColor: '#7c3aed',
-    borderRadius: 20,
-    paddingVertical: 18,
+  prefixWrap: {
+    marginRight: 12,
+    paddingVertical: 4,
+  },
+  prefix: {
+    color: '#a1a1aa',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  inputWrap: { flex: 1 },
+  phoneInput: {
+    color: '#fafafa',
+    fontSize: 22,
+    fontWeight: '600',
+    paddingVertical: 12,
+    letterSpacing: 2,
+  },
+  digitChips: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  digitChip: {
+    width: 8,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#27272a',
+  },
+  digitChipFilled: {
+    backgroundColor: '#8b5cf6',
+  },
+  phoneHint: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#27272a',
   },
-  nextButtonDisabled: { opacity: 0.7 },
-  nextButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  phoneHintText: {
+    color: '#71717a',
+    fontSize: 12,
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#8b5cf6',
+    borderRadius: 16,
+    paddingVertical: 18,
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  nextButtonDisabled: {
+    opacity: 0.5,
+    shadowOpacity: 0,
+  },
+  nextButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
 });

@@ -100,3 +100,16 @@ export async function updatePatientProfile(
   await db.collection<PatientDoc>(PATIENTS_COLLECTION).updateOne({ _id: patientId }, { $set: setFields })
   return db.collection<PatientDoc>(PATIENTS_COLLECTION).findOne({ _id: patientId })
 }
+
+export async function updatePatientPassword(
+  patientId: ObjectId,
+  passwordHash: string
+): Promise<PatientDoc | null> {
+  const db = getDb()
+  const now = new Date()
+  await db.collection<PatientDoc>(PATIENTS_COLLECTION).updateOne(
+    { _id: patientId },
+    { $set: { "auth.passwordHash": passwordHash, updatedAt: now } }
+  )
+  return db.collection<PatientDoc>(PATIENTS_COLLECTION).findOne({ _id: patientId })
+}

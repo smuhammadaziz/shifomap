@@ -14,9 +14,12 @@ interface AuthState {
   patient: Patient | null;
   /** null = user has not chosen language yet */
   language: AppLanguage | null;
+  /** Phone number set before navigating to password screen (cleared after use) */
+  pendingPhone: string | null;
   hydrated: boolean;
   setToken: (token: string | null) => void;
   setPatient: (patient: Patient | null) => void;
+  setPendingPhone: (phone: string | null) => void;
   setLanguage: (lang: AppLanguage) => Promise<void>;
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
@@ -27,6 +30,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   patient: null,
   language: null,
+  pendingPhone: null,
   hydrated: false,
 
   setToken: (token) => {
@@ -47,6 +51,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       AsyncStorage.removeItem(PATIENT_KEY);
     }
   },
+
+  setPendingPhone: (phone) => set({ pendingPhone: phone }),
 
   setLanguage: async (lang) => {
     set({ language: lang });
