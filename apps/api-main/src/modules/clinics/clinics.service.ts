@@ -9,6 +9,7 @@ import {
   getAllClinics,
   countClinics,
   findClinicById,
+  findActiveClinicsForPublic,
   findClinicIdByOwnerId,
   updateClinicInfo,
   updateClinicStatus,
@@ -836,6 +837,37 @@ export async function publicGetServiceById(serviceId: string) {
 
 export async function publicGetClinicServices(clinicId: string) {
   return getClinicServicesPublic(clinicId)
+}
+
+/** Public list item for clinics (home / all-clinics) */
+export interface PublicClinicListItem {
+  id: string
+  clinicDisplayName: string
+  logoUrl: string | null
+  coverUrl: string | null
+  servicesCount: number
+  branchesCount: number
+  categories: string[]
+  descriptionShort: string | null
+  rating: { avg: number; count: number }
+}
+
+/**
+ * List active clinics for patient app (public, no auth)
+ */
+export async function publicListClinics(limit: number = 100): Promise<PublicClinicListItem[]> {
+  const docs = await findActiveClinicsForPublic(limit)
+  return docs.map((d) => ({
+    id: d._id.toHexString(),
+    clinicDisplayName: d.clinicDisplayName,
+    logoUrl: d.branding?.logoUrl ?? null,
+    coverUrl: d.branding?.coverUrl ?? null,
+    servicesCount: d.stats?.servicesCount ?? 0,
+    branchesCount: d.stats?.branchesCount ?? 0,
+    categories: Array.isArray(d.category) ? d.category : [],
+    descriptionShort: d.description?.short ?? null,
+    rating: d.rating ? { avg: d.rating.avg, count: d.rating.count } : { avg: 0, count: 0 },
+  }))
 }
 
 /**

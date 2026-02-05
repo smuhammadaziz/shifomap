@@ -21,7 +21,8 @@ import Skeleton from '../components/Skeleton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 220;
-const DEFAULT_COVER = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800';
+const DEFAULT_COVER = 'https://www.shutterstock.com/image-photo/medical-coverage-insurance-concept-hands-260nw-1450246616.jpg';
+const DEFAULT_CLINIC_LOGO = 'https://static.vecteezy.com/system/resources/thumbnails/036/372/442/small/hospital-building-with-ambulance-emergency-car-on-cityscape-background-cartoon-illustration-vector.jpg';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
 
 const INITIAL_DOCTORS_COUNT = 3;
@@ -118,7 +119,7 @@ export default function ClinicDetailScreen() {
   }
 
   const coverUri = clinic.branding?.coverUrl || clinic.branding?.logoUrl || DEFAULT_COVER;
-  const logoUri = clinic.branding?.logoUrl || null;
+  const logoUri = clinic.branding?.logoUrl || DEFAULT_CLINIC_LOGO;
   const firstBranch = clinic.branches?.[0];
   const locationText = firstBranch ? `${firstBranch.address?.city ?? ''} ${firstBranch.address?.street ?? ''}`.trim() || firstBranch.name : null;
   const lastWorking = firstBranch?.workingHours?.length ? firstBranch.workingHours[firstBranch.workingHours.length - 1] : null;
@@ -156,13 +157,7 @@ export default function ClinicDetailScreen() {
         {/* Info card */}
         <View style={styles.card}>
           <View style={styles.clinicHeaderRow}>
-            {logoUri ? (
-              <Image source={{ uri: logoUri }} style={styles.clinicLogo} />
-            ) : (
-              <View style={[styles.clinicLogo, styles.clinicLogoPlaceholder]}>
-                <Ionicons name="business" size={32} color="#52525b" />
-              </View>
-            )}
+            <Image source={{ uri: logoUri }} style={styles.clinicLogo} />
             <View style={styles.clinicNameWrap}>
               <Text style={styles.clinicName} numberOfLines={2}>{clinic.clinicDisplayName}</Text>
               <View style={styles.verifiedBadge}>

@@ -244,6 +244,29 @@ export async function getClinicServices(clinicId: string): Promise<PublicService
   return data.data.services;
 }
 
+// --- Clinic list (public) ---
+
+export interface ClinicListItem {
+  id: string;
+  clinicDisplayName: string;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  servicesCount: number;
+  branchesCount: number;
+  categories: string[];
+  descriptionShort: string | null;
+  rating: { avg: number; count: number };
+}
+
+export async function getClinicsList(limit = 100): Promise<ClinicListItem[]> {
+  const { data } = await api.get<{ success: boolean; data: ClinicListItem[] }>(
+    '/clinics/public/clinics',
+    { params: { limit } }
+  );
+  if (!data.success) throw new Error('Failed to load clinics');
+  return data.data;
+}
+
 // --- Clinic detail (public) ---
 
 export interface ClinicBranchPublic {

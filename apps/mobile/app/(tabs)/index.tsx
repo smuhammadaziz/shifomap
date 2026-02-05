@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,10 +22,12 @@ import FeaturedClinics from '../components/FeaturedClinics';
 import SaveServiceStar from '../components/SaveServiceStar';
 import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
-import { searchServicesSuggest, getNextUpcomingBooking, type PublicServiceItem, type Booking } from '../../lib/api';
+import { searchServicesSuggest, getNextUpcomingBooking, getClinicsList, type PublicServiceItem, type Booking, type ClinicListItem } from '../../lib/api';
 import Skeleton from '../components/Skeleton';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=200&h=200&fit=crop';
+const DEFAULT_CLINIC_LOGO = 'https://static.vecteezy.com/system/resources/thumbnails/036/372/442/small/hospital-building-with-ambulance-emergency-car-on-cityscape-background-cartoon-illustration-vector.jpg';
+const DEFAULT_CLINIC_COVER = 'https://www.shutterstock.com/image-photo/medical-coverage-insurance-concept-hands-260nw-1450246616.jpg';
 
 function formatPrice(price: PublicServiceItem['price']): string {
   if (price.amount != null) return `${price.amount.toLocaleString()} ${price.currency}`;
@@ -48,7 +51,22 @@ const HomeScreen = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
+  const [clinics, setClinics] = useState<ClinicListItem[]>([]);
+  const [clinicsLoading, setClinicsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   // const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        getClinicsList(4).then(setClinics).catch(() => setClinics([])),
+        getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null)),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const fetchNextBooking = useCallback(() => {
     getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null));
@@ -63,6 +81,13 @@ const HomeScreen = () => {
       fetchNextBooking();
     }, [fetchNextBooking])
   );
+
+  useEffect(() => {
+    getClinicsList(4)
+      .then(setClinics)
+      .catch(() => setClinics([]))
+      .finally(() => setClinicsLoading(false));
+  }, []);
 
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -105,6 +130,14 @@ const HomeScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#a78bfa"
+            colors={['#a78bfa']}
+          />
+        }
       >
         <View style={styles.header}>
           <View style={styles.headerTextContainer}>
@@ -220,6 +253,74 @@ const HomeScreen = () => {
 
         {/* <Specialties /> */}
         <FeaturedClinics />
+
+        <View style={styles.clinicsSection}>
+          <View style={styles.clinicsSectionHeader}>
+            <Text style={styles.clinicsSectionTitle}>{t.clinics}</Text>
+            <TouchableOpacity onPress={() => router.push('/clinics')} hitSlop={12}>
+              <Text style={styles.clinicsViewAll}>{t.viewAll}</Text>
+            </TouchableOpacity>
+          </View>
+          {clinicsLoading ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.clinicsScrollContent} style={styles.clinicsScroll}>
+              {[1, 2, 3, 4].map((i) => (
+                <View key={i} style={styles.clinicCard}>
+                  <Skeleton width="100%" height={112} style={styles.clinicCardCover} />
+                  <View style={styles.clinicCardInfo}>
+                    <Skeleton width="90%" height={16} style={{ marginBottom: 6 }} />
+                    <Skeleton width="70%" height={12} style={{ marginBottom: 8 }} />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <Skeleton width={60} height={18} borderRadius={9} />
+                      <Skeleton width={80} height={18} borderRadius={9} />
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.clinicsScrollContent}
+              style={styles.clinicsScroll}
+            >
+              {clinics.map((c) => {
+                const coverUri = c.coverUrl || c.logoUrl || DEFAULT_CLINIC_COVER;
+                const tagline = c.categories.length ? c.categories.slice(0, 2).join(' · ') + (c.categories.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 30);
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={styles.clinicCard}
+                    activeOpacity={0.9}
+                    onPress={() => router.push({ pathname: '/clinic/[id]', params: { id: c.id } })}
+                  >
+                    <View style={styles.clinicCardCoverWrap}>
+                      <Image source={{ uri: coverUri }} style={styles.clinicCardCover} />
+                      <View style={styles.clinicCardBadge}>
+                        <Text style={styles.clinicCardBadgeText}>
+                          {(t.nServices || '{{n}}').replace('{{n}}', String(c.servicesCount))}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.clinicCardInfo}>
+                      <Text style={styles.clinicCardName} numberOfLines={1}>{c.clinicDisplayName}</Text>
+                      {tagline ? <Text style={styles.clinicCardTagline} numberOfLines={1}>{tagline}</Text> : null}
+                      <View style={styles.clinicCardMetaRow}>
+                        <View style={styles.clinicCardRatingWrap}>
+                          <Ionicons name="star" size={12} color="#f59e0b" />
+                          <Text style={styles.clinicCardRating}>{c.rating.avg > 0 ? c.rating.avg.toFixed(1) : '—'} {c.rating.count > 0 ? `(${c.rating.count})` : ''}</Text>
+                        </View>
+                        <Text style={styles.clinicCardMetaDot}>•</Text>
+                        <Text style={styles.clinicCardBranches}>{c.branchesCount} {t.branches}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+
         <View style={{ height: 120 }} />
       </ScrollView>
 
@@ -344,6 +445,41 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: '#ffffff', fontSize: 16, fontWeight: '600', marginBottom: 4 },
   cardSubtitle: { color: '#a1a1aa', fontSize: 12 },
+
+  clinicsSection: { marginTop: 32, paddingHorizontal: 20 },
+  clinicsSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  clinicsSectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  clinicsViewAll: { color: '#a78bfa', fontSize: 14, fontWeight: '600' },
+  clinicsScroll: { marginHorizontal: -20 },
+  clinicsScrollContent: { paddingHorizontal: 20, paddingRight: 24, paddingBottom: 12, gap: 14 },
+  clinicCard: {
+    width: 200,
+    backgroundColor: '#18181b',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#27272a',
+  },
+  clinicCardCoverWrap: { position: 'relative', width: '100%', height: 112 },
+  clinicCardCover: { width: '100%', height: 112, backgroundColor: '#27272a' },
+  clinicCardBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  clinicCardBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  clinicCardInfo: { padding: 12 },
+  clinicCardName: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  clinicCardTagline: { color: '#71717a', fontSize: 12, marginBottom: 6 },
+  clinicCardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  clinicCardRatingWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  clinicCardRating: { color: '#f59e0b', fontSize: 12, fontWeight: '600' },
+  clinicCardMetaDot: { color: '#52525b', fontSize: 10 },
+  clinicCardBranches: { color: '#71717a', fontSize: 11 },
 });
 
 export default HomeScreen;

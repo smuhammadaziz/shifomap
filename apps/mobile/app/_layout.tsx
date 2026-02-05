@@ -31,6 +31,7 @@ export default function RootLayout() {
         <Stack.Screen name="services-results" options={screenOptions} />
         <Stack.Screen name="service/[id]" options={screenOptions} />
         <Stack.Screen name="clinic-services/[id]" options={screenOptions} />
+        <Stack.Screen name="clinics" options={screenOptions} />
         <Stack.Screen name="clinic/[id]" options={screenOptions} />
         <Stack.Screen name="doctor/[id]" options={screenOptions} />
         <Stack.Screen name="book" options={screenOptions} />

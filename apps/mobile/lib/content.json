@@ -151,7 +151,10 @@
     "cancelAppointment": "Navbatni bekor qilish",
     "whyCancel": "Bekor qilish sababi (ixtiyoriy)",
     "problem": "Muammo",
-    "cancelSuccess": "Navbat bekor qilindi"
+    "cancelSuccess": "Navbat bekor qilindi",
+    "clinics": "Klinikalar",
+    "seeMoreClinics": "Barcha klinikalar",
+    "nServices": "{{n}} xizmat"
   },
   "ru": {
     "tabHome": "Главная",
@@ -305,6 +308,9 @@
     "cancelAppointment": "Отменить запись",
     "whyCancel": "Причина отмены (необязательно)",
     "problem": "Проблема",
-    "cancelSuccess": "Запись отменена"
+    "cancelSuccess": "Запись отменена",
+    "clinics": "Клиники",
+    "seeMoreClinics": "Все клиники",
+    "nServices": "{{n}} услуг"
   }
 }

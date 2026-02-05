@@ -372,6 +372,47 @@ export async function findClinicById(clinicId: ObjectId): Promise<ClinicDoc | nu
   return db.collection<ClinicDoc>(CLINICS_COLLECTION).findOne({ _id: clinicId })
 }
 
+/** Minimal clinic fields for public list (active only) */
+export interface ClinicDocPublicListProjection {
+  _id: ObjectId
+  clinicDisplayName: string
+  branding: { logoUrl: string | null; coverUrl: string | null }
+  stats: { servicesCount: number; branchesCount: number }
+  category: string[]
+  description: { short: string | null; full: string | null }
+  rating: { avg: number; count: number }
+}
+
+/**
+ * Find active clinics for public list (no auth)
+ */
+export async function findActiveClinicsForPublic(limit: number = 100): Promise<ClinicDocPublicListProjection[]> {
+  const db = getDb()
+  return db
+    .collection<ClinicDoc>(CLINICS_COLLECTION)
+    .find(
+      { status: "active", deletedAt: null },
+      {
+        projection: {
+          _id: 1,
+          clinicDisplayName: 1,
+          "branding.logoUrl": 1,
+          "branding.coverUrl": 1,
+          "stats.servicesCount": 1,
+          "stats.branchesCount": 1,
+          category: 1,
+          "description.short": 1,
+          "description.full": 1,
+          "rating.avg": 1,
+          "rating.count": 1,
+        },
+      }
+    )
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray() as Promise<ClinicDocPublicListProjection[]>
+}
+
 /**
  * Update clinic info (branding, contacts, description)
  */
