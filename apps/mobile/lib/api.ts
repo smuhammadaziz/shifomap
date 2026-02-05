@@ -302,3 +302,69 @@ export async function getClinicDetail(clinicId: string): Promise<ClinicDetailPub
   if (!data.success) throw new Error('Clinic not found');
   return data.data;
 }
+
+// --- Bookings (auth required) ---
+
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+
+export interface Booking {
+  _id: string;
+  clinicId: string;
+  branchId: string | null;
+  serviceId: string;
+  doctorId: string | null;
+  userId: string;
+  scheduledAt: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  status: BookingStatus;
+  price: number | null;
+  cancel: { by: 'patient' | 'clinic' | null; reason: string | null; cancelledAt: string | null };
+  createdAt: string;
+  updatedAt: string;
+  clinicDisplayName?: string;
+  serviceTitle?: string;
+  doctorName?: string | null;
+  branchName?: string | null;
+  durationMin?: number;
+}
+
+export async function createBooking(body: {
+  clinicId: string;
+  branchId?: string | null;
+  serviceId: string;
+  doctorId?: string | null;
+  scheduledDate: string;
+  scheduledTime: string;
+}): Promise<Booking> {
+  const { data } = await api.post<{ success: boolean; data: Booking }>('/bookings', body);
+  if (!data.success) throw new Error('Booking failed');
+  return data.data;
+}
+
+export async function getMyBookings(status?: BookingStatus): Promise<Booking[]> {
+  const params = status ? { status } : {};
+  const { data } = await api.get<{ success: boolean; data: Booking[] }>('/bookings/me', { params });
+  if (!data.success) throw new Error('Failed to load bookings');
+  return data.data;
+}
+
+export async function getBookingById(id: string): Promise<Booking> {
+  const { data } = await api.get<{ success: boolean; data: Booking }>(`/bookings/${id}`);
+  if (!data.success) throw new Error('Booking not found');
+  return data.data;
+}
+
+export async function getNextUpcomingBooking(): Promise<Booking | null> {
+  const { data } = await api.get<{ success: boolean; data: Booking | null }>('/bookings/next-upcoming');
+  if (!data.success) throw new Error('Failed to load');
+  return data.data;
+}
+
+export async function cancelBooking(bookingId: string, reason?: string | null): Promise<Booking> {
+  const { data } = await api.patch<{ success: boolean; data: Booking }>(`/bookings/${bookingId}/cancel`, {
+    reason: reason ?? null,
+  });
+  if (!data.success) throw new Error('Cancel failed');
+  return data.data;
+}

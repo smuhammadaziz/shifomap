@@ -8,17 +8,29 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicServicePublic } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
+import Skeleton from '../components/Skeleton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 220;
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
+
+const INITIAL_DOCTORS_COUNT = 3;
+const INITIAL_SERVICES_COUNT = 3;
+const LOGO_SIZE = 72;
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 function formatPrice(price: ClinicServicePublic['price']): string {
   if (price.amount != null) return `${price.amount.toLocaleString()} ${price.currency}`;
@@ -28,11 +40,6 @@ function formatPrice(price: ClinicServicePublic['price']): string {
   return price.currency;
 }
 
-function getOpenUntil(workingHours: Array<{ from: string; to: string }>): string | null {
-  if (!workingHours?.length) return null;
-  const last = workingHours[workingHours.length - 1];
-  return last ? `Open until ${last.to}` : null;
-}
 
 export default function ClinicDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,6 +49,8 @@ export default function ClinicDetailScreen() {
   const [clinic, setClinic] = useState<ClinicDetailPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAllDoctors, setShowAllDoctors] = useState(false);
+  const [showAllServices, setShowAllServices] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -54,8 +63,46 @@ export default function ClinicDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={styles.container}>
+        <View style={styles.heroBox}>
+          <Skeleton width={SCREEN_WIDTH} height={HERO_HEIGHT} borderRadius={0} />
+        </View>
+        <View style={styles.card}>
+          <View style={styles.clinicHeaderRow}>
+            <Skeleton width={LOGO_SIZE} height={LOGO_SIZE} borderRadius={16} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Skeleton width="80%" height={22} style={{ marginBottom: 8 }} />
+              <Skeleton width={100} height={16} />
+            </View>
+          </View>
+          <View style={{ marginBottom: 16 }}>
+            <Skeleton width="70%" height={14} style={{ marginBottom: 6 }} />
+            <Skeleton width="50%" height={14} />
+          </View>
+          <Skeleton width="100%" height={72} style={{ marginBottom: 20, borderRadius: 16 }} />
+          <Skeleton width={80} height={12} style={{ marginBottom: 8 }} />
+          <Skeleton width="100%" height={60} style={{ marginBottom: 24, borderRadius: 8 }} />
+          <Skeleton width={100} height={12} style={{ marginBottom: 12 }} />
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={styles.doctorRow}>
+              <Skeleton width={52} height={52} borderRadius={26} />
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Skeleton width="60%" height={16} style={{ marginBottom: 6 }} />
+                <Skeleton width="40%" height={13} />
+              </View>
+            </View>
+          ))}
+          <Skeleton width={100} height={12} style={{ marginTop: 20, marginBottom: 12 }} />
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={styles.serviceRow}>
+              <Skeleton width={48} height={48} borderRadius={12} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Skeleton width="70%" height={15} style={{ marginBottom: 6 }} />
+                <Skeleton width="40%" height={13} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
@@ -71,11 +118,26 @@ export default function ClinicDetailScreen() {
   }
 
   const coverUri = clinic.branding?.coverUrl || clinic.branding?.logoUrl || DEFAULT_COVER;
+  const logoUri = clinic.branding?.logoUrl || null;
   const firstBranch = clinic.branches?.[0];
   const locationText = firstBranch ? `${firstBranch.address?.city ?? ''} ${firstBranch.address?.street ?? ''}`.trim() || firstBranch.name : null;
-  const openUntil = firstBranch ? getOpenUntil(firstBranch.workingHours) : null;
+  const lastWorking = firstBranch?.workingHours?.length ? firstBranch.workingHours[firstBranch.workingHours.length - 1] : null;
+  const openUntil = lastWorking ? `${t.openUntil} ${lastWorking.to}` : null;
   const activeDoctors = (clinic.doctors ?? []).filter((d) => d.isActive);
   const activeServices = (clinic.services ?? []).filter((s) => s.isActive);
+  const visibleDoctors = showAllDoctors ? activeDoctors : activeDoctors.slice(0, INITIAL_DOCTORS_COUNT);
+  const hasMoreDoctors = activeDoctors.length > INITIAL_DOCTORS_COUNT;
+  const visibleServices = showAllServices ? activeServices : activeServices.slice(0, INITIAL_SERVICES_COUNT);
+  const hasMoreServices = activeServices.length > INITIAL_SERVICES_COUNT;
+
+  const toggleDoctorsExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowAllDoctors((prev) => !prev);
+  };
+  const toggleServicesExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowAllServices((prev) => !prev);
+  };
 
   return (
     <View style={styles.container}>
@@ -87,18 +149,25 @@ export default function ClinicDetailScreen() {
             <TouchableOpacity style={styles.heroBackBtn} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.heroFavoriteBtn}>
-              <Ionicons name="heart-outline" size={24} color="#fff" />
-            </TouchableOpacity>
+            
           </View>
         </View>
 
         {/* Info card */}
         <View style={styles.card}>
-          <View style={styles.clinicNameRow}>
-            <Text style={styles.clinicName}>{clinic.clinicDisplayName}</Text>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={20} color="#3b82f6" />
+          <View style={styles.clinicHeaderRow}>
+            {logoUri ? (
+              <Image source={{ uri: logoUri }} style={styles.clinicLogo} />
+            ) : (
+              <View style={[styles.clinicLogo, styles.clinicLogoPlaceholder]}>
+                <Ionicons name="business" size={32} color="#52525b" />
+              </View>
+            )}
+            <View style={styles.clinicNameWrap}>
+              <Text style={styles.clinicName} numberOfLines={2}>{clinic.clinicDisplayName}</Text>
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={20} color="#3b82f6" />
+              </View>
             </View>
           </View>
           {(locationText || openUntil) && (
@@ -145,7 +214,7 @@ export default function ClinicDetailScreen() {
           {activeDoctors.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.ourDoctors}</Text>
-              {activeDoctors.map((doctor) => (
+              {visibleDoctors.map((doctor) => (
                 <TouchableOpacity
                   key={doctor._id}
                   style={styles.doctorRow}
@@ -163,6 +232,25 @@ export default function ClinicDetailScreen() {
                   <Ionicons name="chevron-forward" size={20} color="#71717a" />
                 </TouchableOpacity>
               ))}
+              {hasMoreDoctors && (
+                <TouchableOpacity
+                  style={styles.seeMoreDoctorsBtn}
+                  activeOpacity={0.85}
+                  onPress={toggleDoctorsExpand}
+                >
+                  <Ionicons
+                    name={showAllDoctors ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color="#a78bfa"
+                  />
+                  <Text style={styles.seeMoreDoctorsText}>
+                    {showAllDoctors ? t.seeLessDoctors : t.seeMoreDoctors}
+                    {!showAllDoctors && (
+                      <Text style={styles.seeMoreDoctorsCount}> (+{activeDoctors.length - INITIAL_DOCTORS_COUNT})</Text>
+                    )}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -170,7 +258,7 @@ export default function ClinicDetailScreen() {
           {activeServices.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.viewClinicServices}</Text>
-              {activeServices.map((svc) => (
+              {visibleServices.map((svc) => (
                 <TouchableOpacity
                   key={svc._id}
                   style={styles.serviceRow}
@@ -188,25 +276,31 @@ export default function ClinicDetailScreen() {
                   <Ionicons name="chevron-forward" size={18} color="#71717a" />
                 </TouchableOpacity>
               ))}
+              {hasMoreServices && (
+                <TouchableOpacity
+                  style={styles.seeMoreDoctorsBtn}
+                  activeOpacity={0.85}
+                  onPress={toggleServicesExpand}
+                >
+                  <Ionicons
+                    name={showAllServices ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color="#a78bfa"
+                  />
+                  <Text style={styles.seeMoreDoctorsText}>
+                    {showAllServices ? t.seeLessServices : t.seeMoreServices}
+                    {!showAllServices && (
+                      <Text style={styles.seeMoreDoctorsCount}> (+{activeServices.length - INITIAL_SERVICES_COUNT})</Text>
+                    )}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
           <View style={{ height: 100 }} />
         </View>
       </ScrollView>
-
-      {/* Sticky Book button */}
-      <View style={styles.stickyFooter}>
-        <TouchableOpacity
-          style={styles.bookButton}
-          activeOpacity={0.9}
-          onPress={() => router.push({ pathname: '/book', params: { clinicId: id as string } })}
-        >
-          <Ionicons name="calendar" size={22} color="#fff" style={styles.bookIcon} />
-          <Text style={styles.bookButtonText}>{t.bookAppointment}</Text>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -264,9 +358,17 @@ const styles = StyleSheet.create({
     borderColor: '#27272a',
     borderBottomWidth: 0,
   },
-  clinicNameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  clinicName: { color: '#fff', fontSize: 24, fontWeight: '700', flex: 1 },
-  verifiedBadge: { marginLeft: 8 },
+  clinicHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  clinicLogo: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: 16,
+    backgroundColor: '#27272a',
+  },
+  clinicLogoPlaceholder: { justifyContent: 'center', alignItems: 'center' },
+  clinicNameWrap: { flex: 1, marginLeft: 14, justifyContent: 'center' },
+  clinicName: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  verifiedBadge: { marginTop: 4, alignSelf: 'flex-start' },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   metaText: { color: '#a1a1aa', fontSize: 13 },
   metaDot: { color: '#52525b', fontSize: 13 },
@@ -302,6 +404,20 @@ const styles = StyleSheet.create({
   doctorInfo: { flex: 1, marginLeft: 14 },
   doctorName: { color: '#fff', fontSize: 16, fontWeight: '600' },
   doctorSpecialty: { color: '#a1a1aa', fontSize: 13, marginTop: 2 },
+  seeMoreDoctorsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 4,
+    borderRadius: 14,
+    backgroundColor: 'rgba(167, 139, 250, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.3)',
+  },
+  seeMoreDoctorsText: { color: '#a78bfa', fontSize: 15, fontWeight: '600' },
+  seeMoreDoctorsCount: { color: '#a78bfa', fontSize: 14, fontWeight: '500', opacity: 0.9 },
   serviceRow: {
     flexDirection: 'row',
     alignItems: 'center',

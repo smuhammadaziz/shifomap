@@ -15,6 +15,7 @@ import { getServiceById, type ServiceDetailResponse } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
 import SaveServiceStar from '../components/SaveServiceStar';
+import Skeleton from '../components/Skeleton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 220;
@@ -49,8 +50,27 @@ export default function ServiceDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={styles.container}>
+        <View style={styles.heroBox}>
+          <Skeleton width={SCREEN_WIDTH} height={HERO_HEIGHT} borderRadius={0} />
+        </View>
+        <View style={styles.card}>
+          <Skeleton width={120} height={13} style={{ marginBottom: 6 }} />
+          <Skeleton width="85%" height={20} style={{ marginBottom: 8 }} />
+          <Skeleton width={160} height={28} style={{ marginBottom: 12 }} />
+          <Skeleton width={100} height={14} style={{ marginBottom: 16 }} />
+          <Skeleton width="100%" height={48} style={{ marginBottom: 20 }} />
+          <Skeleton width={60} height={12} style={{ marginBottom: 8 }} />
+          <Skeleton width="100%" height={44} style={{ marginBottom: 8 }} />
+          <Skeleton width="100%" height={44} style={{ marginBottom: 18 }} />
+          <Skeleton width={60} height={12} style={{ marginBottom: 8 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Skeleton width={36} height={36} borderRadius={18} />
+            <Skeleton width={120} height={14} style={{ marginLeft: 10 }} />
+          </View>
+          <Skeleton width={60} height={12} style={{ marginBottom: 8 }} />
+          <Skeleton width="100%" height={44} />
+        </View>
       </View>
     );
   }

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail, type ClinicDoctorPublic } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
+import Skeleton from '../components/Skeleton';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
 
@@ -54,8 +55,26 @@ export default function DoctorDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Skeleton width={24} height={24} borderRadius={4} />
+          <Skeleton width={120} height={18} style={{ marginLeft: 8, flex: 1 }} />
+        </View>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.profileCard}>
+            <Skeleton width={100} height={100} borderRadius={50} />
+            <Skeleton width="70%" height={22} style={{ marginTop: 16, marginBottom: 6 }} />
+            <Skeleton width={140} height={15} />
+          </View>
+          <View style={styles.body}>
+            <Skeleton width={80} height={12} style={{ marginBottom: 4 }} />
+            <Skeleton width="100%" height={16} style={{ marginBottom: 16 }} />
+            <Skeleton width={60} height={12} style={{ marginBottom: 4 }} />
+            <Skeleton width="100%" height={48} style={{ marginBottom: 16 }} />
+            <Skeleton width={80} height={12} style={{ marginBottom: 4 }} />
+            <Skeleton width="100%" height={40} />
+          </View>
+        </ScrollView>
       </View>
     );
   }

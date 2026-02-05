@@ -6,6 +6,7 @@ import { getClinicDetail } from '../../lib/api';
 import type { ClinicBranchPublic } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
+import Skeleton from '../components/Skeleton';
 
 export default function BranchDetailScreen() {
   const { id: branchId, clinicId } = useLocalSearchParams<{ id: string; clinicId?: string }>();
@@ -35,8 +36,35 @@ export default function BranchDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Skeleton width={24} height={24} borderRadius={4} />
+          <Skeleton width={180} height={18} style={{ marginLeft: 8, flex: 1 }} />
+        </View>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Skeleton width={36} height={36} borderRadius={10} style={{ marginBottom: 8 }} />
+              <Skeleton width={80} height={11} style={{ marginBottom: 4 }} />
+              <Skeleton width="100%" height={15} />
+            </View>
+            <View style={styles.row}>
+              <Skeleton width={36} height={36} borderRadius={10} style={{ marginBottom: 8 }} />
+              <Skeleton width={60} height={11} style={{ marginBottom: 4 }} />
+              <Skeleton width="70%" height={15} />
+            </View>
+            <View style={styles.row}>
+              <Skeleton width={36} height={36} borderRadius={10} style={{ marginBottom: 8 }} />
+              <Skeleton width={80} height={11} style={{ marginBottom: 4 }} />
+              <Skeleton width="100%" height={15} />
+            </View>
+            <View style={styles.row}>
+              <Skeleton width={36} height={36} borderRadius={10} style={{ marginBottom: 8 }} />
+              <Skeleton width={100} height={11} style={{ marginBottom: 4 }} />
+              <Skeleton width="90%" height={14} style={{ marginTop: 4 }} />
+            </View>
+          </View>
+        </ScrollView>
       </View>
     );
   }

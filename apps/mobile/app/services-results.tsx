@@ -15,6 +15,7 @@ import { searchServicesWithFilters, type PublicServiceItem, type ServiceFilters 
 import { useAuthStore } from '../store/auth-store';
 import { getTranslations } from '../lib/translations';
 import SaveServiceStar from './components/SaveServiceStar';
+import Skeleton from './components/Skeleton';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=200&h=200&fit=crop';
 
@@ -110,8 +111,17 @@ export default function ServicesResultsScreen() {
         <Text style={styles.headerTitle}>{t.searchServices}</Text>
       </View>
         {loading && services.length === 0 ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#8b5cf6" />
+          <View style={styles.skeletonList}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <View key={i} style={styles.card}>
+                <Skeleton width={88} height={88} borderRadius={14} />
+                <View style={styles.cardBody}>
+                  <Skeleton width="90%" height={16} style={{ marginBottom: 8 }} />
+                  <Skeleton width={60} height={12} style={{ marginBottom: 4 }} />
+                  <Skeleton width={80} height={14} />
+                </View>
+              </View>
+            ))}
           </View>
         ) : error ? (
           <View style={styles.centered}>
@@ -143,6 +153,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 8, marginLeft: -8 },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginLeft: 8 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  skeletonList: { padding: 20, paddingBottom: 40 },
   errorText: { color: '#f87171', fontSize: 14 },
   noResults: { color: '#a1a1aa', fontSize: 14 },
   listContent: { padding: 20, paddingBottom: 40 },

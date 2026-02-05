@@ -44,3 +44,4 @@ export async function closeMongo(): Promise<void> {
 export const PLATFORM_ADMIN_COLLECTION = "platform_admin"
 export const CLINICS_COLLECTION = "clinics"
 export const PATIENTS_COLLECTION = "patients"
+export const BOOKINGS_COLLECTION = "bookings"

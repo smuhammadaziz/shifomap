@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail, getClinicServices, type PublicServiceItem } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
+import Skeleton from '../components/Skeleton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 220;
@@ -58,8 +59,29 @@ export default function ClinicServicesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={styles.container}>
+        <View style={styles.heroBox}>
+          <Skeleton width={SCREEN_WIDTH} height={HERO_HEIGHT} borderRadius={0} style={StyleSheet.absoluteFill} />
+        </View>
+        <View style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <Skeleton width={56} height={56} borderRadius={14} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Skeleton width="75%" height={20} style={{ marginBottom: 6 }} />
+              <Skeleton width="50%" height={14} />
+            </View>
+          </View>
+          <Skeleton width={80} height={12} style={{ marginBottom: 12 }} />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} style={styles.serviceCard}>
+              <Skeleton width={56} height={56} borderRadius={14} />
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Skeleton width="70%" height={16} style={{ marginBottom: 6 }} />
+                <Skeleton width="45%" height={14} />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getServiceFilterOptions, type ServiceFilterOptions, type ServiceFilters } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
+import Skeleton from './Skeleton';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=200&h=200&fit=crop';
 
@@ -85,8 +86,20 @@ export default function ServiceFiltersModal({ visible, onClose, initialFilters =
             </TouchableOpacity>
           </View>
           {loading ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#8b5cf6" />
+            <View style={styles.skeletonContent}>
+              <Skeleton width={80} height={12} style={{ marginBottom: 12 }} />
+              <View style={styles.chipRow}>
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} width={64} height={36} style={{ borderRadius: 20, marginRight: 8 }} />
+                ))}
+              </View>
+              <Skeleton width={80} height={12} style={{ marginTop: 24, marginBottom: 12 }} />
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Skeleton width="45%" height={48} style={{ borderRadius: 12 }} />
+                <Skeleton width="45%" height={48} style={{ borderRadius: 12 }} />
+              </View>
+              <Skeleton width={100} height={12} style={{ marginTop: 24, marginBottom: 12 }} />
+              <Skeleton width="50%" height={48} style={{ borderRadius: 12 }} />
             </View>
           ) : (
             <ScrollView
@@ -203,6 +216,7 @@ const styles = StyleSheet.create({
   title: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
   closeBtn: { padding: 4 },
   loadingBox: { padding: 48, alignItems: 'center' },
+  skeletonContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 },
   scroll: { maxHeight: 400 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 16 },
   section: { marginBottom: 20 },

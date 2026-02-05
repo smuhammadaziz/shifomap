@@ -5,6 +5,7 @@ import { authRoutes } from "@/modules/auth/auth.routes"
 import { usersRoutes } from "@/modules/users/users.routes"
 import { clinicsRoutes } from "@/modules/clinics/clinics.routes"
 import { patientsRoutes } from "@/modules/patients/patients.routes"
+import { bookingsRoutes } from "@/modules/bookings/bookings.routes"
 import { AppError } from "@/common/errors"
 
 // V1 API routes
@@ -13,6 +14,7 @@ const v1 = new Elysia({ prefix: "/v1" })
   .use(usersRoutes)
   .use(clinicsRoutes)
   .use(patientsRoutes)
+  .use(bookingsRoutes)
 
 // Main Elysia app
 export const app = new Elysia()
@@ -36,8 +38,13 @@ export const app = new Elysia()
   .use(healthRoutes)
   // V1 API
   .use(v1)
-  // Global error handler
+  // Global error handler (Elysia may wrap errors from derive, so check statusCode too)
   .onError(({ error, set }) => {
+    const err = error as AppError & { statusCode?: number; code?: string }
+    if (err?.statusCode && err?.message) {
+      set.status = err.statusCode
+      return { success: false, error: err.message, code: err.code }
+    }
     if (error instanceof AppError) {
       set.status = error.statusCode
       return { success: false, error: error.message, code: error.code }

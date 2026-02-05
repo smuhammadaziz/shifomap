@@ -14,13 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import Specialties from '../components/Specialties';
 import FeaturedClinics from '../components/FeaturedClinics';
 // import ServiceFiltersModal from '../components/ServiceFiltersModal';
 import SaveServiceStar from '../components/SaveServiceStar';
 import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
-import { searchServicesSuggest, type PublicServiceItem } from '../../lib/api';
+import { searchServicesSuggest, getNextUpcomingBooking, type PublicServiceItem, type Booking } from '../../lib/api';
+import Skeleton from '../components/Skeleton';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=200&h=200&fit=crop';
 
@@ -45,7 +47,22 @@ const HomeScreen = () => {
   const [suggestions, setSuggestions] = useState<PublicServiceItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [nextBooking, setNextBooking] = useState<Booking | null>(null);
   // const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  const fetchNextBooking = useCallback(() => {
+    getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null));
+  }, []);
+
+  useEffect(() => {
+    fetchNextBooking();
+  }, [fetchNextBooking]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchNextBooking();
+    }, [fetchNextBooking])
+  );
 
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -130,8 +147,16 @@ const HomeScreen = () => {
         {showSuggestions && searchQuery.trim() && (
           <View style={styles.suggestionsBox}>
             {searchLoading ? (
-              <View style={styles.suggestionsLoader}>
-                <ActivityIndicator size="small" color="#8b5cf6" />
+              <View style={styles.suggestionsSkeleton}>
+                {[1, 2, 3, 4].map((i) => (
+                  <View key={i} style={styles.suggestionRow}>
+                    <Skeleton width={52} height={52} borderRadius={12} />
+                    <View style={styles.suggestionBody}>
+                      <Skeleton width="85%" height={15} style={{ marginBottom: 6 }} />
+                      <Skeleton width={80} height={13} />
+                    </View>
+                  </View>
+                ))}
               </View>
             ) : suggestions.length === 0 ? (
               <Text style={styles.noResultsText}>{t.noResultsFound}</Text>
@@ -171,12 +196,17 @@ const HomeScreen = () => {
 
         <TouchableWithoutFeedback onPress={hideSuggestions}>
           <View style={styles.dashboardContainer}>
-            <TouchableOpacity style={styles.dashboardCard}>
+            <TouchableOpacity style={styles.dashboardCard} onPress={() => router.push('/appointments')}>
               <View style={[styles.iconContainer, { backgroundColor: '#3b0764' }]}>
                 <Ionicons name="calendar" size={24} color="#a78bfa" />
               </View>
               <Text style={styles.cardTitle}>{t.myAppointments}</Text>
-              <Text style={styles.cardSubtitle}>{t.nextAppointment}</Text>
+              <Text style={styles.cardSubtitle}>
+                {nextBooking &&
+                (nextBooking.status === 'pending' || nextBooking.status === 'confirmed')
+                  ? `${nextBooking.scheduledDate.split('-').reverse().join('/')} ${nextBooking.scheduledTime}`
+                  : t.noUpcomingPromo}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.dashboardCard}>
               <View style={[styles.iconContainer, { backgroundColor: '#3b0764' }]}>
@@ -276,6 +306,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   suggestionsLoader: { padding: 24, alignItems: 'center' },
+  suggestionsSkeleton: { padding: 12 },
   noResultsText: { color: '#71717a', fontSize: 13, padding: 20, textAlign: 'center' },
   suggestionsScroll: { maxHeight: 320 },
   suggestionRow: {
