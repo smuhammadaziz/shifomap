@@ -33,7 +33,12 @@ import {
   setServiceStatusInClinic,
   removeServiceFromClinic,
   migratePlanLimits,
+  searchServicesPublic,
+  getServiceFilterOptionsPublic,
+  getServiceByIdPublic,
+  getClinicServicesPublic,
 } from "./clinics.repo"
+import type { PublicServiceFilters } from "./clinics.repo"
 import type {
   ClinicService,
   CreateClinicBody,
@@ -799,4 +804,36 @@ function toObjectId(id: string): ObjectId {
 export async function runPlanLimitsMigration() {
   const result = await migratePlanLimits()
   return { message: `Successfully updated ${result.updated} clinic(s) with new plan limits` }
+}
+
+// --- Public (patient-facing) services ---
+
+export async function publicSearchServices(
+  filters: PublicServiceFilters,
+  page: number = 1,
+  limit: number = 20
+) {
+  const skip = (page - 1) * limit
+  const { services, total } = await searchServicesPublic(filters, skip, limit)
+  return {
+    services,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  }
+}
+
+export async function publicGetServiceFilters() {
+  return getServiceFilterOptionsPublic()
+}
+
+export async function publicGetServiceById(serviceId: string) {
+  const result = await getServiceByIdPublic(serviceId)
+  if (!result) throw notFound("Service not found")
+  return result
+}
+
+export async function publicGetClinicServices(clinicId: string) {
+  return getClinicServicesPublic(clinicId)
 }

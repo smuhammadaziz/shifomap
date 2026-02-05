@@ -50,6 +50,10 @@ import {
   setServiceStatus,
   deleteService,
   runPlanLimitsMigration,
+  publicSearchServices,
+  publicGetServiceFilters,
+  publicGetServiceById,
+  publicGetClinicServices,
 } from "./clinics.service"
 import { requireAuth } from "@/common/middleware/auth"
 
@@ -104,6 +108,85 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
       const result = await loginDoctor(parsed.data, ip)
       set.status = 200
       return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Public (patient-facing) service search and detail - no auth required
+  .get("/public/services/search", async ({ query, set }) => {
+    try {
+      const q = (query.q as string)?.trim() ?? ""
+      const limit = Math.min(parseInt((query.limit as string) || "15", 10) || 15, 30)
+      const result = await publicSearchServices({ q: q || undefined }, 1, limit)
+      set.status = 200
+      return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  .get("/public/services/filters", async ({ set }) => {
+    try {
+      const data = await publicGetServiceFilters()
+      set.status = 200
+      return { success: true, data }
+    } catch (error: any) {
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  .get("/public/services", async ({ query, set }) => {
+    try {
+      const page = parseInt((query.page as string) || "1", 10) || 1
+      const limit = Math.min(parseInt((query.limit as string) || "20", 10) || 20, 50)
+      const filters = {
+        q: (query.q as string)?.trim() || undefined,
+        categoryId: (query.categoryId as string) || undefined,
+        minPrice: query.minPrice != null ? Number(query.minPrice) : undefined,
+        maxPrice: query.maxPrice != null ? Number(query.maxPrice) : undefined,
+        durationMin: query.durationMin != null ? Number(query.durationMin) : undefined,
+        clinicId: (query.clinicId as string) || undefined,
+      }
+      const result = await publicSearchServices(filters, page, limit)
+      set.status = 200
+      return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  .get("/public/services/:serviceId", async ({ params, set }) => {
+    try {
+      const result = await publicGetServiceById(params.serviceId)
+      set.status = 200
+      return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  .get("/public/clinics/:clinicId/services", async ({ params, set }) => {
+    try {
+      const services = await publicGetClinicServices(params.clinicId)
+      set.status = 200
+      return { success: true, data: { services } }
     } catch (error: any) {
       if (error.statusCode) {
         set.status = error.statusCode

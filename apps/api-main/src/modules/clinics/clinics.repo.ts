@@ -1079,3 +1079,388 @@ export async function removeServiceFromClinic(clinicId: string, serviceId: strin
   await removeServiceIdFromDoctors(clinicId, doctorIds, sId)
   return true
 }
+
+// --- Public (patient-facing) service search and list ---
+
+export interface PublicServiceFilters {
+  q?: string
+  categoryId?: string
+  minPrice?: number
+  maxPrice?: number
+  durationMin?: number
+  clinicId?: string
+}
+
+export interface PublicServiceItem {
+  _id: string
+  clinicId: string
+  clinicDisplayName: string
+  title: string
+  description: string
+  serviceImage: string | null
+  categoryId: string
+  categoryName: string
+  durationMin: number
+  price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string }
+  isActive: boolean
+}
+
+/**
+ * Search/list services across active clinics (for patient app). Uses aggregation.
+ */
+export async function searchServicesPublic(
+  filters: PublicServiceFilters,
+  skip: number = 0,
+  limit: number = 20
+): Promise<{ services: PublicServiceItem[]; total: number }> {
+  const db = getDb()
+  const matchClinic: Record<string, unknown> = { status: "active", deletedAt: null }
+  if (filters.clinicId) {
+    try {
+      matchClinic._id = toObjectId(filters.clinicId)
+    } catch {
+      return { services: [], total: 0 }
+    }
+  }
+
+  const matchService: Record<string, unknown> = { "services.isActive": true }
+  if (filters.q && filters.q.trim()) {
+    matchService["services.title"] = { $regex: filters.q.trim(), $options: "i" }
+  }
+  if (filters.categoryId) {
+    try {
+      matchService["services.categoryId"] = toObjectId(filters.categoryId)
+    } catch {
+      // invalid id, no match
+    }
+  }
+  if (filters.durationMin != null && filters.durationMin > 0) {
+    matchService["services.durationMin"] = { $lte: filters.durationMin }
+  }
+  if (filters.minPrice != null && filters.minPrice >= 0) {
+    matchService["$or"] = [
+      { "services.price.amount": { $gte: filters.minPrice } },
+      { "services.price.maxAmount": { $gte: filters.minPrice } },
+    ]
+  }
+  if (filters.maxPrice != null && filters.maxPrice >= 0) {
+    matchService["$and"] = matchService["$and"] ?? []
+    ;(matchService["$and"] as object[]).push({
+      $or: [
+        { "services.price.amount": { $lte: filters.maxPrice } },
+        { "services.price.minAmount": { $lte: filters.maxPrice } },
+      ],
+    })
+  }
+
+  const facetPipeline: object[] = [
+    { $match: matchClinic },
+    { $unwind: "$services" },
+    { $match: matchService },
+  ]
+
+  // Resolve category name: add lookup from categories array
+  const withCategory = [
+    ...facetPipeline,
+    {
+      $addFields: {
+        categoryObj: {
+          $arrayElemAt: [
+            { $filter: { input: { $ifNull: ["$categories", []] }, as: "c", cond: { $eq: ["$$c._id", "$services.categoryId"] } } },
+            0,
+          ],
+        },
+      },
+    },
+    { $addFields: { "services.categoryName": { $ifNull: ["$categoryObj.name", ""] } } },
+  ]
+
+  const countPipeline = [
+    ...withCategory,
+    { $count: "total" },
+  ]
+  const dataPipeline = [
+    ...withCategory,
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $project: {
+        _id: "$services._id",
+        clinicId: { $toString: "$_id" },
+        clinicDisplayName: 1,
+        title: "$services.title",
+        description: "$services.description",
+        serviceImage: "$services.serviceImage",
+        categoryId: { $toString: "$services.categoryId" },
+        categoryName: "$services.categoryName",
+        durationMin: "$services.durationMin",
+        price: "$services.price",
+        isActive: "$services.isActive",
+      },
+    },
+  ]
+
+  const [countResult, docs] = await Promise.all([
+    db.collection<ClinicDoc>(CLINICS_COLLECTION).aggregate(countPipeline).toArray(),
+    db.collection<ClinicDoc>(CLINICS_COLLECTION).aggregate(dataPipeline).toArray(),
+  ])
+
+  const total = (countResult[0] as { total?: number } | undefined)?.total ?? 0
+  const services: PublicServiceItem[] = (docs as any[]).map((d) => ({
+    _id: d._id.toHexString(),
+    clinicId: d.clinicId,
+    clinicDisplayName: d.clinicDisplayName,
+    title: d.title,
+    description: d.description,
+    serviceImage: d.serviceImage ?? null,
+    categoryId: d.categoryId,
+    categoryName: d.categoryName ?? "",
+    durationMin: d.durationMin,
+    price: d.price,
+    isActive: d.isActive,
+  }))
+  return { services, total }
+}
+
+/**
+ * Get filter options: unique category names and ids, min/max price, duration range (from all active clinics' services).
+ */
+export async function getServiceFilterOptionsPublic(): Promise<{
+  categories: { _id: string; name: string }[]
+  minPrice: number | null
+  maxPrice: number | null
+  minDuration: number | null
+  maxDuration: number | null
+}> {
+  const db = getDb()
+  const pipeline = [
+    { $match: { status: "active", deletedAt: null } },
+    { $unwind: "$services" },
+    { $match: { "services.isActive": true } },
+    {
+      $addFields: {
+        catObj: {
+          $arrayElemAt: [
+            { $filter: { input: { $ifNull: ["$categories", []] }, as: "c", cond: { $eq: ["$$c._id", "$services.categoryId"] } } },
+            0,
+          ],
+        },
+      },
+    },
+    {
+      $facet: {
+        categories: [
+          { $group: { _id: "$services.categoryId", name: { $first: "$catObj.name" } } },
+          { $match: { name: { $nin: [null, ""] } } },
+          { $sort: { name: 1 } },
+          { $project: { _id: { $toString: "$_id" }, name: 1 } },
+        ],
+        priceRange: [
+          {
+            $group: {
+              _id: null,
+              amounts: {
+                $push: [
+                  "$services.price.amount",
+                  "$services.price.minAmount",
+                  "$services.price.maxAmount",
+                ],
+              },
+            },
+          },
+          {
+            $project: {
+              allAmounts: {
+                $reduce: {
+                  input: "$amounts",
+                  initialValue: [],
+                  in: { $concatArrays: ["$$value", { $filter: { input: "$$this", as: "a", cond: { $and: [{ $ne: ["$$a", null] }, { $gte: ["$$a", 0] }] } } }] },
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              minPrice: { $min: "$allAmounts" },
+              maxPrice: { $max: "$allAmounts" },
+            },
+          },
+        ],
+        durationRange: [
+          { $group: { _id: null, minD: { $min: "$services.durationMin" }, maxD: { $max: "$services.durationMin" } } },
+        ],
+      },
+    },
+  ]
+
+  const result = await db.collection<ClinicDoc>(CLINICS_COLLECTION).aggregate(pipeline).toArray()
+  const facet = (result[0] as any)?.facet ?? result[0]
+  if (!facet) {
+    return { categories: [], minPrice: null, maxPrice: null, minDuration: null, maxDuration: null }
+  }
+
+  const categories = (facet.categories ?? []).map((c: any) => ({ _id: c._id, name: c.name ?? "" }))
+  const pr = facet.priceRange?.[0]
+  const dr = facet.durationRange?.[0]
+  const minPrice = pr?.minPrice != null ? Number(pr.minPrice) : null
+  const maxPrice = pr?.maxPrice != null ? Number(pr.maxPrice) : null
+  const minDuration = dr?.minD != null ? Number(dr.minD) : null
+  const maxDuration = dr?.maxD != null ? Number(dr.maxD) : null
+
+  return { categories, minPrice, maxPrice, minDuration, maxDuration }
+}
+
+/**
+ * Get single service by id (across all clinics) for public detail page. Returns service + clinic info.
+ */
+export async function getServiceByIdPublic(serviceId: string): Promise<{
+  service: PublicServiceItem & { branchIds: string[]; doctorIds: string[]; branchNames: string[]; doctorNames: string[] }
+  clinic: { _id: string; clinicDisplayName: string; clinicUniqueName: string }
+} | null> {
+  const db = getDb()
+  let sId: ObjectId
+  try {
+    sId = toObjectId(serviceId)
+  } catch {
+    return null
+  }
+
+  const docs = await db
+    .collection<ClinicDoc>(CLINICS_COLLECTION)
+    .aggregate([
+      { $match: { status: "active", deletedAt: null, "services._id": sId, "services.isActive": true } },
+      { $unwind: "$services" },
+      { $match: { "services._id": sId } },
+      {
+        $addFields: {
+          categoryObj: {
+            $arrayElemAt: [
+              { $filter: { input: { $ifNull: ["$categories", []] }, as: "c", cond: { $eq: ["$$c._id", "$services.categoryId"] } } },
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          branchNames: {
+            $map: {
+              input: { $filter: { input: { $ifNull: ["$branches", []] }, as: "b", cond: { $in: ["$$b._id", "$services.branchIds"] } } },
+              as: "b",
+              in: "$$b.name",
+            },
+          },
+          doctorNames: {
+            $map: {
+              input: { $filter: { input: { $ifNull: ["$doctors", []] }, as: "d", cond: { $in: ["$$d._id", "$services.doctorIds"] } } },
+              as: "d",
+              in: "$$d.fullName",
+            },
+          },
+        },
+      },
+      { $limit: 1 },
+      {
+        $project: {
+          clinicId: { $toString: "$_id" },
+          clinicDisplayName: 1,
+          clinicUniqueName: 1,
+          service: "$services",
+          categoryName: "$categoryObj.name",
+          branchNames: 1,
+          doctorNames: 1,
+        },
+      },
+    ])
+    .toArray()
+
+  const d = docs[0] as any
+  if (!d) return null
+
+  const svc = d.service
+  return {
+    service: {
+      _id: svc._id.toHexString(),
+      clinicId: d.clinicId,
+      clinicDisplayName: d.clinicDisplayName,
+      title: svc.title,
+      description: svc.description,
+      serviceImage: svc.serviceImage ?? null,
+      categoryId: svc.categoryId.toHexString(),
+      categoryName: d.categoryName ?? "",
+      durationMin: svc.durationMin,
+      price: svc.price,
+      isActive: svc.isActive,
+      branchIds: (svc.branchIds ?? []).map((id: ObjectId) => id.toHexString()),
+      doctorIds: (svc.doctorIds ?? []).map((id: ObjectId) => id.toHexString()),
+      branchNames: d.branchNames ?? [],
+      doctorNames: d.doctorNames ?? [],
+    },
+    clinic: {
+      _id: d.clinicId,
+      clinicDisplayName: d.clinicDisplayName,
+      clinicUniqueName: d.clinicUniqueName,
+    },
+  }
+}
+
+/**
+ * Get all active services for one clinic (for clinic detail page).
+ */
+export async function getClinicServicesPublic(clinicId: string): Promise<PublicServiceItem[]> {
+  const db = getDb()
+  let cId: ObjectId
+  try {
+    cId = toObjectId(clinicId)
+  } catch {
+    return []
+  }
+
+  const docs = await db
+    .collection<ClinicDoc>(CLINICS_COLLECTION)
+    .aggregate([
+      { $match: { _id: cId, status: "active", deletedAt: null } },
+      { $unwind: "$services" },
+      { $match: { "services.isActive": true } },
+      {
+        $addFields: {
+          categoryObj: {
+            $arrayElemAt: [
+              { $filter: { input: { $ifNull: ["$categories", []] }, as: "c", cond: { $eq: ["$$c._id", "$services.categoryId"] } } },
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: "$services._id",
+          clinicId: { $toString: "$_id" },
+          clinicDisplayName: 1,
+          title: "$services.title",
+          description: "$services.description",
+          serviceImage: "$services.serviceImage",
+          categoryId: { $toString: "$services.categoryId" },
+          categoryName: "$categoryObj.name",
+          durationMin: "$services.durationMin",
+          price: "$services.price",
+          isActive: "$services.isActive",
+        },
+      },
+    ])
+    .toArray()
+
+  return (docs as any[]).map((d) => ({
+    _id: d._id.toHexString(),
+    clinicId: d.clinicId,
+    clinicDisplayName: d.clinicDisplayName,
+    title: d.title,
+    description: d.description,
+    serviceImage: d.serviceImage ?? null,
+    categoryId: d.categoryId,
+    categoryName: d.categoryName ?? "",
+    durationMin: d.durationMin,
+    price: d.price,
+    isActive: d.isActive,
+  }))
+}

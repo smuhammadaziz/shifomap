@@ -139,3 +139,107 @@ export async function updateMe(updates: Partial<{
   if (!data.success) throw new Error('Failed to update profile');
   return data.data;
 }
+
+// --- Public services (no auth required) ---
+
+export interface PublicServiceItem {
+  _id: string;
+  clinicId: string;
+  clinicDisplayName: string;
+  title: string;
+  description: string;
+  serviceImage: string | null;
+  categoryId: string;
+  categoryName: string;
+  durationMin: number;
+  price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string };
+  isActive: boolean;
+}
+
+export interface ServiceFilters {
+  q?: string;
+  categoryId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  durationMin?: number;
+  clinicId?: string;
+}
+
+export interface ServiceFilterOptions {
+  categories: { _id: string; name: string }[];
+  minPrice: number | null;
+  maxPrice: number | null;
+  minDuration: number | null;
+  maxDuration: number | null;
+}
+
+export interface ServiceSearchResult {
+  services: PublicServiceItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface ServiceDetailResponse {
+  service: PublicServiceItem & {
+    branchIds: string[];
+    doctorIds: string[];
+    branchNames?: string[];
+    doctorNames?: string[];
+  };
+  clinic: { _id: string; clinicDisplayName: string; clinicUniqueName: string };
+}
+
+export async function searchServicesSuggest(q: string, limit = 15): Promise<ServiceSearchResult> {
+  const { data } = await api.get<{ success: boolean; data: ServiceSearchResult }>(
+    '/clinics/public/services/search',
+    { params: { q: q.trim(), limit } }
+  );
+  if (!data.success) throw new Error('Search failed');
+  return data.data;
+}
+
+export async function getServiceFilterOptions(): Promise<ServiceFilterOptions> {
+  const { data } = await api.get<{ success: boolean; data: ServiceFilterOptions }>(
+    '/clinics/public/services/filters'
+  );
+  if (!data.success) throw new Error('Failed to load filters');
+  return data.data;
+}
+
+export async function searchServicesWithFilters(
+  filters: ServiceFilters,
+  page = 1,
+  limit = 20
+): Promise<ServiceSearchResult> {
+  const params: Record<string, string | number> = { page, limit };
+  if (filters.q) params.q = filters.q;
+  if (filters.categoryId) params.categoryId = filters.categoryId;
+  if (filters.minPrice != null) params.minPrice = filters.minPrice;
+  if (filters.maxPrice != null) params.maxPrice = filters.maxPrice;
+  if (filters.durationMin != null) params.durationMin = filters.durationMin;
+  if (filters.clinicId) params.clinicId = filters.clinicId;
+  const { data } = await api.get<{ success: boolean; data: ServiceSearchResult }>(
+    '/clinics/public/services',
+    { params }
+  );
+  if (!data.success) throw new Error('Search failed');
+  return data.data;
+}
+
+export async function getServiceById(serviceId: string): Promise<ServiceDetailResponse> {
+  const { data } = await api.get<{ success: boolean; data: ServiceDetailResponse }>(
+    `/clinics/public/services/${serviceId}`
+  );
+  if (!data.success) throw new Error('Service not found');
+  return data.data;
+}
+
+export async function getClinicServices(clinicId: string): Promise<PublicServiceItem[]> {
+  const { data } = await api.get<{ success: boolean; data: { services: PublicServiceItem[] } }>(
+    `/clinics/public/clinics/${clinicId}/services`
+  );
+  if (!data.success) throw new Error('Failed to load services');
+  return data.data.services;
+}
