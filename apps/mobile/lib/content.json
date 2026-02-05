@@ -112,7 +112,20 @@
     "ourDoctors": "Shifokorlarimiz",
     "doctorDetail": "Shifokor",
     "specialty": "Mutaxassislik",
-    "book": "Navbat"
+    "book": "Navbat",
+    "branchName": "Filial nomi",
+    "phone": "Telefon",
+    "workingHours": "Ish vaqti",
+    "branchDetail": "Filial",
+    "branchLabel": "Filial",
+    "back": "Orqaga",
+    "day1": "Dush",
+    "day2": "Sesh",
+    "day3": "Chor",
+    "day4": "Pay",
+    "day5": "Jum",
+    "day6": "Shan",
+    "day7": "Yak"
   },
   "ru": {
     "tabHome": "Главная",
@@ -227,6 +240,19 @@
     "ourDoctors": "Наши врачи",
     "doctorDetail": "Врач",
     "specialty": "Специальность",
-    "book": "Запись"
+    "book": "Запись",
+    "branchName": "Название филиала",
+    "phone": "Телефон",
+    "workingHours": "Часы работы",
+    "branchDetail": "Филиал",
+    "branchLabel": "Филиал",
+    "back": "Назад",
+    "day1": "Пн",
+    "day2": "Вт",
+    "day3": "Ср",
+    "day4": "Чт",
+    "day5": "Пт",
+    "day6": "Сб",
+    "day7": "Вс"
   }
 }

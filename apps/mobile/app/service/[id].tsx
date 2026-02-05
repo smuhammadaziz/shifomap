@@ -17,8 +17,9 @@ import { getTranslations } from '../../lib/translations';
 import SaveServiceStar from '../components/SaveServiceStar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HERO_HEIGHT = 240;
+const HERO_HEIGHT = 220;
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=400&h=300&fit=crop';
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&h=100&fit=crop';
 
 function formatPrice(price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string }): string {
   if (price.amount != null) return `${price.amount.toLocaleString()} ${price.currency}`;
@@ -26,16 +27,6 @@ function formatPrice(price: { amount?: number; minAmount?: number; maxAmount?: n
     return `${price.minAmount.toLocaleString()} – ${price.maxAmount.toLocaleString()} ${price.currency}`;
   }
   return price.currency;
-}
-
-function DetailRow({ label, value }: { label: string; value: string | undefined }) {
-  if (value == null || value === '') return null;
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  );
 }
 
 export default function ServiceDetailScreen() {
@@ -75,13 +66,19 @@ export default function ServiceDetailScreen() {
   }
 
   const { service, clinic } = data;
-  const branchNames = (service as { branchNames?: string[] }).branchNames;
-  const doctorNames = (service as { doctorNames?: string[] }).doctorNames;
+  const rawService = service as typeof service & { branchNames?: string[]; doctorNames?: string[] };
+  const branchNames = rawService.branchNames ?? [];
+  const doctorNames = rawService.doctorNames ?? [];
+  const branchIds = service.branchIds ?? [];
+  const doctorIds = service.doctorIds ?? [];
+  // When API doesn't return branch names, show fallback label + index so branch list still works
+  const branchList = branchIds.length > 0
+    ? branchIds.map((bid, idx) => ({ id: bid, name: branchNames[idx] ?? `${t.branchLabel} ${idx + 1}` }))
+    : [];
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Hero image - separated box */}
         <View style={styles.heroBox}>
           <Image source={{ uri: service.serviceImage || DEFAULT_IMAGE }} style={styles.heroImage} />
           <View style={styles.heroOverlay}>
@@ -94,23 +91,67 @@ export default function ServiceDetailScreen() {
           </View>
         </View>
 
-        {/* Info card */}
         <View style={styles.card}>
+          {service.categoryName ? (
+            <Text style={styles.category}>{service.categoryName}</Text>
+          ) : null}
           <Text style={styles.title}>{service.title}</Text>
-          <DetailRow label={t.description} value={service.description || undefined} />
-          <DetailRow label={t.category} value={service.categoryName || undefined} />
-          <DetailRow label={t.price} value={formatPrice(service.price)} />
-          <DetailRow label={t.durationMin} value={`${service.durationMin} ${t.minutes}`} />
-          {branchNames && branchNames.length > 0 && (
-            <DetailRow label={t.branches} value={branchNames.join(', ')} />
+          <Text style={styles.price}>{formatPrice(service.price)}</Text>
+          <View style={styles.metaLine}>
+            <Text style={styles.metaText}>{service.durationMin} {t.minutes}</Text>
+            {service.categoryName ? (
+              <>
+                <Text style={styles.metaDot}> · </Text>
+                <Text style={styles.metaText}>{service.categoryName}</Text>
+              </>
+            ) : null}
+          </View>
+
+          {service.description ? (
+            <Text style={styles.description}>{service.description}</Text>
+          ) : null}
+
+          {branchList.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{t.branches}</Text>
+              {branchList.map((b) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={styles.rowLink}
+                  activeOpacity={0.7}
+                  onPress={() => router.push({ pathname: '/branch/[id]', params: { id: b.id, clinicId: clinic._id } })}
+                >
+                  <Text style={styles.rowLinkText}>{b.name}</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#71717a" />
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
-          {doctorNames && doctorNames.length > 0 && (
-            <DetailRow label={t.doctors} value={doctorNames.join(', ')} />
+
+          {doctorNames.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{t.doctors}</Text>
+              <View style={styles.doctorWrap}>
+                {doctorNames.map((name, idx) => (
+                  <TouchableOpacity
+                    key={doctorIds[idx] ?? idx}
+                    style={styles.doctorRow}
+                    activeOpacity={0.7}
+                    onPress={() => router.push({ pathname: '/doctor/[id]', params: { id: doctorIds[idx], clinicId: clinic._id } })}
+                  >
+                    <Image source={{ uri: DEFAULT_AVATAR }} style={styles.doctorAvatar} />
+                    <Text style={styles.doctorName} numberOfLines={1}>{name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           )}
-          <View style={styles.clinicBlock}>
-            <Text style={styles.detailLabel}>{t.clinic}</Text>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>{t.clinic}</Text>
             <TouchableOpacity
-              style={styles.clinicChip}
+              style={styles.rowLink}
+              activeOpacity={0.8}
               onPress={() => router.push({ pathname: '/clinic/[id]', params: { id: clinic._id } })}
             >
               <Text style={styles.clinicName}>{clinic.clinicDisplayName}</Text>
@@ -121,7 +162,6 @@ export default function ServiceDetailScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Sticky Book button - for this service */}
       <View style={styles.stickyFooter}>
         <TouchableOpacity
           style={styles.bookButton}
@@ -176,34 +216,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    marginTop: -24,
+    marginTop: -20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     backgroundColor: '#18181b',
     paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 24,
-    borderWidth: 1,
-    borderColor: '#27272a',
-    borderBottomWidth: 0,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
-  title: { color: '#ffffff', fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  detailRow: { marginBottom: 14 },
-  detailLabel: { color: '#71717a', fontSize: 12, marginBottom: 4, textTransform: 'uppercase' },
-  detailValue: { color: '#e4e4e7', fontSize: 16 },
-  clinicBlock: { marginTop: 20 },
-  clinicChip: {
+  category: { color: '#71717a', fontSize: 13, marginBottom: 6 },
+  title: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  price: { color: '#fff', fontSize: 28, fontWeight: '800', marginBottom: 12 },
+  metaLine: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  metaText: { color: '#a1a1aa', fontSize: 14 },
+  metaDot: { color: '#52525b', fontSize: 14 },
+  description: { color: '#d4d4d8', fontSize: 14, lineHeight: 21, marginBottom: 20 },
+  section: { marginBottom: 18 },
+  sectionLabel: { color: '#71717a', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  rowLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#27272a',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#3f3f46',
-    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272a',
   },
-  clinicName: { color: '#a78bfa', fontSize: 16, fontWeight: '600' },
+  rowLinkText: { color: '#e4e4e7', fontSize: 15 },
+  clinicName: { color: '#a78bfa', fontSize: 15, fontWeight: '600' },
+  doctorWrap: {
+    alignSelf: 'flex-start',
+    minWidth: 0,
+    maxWidth: '100%',
+  },
+  doctorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 0,
+    marginBottom: 6,
+  },
+  doctorAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#27272a' },
+  doctorName: { color: '#e4e4e7', fontSize: 14, marginLeft: 10, maxWidth: 200 },
   stickyFooter: {
     position: 'absolute',
     bottom: 0,
@@ -222,7 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#7c3aed',
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     gap: 10,
   },
   bookIcon: { marginRight: 4 },
