@@ -4,23 +4,23 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Image,
+  TouchableOpacity,
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getClinicDetail, getClinicServices, type PublicServiceItem } from '../../lib/api';
+import { getClinicDetail, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicServicePublic } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 220;
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800';
-const DEFAULT_SERVICE_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=200&h=200&fit=crop';
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
 
-function formatPrice(price: PublicServiceItem['price']): string {
+function formatPrice(price: ClinicServicePublic['price']): string {
   if (price.amount != null) return `${price.amount.toLocaleString()} ${price.currency}`;
   if (price.minAmount != null && price.maxAmount != null) {
     return `${price.minAmount.toLocaleString()} – ${price.maxAmount.toLocaleString()} ${price.currency}`;
@@ -31,28 +31,24 @@ function formatPrice(price: PublicServiceItem['price']): string {
 function getOpenUntil(workingHours: Array<{ from: string; to: string }>): string | null {
   if (!workingHours?.length) return null;
   const last = workingHours[workingHours.length - 1];
-  return last ? `${last.to}` : null;
+  return last ? `Open until ${last.to}` : null;
 }
 
-export default function ClinicServicesScreen() {
+export default function ClinicDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const language = useAuthStore((s) => s.language);
   const t = getTranslations(language);
-  const [clinic, setClinic] = useState<Awaited<ReturnType<typeof getClinicDetail>> | null>(null);
-  const [services, setServices] = useState<PublicServiceItem[]>([]);
+  const [clinic, setClinic] = useState<ClinicDetailPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([getClinicDetail(id), getClinicServices(id)])
-      .then(([clinicData, servicesList]) => {
-        setClinic(clinicData);
-        setServices(servicesList);
-      })
-      .catch(() => setError('Failed'))
+    getClinicDetail(id)
+      .then(setClinic)
+      .catch(() => setError('Not found'))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -76,10 +72,10 @@ export default function ClinicServicesScreen() {
 
   const coverUri = clinic.branding?.coverUrl || clinic.branding?.logoUrl || DEFAULT_COVER;
   const firstBranch = clinic.branches?.[0];
-  const locationText = firstBranch
-    ? `${firstBranch.address?.city ?? ''} ${firstBranch.address?.street ?? ''}`.trim() || firstBranch.name
-    : null;
+  const locationText = firstBranch ? `${firstBranch.address?.city ?? ''} ${firstBranch.address?.street ?? ''}`.trim() || firstBranch.name : null;
   const openUntil = firstBranch ? getOpenUntil(firstBranch.workingHours) : null;
+  const activeDoctors = (clinic.doctors ?? []).filter((d) => d.isActive);
+  const activeServices = (clinic.services ?? []).filter((s) => s.isActive);
 
   return (
     <View style={styles.container}>
@@ -117,7 +113,7 @@ export default function ClinicServicesScreen() {
               {openUntil ? (
                 <>
                   <Ionicons name="time-outline" size={16} color="#22c55e" />
-                  <Text style={[styles.metaText, { color: '#22c55e' }]}>{t.openUntil} {openUntil}</Text>
+                  <Text style={[styles.metaText, { color: '#22c55e' }]}>{openUntil}</Text>
                 </>
               ) : null}
             </View>
@@ -145,38 +141,72 @@ export default function ClinicServicesScreen() {
             </View>
           )}
 
-          {/* Services list */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t.viewClinicServices}</Text>
-            {services.length === 0 ? (
-              <Text style={styles.noResults}>{t.noResultsFound}</Text>
-            ) : (
-              services.map((item) => (
+          {/* Doctors */}
+          {activeDoctors.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>{t.ourDoctors}</Text>
+              {activeDoctors.map((doctor) => (
                 <TouchableOpacity
-                  key={item._id}
-                  style={styles.serviceCard}
+                  key={doctor._id}
+                  style={styles.doctorRow}
                   activeOpacity={0.8}
-                  onPress={() => router.push({ pathname: '/service/[id]', params: { id: item._id } })}
+                  onPress={() => router.push({ pathname: '/doctor/[id]', params: { id: doctor._id, clinicId: id as string } })}
                 >
                   <Image
-                    source={{ uri: item.serviceImage || DEFAULT_SERVICE_IMAGE }}
-                    style={styles.serviceImage}
+                    source={{ uri: doctor.avatarUrl || DEFAULT_AVATAR }}
+                    style={styles.doctorAvatar}
                   />
-                  <View style={styles.serviceBody}>
-                    <Text style={styles.serviceTitle} numberOfLines={2}>{item.title}</Text>
-                    {item.categoryName ? (
-                      <Text style={styles.serviceCategory}>{item.categoryName}</Text>
-                    ) : null}
-                    <Text style={styles.servicePrice}>{formatPrice(item.price)}</Text>
+                  <View style={styles.doctorInfo}>
+                    <Text style={styles.doctorName}>{doctor.fullName}</Text>
+                    <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#71717a" />
                 </TouchableOpacity>
-              ))
-            )}
-          </View>
-          <View style={{ height: 40 }} />
+              ))}
+            </View>
+          )}
+
+          {/* Services */}
+          {activeServices.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>{t.viewClinicServices}</Text>
+              {activeServices.map((svc) => (
+                <TouchableOpacity
+                  key={svc._id}
+                  style={styles.serviceRow}
+                  activeOpacity={0.8}
+                  onPress={() => router.push({ pathname: '/service/[id]', params: { id: svc._id } })}
+                >
+                  <Image
+                    source={{ uri: svc.serviceImage || 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=100&h=100&fit=crop' }}
+                    style={styles.serviceThumb}
+                  />
+                  <View style={styles.serviceInfo}>
+                    <Text style={styles.serviceTitle} numberOfLines={2}>{svc.title}</Text>
+                    <Text style={styles.servicePrice}>{formatPrice(svc.price)}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#71717a" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <View style={{ height: 100 }} />
         </View>
       </ScrollView>
+
+      {/* Sticky Book button */}
+      <View style={styles.stickyFooter}>
+        <TouchableOpacity
+          style={styles.bookButton}
+          activeOpacity={0.9}
+          onPress={() => router.push({ pathname: '/book', params: { clinicId: id as string } })}
+        >
+          <Ionicons name="calendar" size={22} color="#fff" style={styles.bookIcon} />
+          <Text style={styles.bookButtonText}>{t.bookAppointment}</Text>
+          <Ionicons name="arrow-forward" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -194,7 +224,11 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     backgroundColor: '#27272a',
   },
-  heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
@@ -251,29 +285,58 @@ const styles = StyleSheet.create({
   topRatedPill: { backgroundColor: '#22c55e', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
   topRatedText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   aboutSection: { marginBottom: 24 },
-  sectionTitle: {
-    color: '#a1a1aa',
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
+  sectionTitle: { color: '#a1a1aa', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
   aboutText: { color: '#d4d4d8', fontSize: 15, lineHeight: 22 },
   section: { marginBottom: 24 },
-  noResults: { color: '#71717a', fontSize: 14 },
-  serviceCard: {
+  doctorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#27272a',
     borderRadius: 16,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#3f3f46',
   },
-  serviceImage: { width: 72, height: 72, borderRadius: 14, backgroundColor: '#3f3f46' },
-  serviceBody: { flex: 1, marginLeft: 14 },
-  serviceTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  serviceCategory: { color: '#a1a1aa', fontSize: 12, marginTop: 4 },
-  servicePrice: { color: '#a78bfa', fontSize: 14, fontWeight: '600', marginTop: 4 },
+  doctorAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#3f3f46' },
+  doctorInfo: { flex: 1, marginLeft: 14 },
+  doctorName: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  doctorSpecialty: { color: '#a1a1aa', fontSize: 13, marginTop: 2 },
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#27272a',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+  },
+  serviceThumb: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#3f3f46' },
+  serviceInfo: { flex: 1, marginLeft: 12 },
+  serviceTitle: { color: '#fff', fontSize: 15, fontWeight: '500' },
+  servicePrice: { color: '#a78bfa', fontSize: 13, fontWeight: '600', marginTop: 4 },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+    paddingTop: 12,
+    backgroundColor: '#18181b',
+    borderTopWidth: 1,
+    borderTopColor: '#27272a',
+  },
+  bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7c3aed',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 10,
+  },
+  bookIcon: { marginRight: 4 },
+  bookButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });

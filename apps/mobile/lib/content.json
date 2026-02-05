@@ -101,7 +101,18 @@
     "searchServices": "Xizmatlarni qidirish",
     "savedServices": "Saqlangan xizmatlar",
     "noSavedServices": "Saqlangan xizmatlar yo'q",
-    "noSavedServicesHint": "Qidiruvdan xizmatlarni yulduzcha bilan saqlang"
+    "noSavedServicesHint": "Qidiruvdan xizmatlarni yulduzcha bilan saqlang",
+    "about": "Haqida",
+    "bookAppointment": "Navbat olish",
+    "clinicDetail": "Klinika",
+    "openUntil": "Qadar ochiq",
+    "location": "Manzil",
+    "topRated": "Eng yaxshilar",
+    "verified": "Tasdiqlangan",
+    "ourDoctors": "Shifokorlarimiz",
+    "doctorDetail": "Shifokor",
+    "specialty": "Mutaxassislik",
+    "book": "Navbat"
   },
   "ru": {
     "tabHome": "Главная",
@@ -205,6 +216,17 @@
     "searchServices": "Поиск услуг",
     "savedServices": "Сохранённые услуги",
     "noSavedServices": "Нет сохранённых услуг",
-    "noSavedServicesHint": "Сохраняйте услуги звёздочкой при поиске"
+    "noSavedServicesHint": "Сохраняйте услуги звёздочкой при поиске",
+    "about": "О нас",
+    "bookAppointment": "Записаться",
+    "clinicDetail": "Клиника",
+    "openUntil": "Открыто до",
+    "location": "Адрес",
+    "topRated": "Топ рейтинг",
+    "verified": "Проверено",
+    "ourDoctors": "Наши врачи",
+    "doctorDetail": "Врач",
+    "specialty": "Специальность",
+    "book": "Запись"
   }
 }

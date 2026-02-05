@@ -39,7 +39,7 @@ export default function SaveServiceStar({ service, size = 22, onSave, onUnsave }
       <Ionicons
         name={isSaved ? 'star' : 'star-outline'}
         size={size}
-        color={isSaved ? '#facc15' : '#71717a'}
+        color={isSaved ? '#facc15' : '#fff'}
       />
     </TouchableOpacity>
   );

@@ -54,6 +54,7 @@ import {
   publicGetServiceFilters,
   publicGetServiceById,
   publicGetClinicServices,
+  publicGetClinicDetails,
 } from "./clinics.service"
 import { requireAuth } from "@/common/middleware/auth"
 
@@ -187,6 +188,20 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
       const services = await publicGetClinicServices(params.clinicId)
       set.status = 200
       return { success: true, data: { services } }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  .get("/public/clinics/:clinicId", async ({ params, set }) => {
+    try {
+      const data = await publicGetClinicDetails(params.clinicId)
+      set.status = 200
+      return { success: true, data }
     } catch (error: any) {
       if (error.statusCode) {
         set.status = error.statusCode

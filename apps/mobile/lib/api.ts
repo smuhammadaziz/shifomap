@@ -243,3 +243,62 @@ export async function getClinicServices(clinicId: string): Promise<PublicService
   if (!data.success) throw new Error('Failed to load services');
   return data.data.services;
 }
+
+// --- Clinic detail (public) ---
+
+export interface ClinicBranchPublic {
+  _id: string;
+  name: string;
+  phone: string;
+  address: { city: string; street: string; geo: { lat: number; lng: number } };
+  workingHours: Array<{ day: number; from: string; to: string }>;
+  isActive: boolean;
+}
+
+export interface ClinicDoctorPublic {
+  _id: string;
+  fullName: string;
+  specialty: string;
+  bio: string;
+  avatarUrl: string | null;
+  serviceIds: string[];
+  branchIds: string[];
+  isActive: boolean;
+  schedule: { timezone: string; weekly: Array<{ day: number; from: string; to: string; lunchFrom?: string; lunchTo?: string }> };
+}
+
+export interface ClinicServicePublic {
+  _id: string;
+  title: string;
+  description: string;
+  serviceImage: string | null;
+  categoryId: string;
+  durationMin: number;
+  price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string };
+  branchIds: string[];
+  doctorIds: string[];
+  isActive: boolean;
+}
+
+export interface ClinicDetailPublic {
+  _id: string;
+  clinicDisplayName: string;
+  clinicUniqueName: string;
+  status: string;
+  branding: { logoUrl: string | null; coverUrl: string | null };
+  contacts: { phone: string | null; email: string | null; telegram: string | null };
+  description: { short: string | null; full: string | null };
+  branches: ClinicBranchPublic[];
+  services: ClinicServicePublic[];
+  doctors: ClinicDoctorPublic[];
+  categories: Array<{ _id: string; name: string }>;
+  rating: { avg: number; count: number };
+}
+
+export async function getClinicDetail(clinicId: string): Promise<ClinicDetailPublic> {
+  const { data } = await api.get<{ success: boolean; data: ClinicDetailPublic }>(
+    `/clinics/public/clinics/${clinicId}`
+  );
+  if (!data.success) throw new Error('Clinic not found');
+  return data.data;
+}

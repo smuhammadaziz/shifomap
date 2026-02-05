@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,8 @@ import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
 import SaveServiceStar from '../components/SaveServiceStar';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const HERO_HEIGHT = 240;
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=400&h=300&fit=crop';
 
 function formatPrice(price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string }): string {
@@ -65,7 +68,7 @@ export default function ServiceDetailScreen() {
       <View style={styles.centered}>
         <Text style={styles.errorText}>{t.noResultsFound}</Text>
         <TouchableOpacity style={styles.backBtnFull} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Back</Text>
+          <Text style={styles.backBtnText}>← Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -77,16 +80,22 @@ export default function ServiceDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{t.serviceDetail}</Text>
-        <SaveServiceStar service={service} size={24} />
-      </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Image source={{ uri: service.serviceImage || DEFAULT_IMAGE }} style={styles.heroImage} />
-        <View style={styles.body}>
+        {/* Hero image - separated box */}
+        <View style={styles.heroBox}>
+          <Image source={{ uri: service.serviceImage || DEFAULT_IMAGE }} style={styles.heroImage} />
+          <View style={styles.heroOverlay}>
+            <TouchableOpacity style={styles.heroBackBtn} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.heroStarWrap}>
+              <SaveServiceStar service={service} size={22} />
+            </View>
+          </View>
+        </View>
+
+        {/* Info card */}
+        <View style={styles.card}>
           <Text style={styles.title}>{service.title}</Text>
           <DetailRow label={t.description} value={service.description || undefined} />
           <DetailRow label={t.category} value={service.categoryName || undefined} />
@@ -102,15 +111,28 @@ export default function ServiceDetailScreen() {
             <Text style={styles.detailLabel}>{t.clinic}</Text>
             <TouchableOpacity
               style={styles.clinicChip}
-              onPress={() => router.push({ pathname: '/clinic-services/[id]', params: { id: clinic._id } })}
+              onPress={() => router.push({ pathname: '/clinic/[id]', params: { id: clinic._id } })}
             >
               <Text style={styles.clinicName}>{clinic.clinicDisplayName}</Text>
               <Ionicons name="chevron-forward" size={18} color="#a78bfa" />
             </TouchableOpacity>
           </View>
         </View>
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Sticky Book button - for this service */}
+      <View style={styles.stickyFooter}>
+        <TouchableOpacity
+          style={styles.bookButton}
+          activeOpacity={0.9}
+          onPress={() => router.push({ pathname: '/book', params: { clinicId: clinic._id, serviceId: id as string } })}
+        >
+          <Ionicons name="calendar" size={22} color="#fff" style={styles.bookIcon} />
+          <Text style={styles.bookButtonText}>{t.bookAppointment}</Text>
+          <Ionicons name="arrow-forward" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -121,13 +143,50 @@ const styles = StyleSheet.create({
   errorText: { color: '#f87171', marginBottom: 16 },
   backBtnFull: { padding: 12 },
   backBtnText: { color: '#8b5cf6', fontSize: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#27272a' },
-  backBtn: { padding: 8, marginLeft: -8 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginLeft: 8, flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
-  heroImage: { width: '100%', height: 220, backgroundColor: '#27272a' },
-  body: { padding: 20 },
+  heroBox: {
+    width: SCREEN_WIDTH,
+    height: HERO_HEIGHT,
+    backgroundColor: '#27272a',
+  },
+  heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingTop: 56,
+    paddingHorizontal: 16,
+  },
+  heroBackBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroStarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  card: {
+    marginTop: -24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#18181b',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderBottomWidth: 0,
+  },
   title: { color: '#ffffff', fontSize: 22, fontWeight: '700', marginBottom: 16 },
   detailRow: { marginBottom: 14 },
   detailLabel: { color: '#71717a', fontSize: 12, marginBottom: 4, textTransform: 'uppercase' },
@@ -137,12 +196,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#18181b',
+    backgroundColor: '#27272a',
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#27272a',
+    borderColor: '#3f3f46',
     marginTop: 8,
   },
   clinicName: { color: '#a78bfa', fontSize: 16, fontWeight: '600' },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+    paddingTop: 12,
+    backgroundColor: '#18181b',
+    borderTopWidth: 1,
+    borderTopColor: '#27272a',
+  },
+  bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7c3aed',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 10,
+  },
+  bookIcon: { marginRight: 4 },
+  bookButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });

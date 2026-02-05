@@ -837,3 +837,20 @@ export async function publicGetServiceById(serviceId: string) {
 export async function publicGetClinicServices(clinicId: string) {
   return getClinicServicesPublic(clinicId)
 }
+
+/**
+ * Get clinic details for patient app (public, active clinics only)
+ */
+export async function publicGetClinicDetails(clinicId: string) {
+  if (!ObjectId.isValid(clinicId)) {
+    throw notFound("Clinic not found")
+  }
+  const clinic = await findClinicById(new ObjectId(clinicId))
+  if (!clinic) {
+    throw notFound("Clinic not found")
+  }
+  if (clinic.status !== "active" || clinic.deletedAt) {
+    throw notFound("Clinic not found")
+  }
+  return mapDocToDetailedClinic(clinic)
+}
