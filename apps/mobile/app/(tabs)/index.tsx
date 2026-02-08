@@ -251,8 +251,7 @@ const HomeScreen = () => {
           </View>
         </TouchableWithoutFeedback>
 
-        {/* <Specialties /> */}
-        <FeaturedClinics />
+        
 
         <View style={styles.clinicsSection}>
           <View style={styles.clinicsSectionHeader}>
@@ -320,6 +319,9 @@ const HomeScreen = () => {
             </ScrollView>
           )}
         </View>
+
+        {/* <Specialties /> */}
+        <FeaturedClinics />
 
         <View style={{ height: 120 }} />
       </ScrollView>
