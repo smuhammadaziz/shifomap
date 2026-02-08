@@ -81,7 +81,7 @@ export default function Login() {
 
           <View style={[styles.phoneCard, focused && styles.phoneCardFocused]}>
             <View style={styles.phoneRow}>
-              <View style={styles.prefixWrap}>
+            <View style={styles.prefixWrap}>
                 <Text style={styles.prefix}>{PHONE_PREFIX}</Text>
               </View>
               <View style={styles.inputWrap}>

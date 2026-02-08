@@ -84,7 +84,7 @@ export type AuthPhonePasswordBody = z.infer<typeof authPhonePasswordBodySchema>
 export type CompleteProfileBody = z.infer<typeof completeProfileBodySchema>
 export type UpdatePatientBody = z.infer<typeof updatePatientBodySchema>
 
-const DEFAULT_AVATAR = "https://i.pravatar.cc/150?u=default"
+const DEFAULT_AVATAR = "https://media.istockphoto.com/id/1214284287/vector/anonymous-gender-neutral-face-avatar-incognito-head-silhouette.jpg?s=612x612&w=0&k=20&c=z33R0MN3yX_-qIcIe_oJqz4QFuH0NwvWGN8TZZW48sk="
 
 export function mapDocToPublicPatient(doc: PatientDoc) {
   return {

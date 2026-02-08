@@ -92,4 +92,4 @@ export function needsProfile(patient: Patient | null): boolean {
   return !patient.fullName || patient.fullName.trim() === '';
 }
 
-export const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?u=user';
+export const DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTdha5RhmdjYvDpP7l5CBkhK9fyBd25f9rJL7ZpVha-1uqZwhqATKoEJjXpmheN-pjVNYk&usqp=CAU';
