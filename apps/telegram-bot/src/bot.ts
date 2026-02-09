@@ -10,7 +10,7 @@ import {
   consumeAiUsage,
   addReferralBonus,
 } from "./db/telegram-users.repo.js"
-import { getLang, type Lang } from "./i18n.js"
+import { getLang, t, type Lang } from "./i18n.js"
 import { generateHealthReply } from "./ai/gemini.js"
 
 const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN)
@@ -41,13 +41,22 @@ function lang(ctx: { chat: { id: number } }): Lang {
   return userLang.get(ctx.chat.id) ?? "uz"
 }
 
-// Button labels (same in both langs for consistency, or we could duplicate)
-const BTN_PERSONAL_DOCTOR_UZ = "🩺 Shaxsiy doktor"
-const BTN_PERSONAL_DOCTOR_RU = "🩺 Личный доктор"
-const BTN_SUPPORT = "📩 Support"
+function mainMenuKeyboard(l: Lang) {
+  const msg = getLang(l)
+  return Markup.keyboard([
+    [Markup.button.text(msg.myDoctor)],
+    [Markup.button.text(msg.support), Markup.button.text(msg.aboutUs)],
+  ]).resize()
+}
 
-function isPersonalDoctorButton(text: string): boolean {
-  return text === BTN_PERSONAL_DOCTOR_UZ || text === BTN_PERSONAL_DOCTOR_RU
+function isMyDoctorButton(text: string): boolean {
+  return text === t.uz.myDoctor || text === t.ru.myDoctor
+}
+function isSupportButton(text: string): boolean {
+  return text === t.uz.support || text === t.ru.support
+}
+function isAboutUsButton(text: string): boolean {
+  return text === t.uz.aboutUs || text === t.ru.aboutUs
 }
 
 // /start – language selection or referral payload
@@ -106,17 +115,11 @@ bot.on(message("contact"), async (ctx) => {
     try {
       const refMsg = getLang(userLang.get(referrerChatId) ?? "uz")
       await ctx.telegram.sendMessage(referrerChatId, refMsg.bonusAdded)
-    } catch (_) {}
+    } catch (_) { }
   }
 
   const msg = getLang(lang(ctx))
-  await ctx.reply(
-    msg.thanks,
-    Markup.keyboard([
-      [Markup.button.text(lang(ctx) === "uz" ? BTN_PERSONAL_DOCTOR_UZ : BTN_PERSONAL_DOCTOR_RU)],
-      [Markup.button.text(BTN_SUPPORT)],
-    ]).resize()
-  )
+  await ctx.reply(msg.thanks, mainMenuKeyboard(lang(ctx)))
 })
 
 bot.on(message("text"), async (ctx) => {
@@ -157,7 +160,7 @@ bot.on(message("text"), async (ctx) => {
     return
   }
 
-  if (text === BTN_SUPPORT) {
+  if (isSupportButton(text)) {
     const user = await findUserByTgChatId(chatId)
     if (!user) {
       await ctx.reply(msg.pleaseStartAndShareFirst)
@@ -194,13 +197,7 @@ bot.on(message("text"), async (ctx) => {
         undefined,
         aiText.slice(0, 4096)
       )
-      await ctx.reply(
-        msg.askNewPressButton,
-        Markup.keyboard([
-          [Markup.button.text(l === "uz" ? BTN_PERSONAL_DOCTOR_UZ : BTN_PERSONAL_DOCTOR_RU)],
-          [Markup.button.text(BTN_SUPPORT)],
-        ]).resize()
-      )
+      await ctx.reply(msg.askNewPressButton, mainMenuKeyboard(l))
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error("[Shaxsiy doktor AI error]", errMsg)
@@ -210,19 +207,18 @@ bot.on(message("text"), async (ctx) => {
         preparingMsg.message_id,
         undefined,
         errText
-      ).catch(() => {})
-      await ctx.reply(
-        msg.askNewPressButton,
-        Markup.keyboard([
-          [Markup.button.text(l === "uz" ? BTN_PERSONAL_DOCTOR_UZ : BTN_PERSONAL_DOCTOR_RU)],
-          [Markup.button.text(BTN_SUPPORT)],
-        ]).resize()
-      )
+      ).catch(() => { })
+      await ctx.reply(msg.askNewPressButton, mainMenuKeyboard(l))
     }
     return
   }
 
-  if (isPersonalDoctorButton(text)) {
+  if (isAboutUsButton(text)) {
+    await ctx.reply(`${msg.aboutUsPost}\n\n`)
+    return
+  }
+
+  if (isMyDoctorButton(text)) {
     const user = await findUserByTgChatId(chatId)
     if (!user) {
       await ctx.reply(msg.pleaseStartAndShareFirst)
@@ -243,13 +239,7 @@ bot.on(message("text"), async (ctx) => {
   // Other text: remind buttons
   const user = await findUserByTgChatId(chatId)
   if (user) {
-    await ctx.reply(
-      msg.tapSupport,
-      Markup.keyboard([
-        [Markup.button.text(l === "uz" ? BTN_PERSONAL_DOCTOR_UZ : BTN_PERSONAL_DOCTOR_RU)],
-        [Markup.button.text(BTN_SUPPORT)],
-      ]).resize()
-    )
+    await ctx.reply(msg.tapSupport, mainMenuKeyboard(l))
   } else {
     await ctx.reply(msg.startAndSharePhone, Markup.keyboard([Markup.button.contactRequest(msg.sharePhone)]).resize())
   }
