@@ -13,6 +13,8 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().default("api-main"),
   JWT_EXPIRES_IN: z.string().default("7d"),
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  TELEGRAM_BOT_TOKEN: z.string().min(1, "TELEGRAM_BOT_TOKEN is required for landing notifications"),
+  TELEGRAM_GROUP_CHAT_ID: z.string().min(1, "TELEGRAM_GROUP_CHAT_ID is required (e.g. -1001234567890)"),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -31,6 +33,8 @@ function loadEnv(): Env {
     JWT_ISSUER: process.env.JWT_ISSUER,
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+    TELEGRAM_GROUP_CHAT_ID: process.env.TELEGRAM_GROUP_CHAT_ID,
   })
 
   if (!parsed.success) {
