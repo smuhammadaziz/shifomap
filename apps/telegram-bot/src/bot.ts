@@ -147,10 +147,16 @@ bot.on(message("text"), async (ctx) => {
     }
     await appendMessage(chatId, text)
     const now = new Date()
+    const accountValue = ctx.from?.username
+      ? `@${ctx.from.username}`
+      : ctx.from?.id
+        ? `tg://user?id=${ctx.from.id}`
+        : "—"
     const groupMessage = [
       "👤 user",
       `ismi: ${user.name}`,
       `phone: ${user.phoneNumber}`,
+      `account: ${accountValue}`,
       `message: ${text}`,
       "",
       formatDate(now),
