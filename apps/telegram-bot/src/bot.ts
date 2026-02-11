@@ -162,7 +162,7 @@ bot.on(message("text"), async (ctx) => {
       formatDate(now),
     ].join("\n")
     await ctx.telegram.sendMessage(GROUP_CHAT_ID, groupMessage)
-    await ctx.reply(msg.sentToSupport)
+    await ctx.reply(msg.sentToSupport, mainMenuKeyboard(l))
     return
   }
 
@@ -173,7 +173,7 @@ bot.on(message("text"), async (ctx) => {
       return
     }
     waitingForSupportMessage.add(chatId)
-    await ctx.reply(msg.typeSupportMessage)
+    await ctx.reply(msg.typeSupportMessage, Markup.removeKeyboard())
     return
   }
 
@@ -195,7 +195,7 @@ bot.on(message("text"), async (ctx) => {
     await ctx.sendChatAction("typing")
     const preparingMsg = await ctx.reply(msg.meaningPreparing)
     try {
-      const aiText = await generateHealthReply(text)
+      const aiText = await generateHealthReply(text, l)
       await consumeAiUsage(chatId)
       await ctx.telegram.editMessageText(
         ctx.chat.id,
@@ -238,7 +238,7 @@ bot.on(message("text"), async (ctx) => {
       return
     }
     waitingForAiPrompt.add(chatId)
-    await ctx.reply(msg.personalDoctorIntro)
+    await ctx.reply(msg.personalDoctorIntro, Markup.removeKeyboard())
     return
   }
 

@@ -6,7 +6,8 @@ export const t = {
     chooseLang: "Tilni tanlang:",
     sharePhone: "📞 Telefon raqamini ulashing",
     sharePhonePrompt: "Davom etish uchun telefon raqamingizni ulashing.",
-    thanks: "Rahmat! Qanday yordam bera olamiz?",
+    thanks:
+      "Rahmat! Qanday yordam bera olamiz?\n\n🩺 Shaxsiy doktor - sizning shaxsiy AI yordamchingiz\n📩 Qo'llab-quvvatlash - biz bilan bog'laning\nℹ️ Biz haqimizda - biz haqimizda bilib oling",
     support: "📩 Qo'llab-quvvatlash",
     shareOwnPhone: "Iltimos, o'z telefon raqamingizni ulashing.",
     typeSupportMessage: "Xabaringizni yozing va yuboring. Qo'llab-quvvatlash jamoasiga yuboramiz.",
@@ -34,7 +35,8 @@ export const t = {
     chooseLang: "Выберите язык:",
     sharePhone: "📞 Поделиться номером телефона",
     sharePhonePrompt: "Чтобы продолжить, поделитесь номером телефона.",
-    thanks: "Спасибо! Чем можем помочь?",
+    thanks:
+      "Спасибо! Чем можем помочь?\n\n🩺 Личный доктор — ваш персональный ИИ-помощник\n📩 Поддержка — свяжитесь с нами\nℹ️ О нас — узнайте о нас",
     support: "📩 Поддержка",
     shareOwnPhone: "Пожалуйста, поделитесь своим номером телефона.",
     typeSupportMessage: "Напишите сообщение и отправьте. Мы перешлём его в службу поддержки.",

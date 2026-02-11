@@ -14,15 +14,22 @@ function buildUrl(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
 }
 
-const SYSTEM_PROMPT = `You are a brief health assistant. Reply in the same language as the user. Give short explanations and 2-4 bullet tips. Use simple words. Add emoji per section (e.g. 💡 📌 ⚠️). Do not replace a real doctor visit. Keep reply under 400 chars when possible.`
+const SYSTEM_PROMPT_BASE = `You are a brief health assistant. Give short explanations and 2-4 bullet tips. Use simple words. Add emoji per section (e.g. 💡 📌 ⚠️). Do not replace a real doctor visit. Keep reply under 400 chars when possible.`
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-export async function generateHealthReply(userMessage: string): Promise<string> {
+export type AiLang = "uz" | "ru"
+
+export async function generateHealthReply(userMessage: string, replyLang: AiLang = "uz"): Promise<string> {
   const key = env.GEMINI_API_KEY.trim()
-  const fullPrompt = `${SYSTEM_PROMPT}\n\nUser: ${userMessage}`
+  const langInstruction =
+    replyLang === "ru"
+      ? "Reply ONLY in Russian (Русский). Do not use Uzbek or other languages."
+      : "Reply ONLY in Uzbek (O'zbekcha). Do not use Russian or other languages."
+  const systemPrompt = `${SYSTEM_PROMPT_BASE}\n\n${langInstruction}`
+  const fullPrompt = `${systemPrompt}\n\nUser: ${userMessage}`
 
   const body = {
     contents: [{ parts: [{ text: fullPrompt }] }],
