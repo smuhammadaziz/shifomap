@@ -5,8 +5,8 @@ import { Platform } from 'react-native';
 // Android emulator: 10.0.2.2 is the host machine. iOS Simulator: localhost works.
 function getApiBase(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  if (Platform.OS === 'android') return 'http://10.0.2.2:8080';
-  return 'http://localhost:8080';
+  if (Platform.OS === 'android') return 'https://api.shifoyol.uz';
+  return 'https://api.shifoyol.uz';
 }
 const API_BASE = getApiBase();
 

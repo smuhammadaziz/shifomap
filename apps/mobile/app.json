@@ -16,7 +16,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "backgroundColor": "#09090b"
+      "backgroundColor": "#09090b",
+      "bundleIdentifier": "uz.shifoyol.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "uz.shifoyol.app",
@@ -31,6 +35,17 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "13912f13-ec0a-4586-b1c5-0ef17cf8613f"
