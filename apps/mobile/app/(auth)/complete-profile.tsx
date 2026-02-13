@@ -14,12 +14,15 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 import { completeProfile } from '../../lib/api';
 import { getTranslations } from '../../lib/translations';
+import { getColors } from '../../lib/theme';
 
 export default function CompleteProfileScreen() {
   const router = useRouter();
   const language = useAuthStore((s) => s.language) ?? 'uz';
+  const theme = useThemeStore((s) => s.theme);
   const setPatient = useAuthStore((s) => s.setPatient);
 
   const [fullName, setFullName] = useState('');
@@ -28,6 +31,11 @@ export default function CompleteProfileScreen() {
   const [loading, setLoading] = useState(false);
 
   const t = getTranslations(language);
+  const colors = getColors(theme);
+
+  const gradientColors: readonly [string, string, string] = theme === 'light'
+    ? ['#ffffff', '#f8f9fa', '#f1f3f5']
+    : ['#09090b', '#18181b', '#27272a'];
 
   const onDone = async () => {
     const name = fullName.trim();
@@ -58,7 +66,7 @@ export default function CompleteProfileScreen() {
 
   return (
     <LinearGradient
-      colors={['#09090b', '#18181b', '#27272a']}
+      colors={gradientColors}
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -70,50 +78,50 @@ export default function CompleteProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>{t.completeTitle}</Text>
-          <Text style={styles.label}>{t.completeFullName}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t.completeTitle}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t.completeFullName}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.backgroundCard, borderColor: colors.border, color: colors.text }]}
             placeholder={t.completeFullNamePlaceholder}
-            placeholderTextColor="#71717a"
+            placeholderTextColor={colors.textTertiary}
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
             editable={!loading}
           />
-          <Text style={styles.label}>{t.completeAge}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t.completeAge}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.backgroundCard, borderColor: colors.border, color: colors.text }]}
             placeholder={t.completeAgePlaceholder}
-            placeholderTextColor="#71717a"
+            placeholderTextColor={colors.textTertiary}
             value={age}
             onChangeText={(v) => setAge(v.replace(/\D/g, '').slice(0, 3))}
             keyboardType="number-pad"
             editable={!loading}
           />
-          <Text style={styles.label}>{t.completeGender}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t.completeGender}</Text>
           <View style={styles.genderRow}>
             <TouchableOpacity
-              style={[styles.genderBtn, gender === 'male' && styles.genderBtnActive]}
+              style={[styles.genderBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, gender === 'male' && { borderColor: colors.primary, backgroundColor: colors.primaryBg }]}
               onPress={() => setGender('male')}
               disabled={loading}
             >
-              <Text style={[styles.genderText, gender === 'male' && styles.genderTextActive]}>
+              <Text style={[styles.genderText, { color: colors.textSecondary }, gender === 'male' && { color: colors.primaryLight }]}>
                 {t.completeMale}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.genderBtn, gender === 'female' && styles.genderBtnActive]}
+              style={[styles.genderBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }, gender === 'female' && { borderColor: colors.primary, backgroundColor: colors.primaryBg }]}
               onPress={() => setGender('female')}
               disabled={loading}
             >
-              <Text style={[styles.genderText, gender === 'female' && styles.genderTextActive]}>
+              <Text style={[styles.genderText, { color: colors.textSecondary }, gender === 'female' && { color: colors.primaryLight }]}>
                 {t.completeFemale}
               </Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
-            style={[styles.doneButton, loading && styles.doneButtonDisabled]}
+            style={[styles.doneButton, { backgroundColor: colors.primary }, loading && styles.doneButtonDisabled]}
             onPress={onDone}
             disabled={loading}
             activeOpacity={0.8}
@@ -134,14 +142,11 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   keyboard: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 48, paddingBottom: 40 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 32 },
-  label: { color: '#a1a1aa', fontSize: 14, marginBottom: 8 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 32 },
+  label: { fontSize: 14, marginBottom: 8 },
   input: {
-    backgroundColor: '#18181b',
     borderWidth: 1,
-    borderColor: '#27272a',
     borderRadius: 16,
-    color: '#ffffff',
     fontSize: 16,
     paddingVertical: 18,
     paddingHorizontal: 16,
@@ -152,16 +157,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 18,
     borderRadius: 16,
-    backgroundColor: '#18181b',
     borderWidth: 1,
-    borderColor: '#27272a',
     alignItems: 'center',
   },
-  genderBtnActive: { borderColor: '#7c3aed', backgroundColor: 'rgba(124, 58, 237, 0.15)' },
-  genderText: { color: '#a1a1aa', fontSize: 16, fontWeight: '600' },
-  genderTextActive: { color: '#a78bfa' },
+  genderText: { fontSize: 16, fontWeight: '600' },
   doneButton: {
-    backgroundColor: '#7c3aed',
     borderRadius: 20,
     paddingVertical: 18,
     alignItems: 'center',
