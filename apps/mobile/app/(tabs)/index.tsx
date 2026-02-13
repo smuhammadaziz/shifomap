@@ -283,13 +283,13 @@ const HomeScreen = () => {
                   : t.noUpcomingPromo}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.dashboardCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            {/* <TouchableOpacity style={[styles.dashboardCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
               <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
                 <Ionicons name="medical" size={24} color={colors.primaryLight} />
               </View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>{t.pillReminders}</Text>
               <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>{t.pillsRemaining}</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </TouchableWithoutFeedback>
 
