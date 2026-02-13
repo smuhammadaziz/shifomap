@@ -2,26 +2,31 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSavedServicesStore } from '../store/saved-services-store';
-
-const BG = '#09090b';
-
-const screenOptions = {
-  headerShown: false,
-  animation: 'slide_from_right' as const,
-  animationDuration: 300,
-  gestureEnabled: true,
-  contentStyle: { backgroundColor: BG },
-};
+import { useThemeStore } from '../store/theme-store';
+import { getColors } from '../lib/theme';
 
 export default function RootLayout() {
-  const hydrate = useSavedServicesStore((s) => s.hydrate);
+  const hydrateSaved = useSavedServicesStore((s) => s.hydrate);
+  const hydrateTheme = useThemeStore((s) => s.hydrate);
+  const theme = useThemeStore((s) => s.theme);
+  const colors = getColors(theme);
+
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    hydrateSaved();
+    hydrateTheme();
+  }, [hydrateSaved, hydrateTheme]);
+
+  const screenOptions = {
+    headerShown: false,
+    animation: 'slide_from_right' as const,
+    animationDuration: 300,
+    gestureEnabled: true,
+    contentStyle: { backgroundColor: colors.background },
+  };
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
       <Stack screenOptions={screenOptions}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)" options={screenOptions} />

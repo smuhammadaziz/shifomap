@@ -28,7 +28,7 @@ const GOOGLE_JWKS = createRemoteJWKSet(
   new URL("https://www.googleapis.com/oauth2/v3/certs")
 )
 
-const DEFAULT_AVATAR = "https://i.pravatar.cc/150?u=default"
+const DEFAULT_AVATAR = "https://static.vecteezy.com/system/resources/previews/069/446/524/non_2x/avatar-gender-neutral-silhouette-illustration-profile-picture-no-image-for-social-media-profiles-flat-icons-no-photo-default-avatar-profile-icon-in-grayscale-user-profile-person-icon-vector.jpg"
 
 function hashPassword(plain: string): Promise<string> {
   return Bun.password.hash(plain, { algorithm: "bcrypt", cost: 10 })

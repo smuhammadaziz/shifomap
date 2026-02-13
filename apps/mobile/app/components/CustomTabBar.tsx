@@ -3,11 +3,15 @@ import { View, TouchableOpacity, StyleSheet, LayoutChangeEvent, Animated } from 
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useThemeStore } from '../../store/theme-store';
+import { getColors } from '../../lib/theme';
 
 const NUM_TABS = 3;
 
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const insets = useSafeAreaInsets();
+    const theme = useThemeStore((s) => s.theme);
+    const colors = getColors(theme);
     const [dimensions, setDimensions] = useState({ height: 20, width: 100 });
 
     const tabPositionX = useRef(new Animated.Value(0)).current;
@@ -45,11 +49,12 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 
     return (
         <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
-            <View style={styles.tabBar} onLayout={onTabbarLayout}>
+            <View style={[styles.tabBar, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onLayout={onTabbarLayout}>
                 <Animated.View
                     style={[
                         styles.activeTabBackground,
                         {
+                            backgroundColor: colors.primary,
                             width: buttonWidth - 10,
                             transform: [{ translateX: tabPositionX }]
                         },
@@ -112,7 +117,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                             <IconComponent
                                 name={iconName}
                                 size={22}
-                                color={isFocused ? '#ffffff' : '#a1a1aa'}
+                                color={isFocused ? '#ffffff' : colors.textSecondary}
                             />
                             <Animated.Text
                                 style={[
@@ -141,15 +146,12 @@ const styles = StyleSheet.create({
     tabBar: {
         flexDirection: 'row',
         height: 65,
-        backgroundColor: '#18181b', // Zinc-950
         marginHorizontal: 16,
         marginBottom: 16,
         borderRadius: 40,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#27272a',
-        // Shadow
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.25,
@@ -159,12 +161,9 @@ const styles = StyleSheet.create({
     },
     activeTabBackground: {
         position: 'absolute',
-        backgroundColor: '#7c3aed', // Violet-600
         height: '100%',
         borderRadius: 40,
         left: 5,
-        // We can't use shadow easily on native driver animated view inside overflow hidden, 
-        // so we rely on the background color pop.
     },
     tabItem: {
         flex: 1,

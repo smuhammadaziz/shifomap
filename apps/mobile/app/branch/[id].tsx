@@ -5,14 +5,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail } from '../../lib/api';
 import type { ClinicBranchPublic } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
+import { getColors } from '../../lib/theme';
 import Skeleton from '../components/Skeleton';
 
 export default function BranchDetailScreen() {
   const { id: branchId, clinicId } = useLocalSearchParams<{ id: string; clinicId?: string }>();
   const router = useRouter();
   const language = useAuthStore((s) => s.language);
+  const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
+  const colors = getColors(theme);
   const [branch, setBranch] = useState<ClinicBranchPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +40,13 @@ export default function BranchDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Skeleton width={24} height={24} borderRadius={4} />
           <Skeleton width={180} height={18} style={{ marginLeft: 8, flex: 1 }} />
         </View>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
             <View style={styles.row}>
               <Skeleton width={36} height={36} borderRadius={10} style={{ marginBottom: 8 }} />
               <Skeleton width={80} height={11} style={{ marginBottom: 4 }} />
@@ -70,10 +74,10 @@ export default function BranchDetailScreen() {
   }
   if (error || !branch) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{t.noResultsFound}</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.error }]}>{t.noResultsFound}</Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtnFull}>
-          <Text style={styles.backBtnText}>← {t.back}</Text>
+          <Text style={[styles.backBtnText, { color: colors.primary }]}>← {t.back}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -82,52 +86,52 @@ export default function BranchDetailScreen() {
   const addressLine = [branch.address?.city, branch.address?.street].filter(Boolean).join(', ');
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{branch.name}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{branch.name}</Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
           <View style={styles.row}>
-            <View style={styles.iconWrap}>
-              <Ionicons name="business-outline" size={20} color="#8b5cf6" />
+            <View style={[styles.iconWrap, { backgroundColor: colors.primaryBg }]}>
+              <Ionicons name="business-outline" size={20} color={colors.primary} />
             </View>
-            <Text style={styles.label}>{t.branchName}</Text>
-            <Text style={styles.value}>{branch.name}</Text>
+            <Text style={[styles.label, { color: colors.textTertiary }]}>{t.branchName}</Text>
+            <Text style={[styles.value, { color: colors.text }]}>{branch.name}</Text>
           </View>
           {branch.phone ? (
             <View style={styles.row}>
-              <View style={[styles.iconWrap, { backgroundColor: 'rgba(34, 197, 94, 0.2)' }]}>
-                <Ionicons name="call-outline" size={20} color="#22c55e" />
+              <View style={[styles.iconWrap, { backgroundColor: colors.successBg }]}>
+                <Ionicons name="call-outline" size={20} color={colors.success} />
               </View>
-              <Text style={styles.label}>{t.phone}</Text>
-              <Text style={styles.value}>{branch.phone}</Text>
+              <Text style={[styles.label, { color: colors.textTertiary }]}>{t.phone}</Text>
+              <Text style={[styles.value, { color: colors.text }]}>{branch.phone}</Text>
             </View>
           ) : null}
           {addressLine ? (
             <View style={styles.row}>
-              <View style={[styles.iconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
-                <Ionicons name="location-outline" size={20} color="#f59e0b" />
+              <View style={[styles.iconWrap, { backgroundColor: colors.warningBg }]}>
+                <Ionicons name="location-outline" size={20} color={colors.warning} />
               </View>
-              <Text style={styles.label}>{t.location}</Text>
-              <Text style={styles.value}>{addressLine}</Text>
+              <Text style={[styles.label, { color: colors.textTertiary }]}>{t.location}</Text>
+              <Text style={[styles.value, { color: colors.text }]}>{addressLine}</Text>
             </View>
           ) : null}
           {branch.workingHours?.length > 0 ? (
             <View style={styles.row}>
-              <View style={[styles.iconWrap, { backgroundColor: 'rgba(14, 165, 233, 0.2)' }]}>
-                <Ionicons name="time-outline" size={20} color="#0ea5e9" />
+              <View style={[styles.iconWrap, { backgroundColor: colors.infoBg }]}>
+                <Ionicons name="time-outline" size={20} color={colors.info} />
               </View>
-              <Text style={styles.label}>{t.workingHours}</Text>
+              <Text style={[styles.label, { color: colors.textTertiary }]}>{t.workingHours}</Text>
               <View style={styles.hoursList}>
                 {branch.workingHours.map((wh, idx) => {
                   const dayKey = `day${wh.day}` as keyof typeof t;
                   const dayLabel = (t[dayKey] as string) ?? String(wh.day);
                   return (
-                    <Text key={idx} style={styles.hoursLine}>
+                    <Text key={idx} style={[styles.hoursLine, { color: colors.textSecondary }]}>
                       {dayLabel}: {wh.from} – {wh.to}
                     </Text>
                   );
@@ -143,11 +147,11 @@ export default function BranchDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: '#f87171', marginBottom: 12 },
+  errorText: { marginBottom: 12 },
   backBtnFull: { padding: 12 },
-  backBtnText: { color: '#8b5cf6', fontSize: 16 },
+  backBtnText: { fontSize: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,31 +159,27 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
   },
   backBtn: { padding: 8, marginLeft: -8 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginLeft: 8, flex: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '600', marginLeft: 8, flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { padding: 20 },
   card: {
-    backgroundColor: '#18181b',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#27272a',
   },
   row: { marginBottom: 16 },
   iconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
-  label: { color: '#71717a', fontSize: 11, textTransform: 'uppercase', marginBottom: 4 },
-  value: { color: '#f4f4f5', fontSize: 15 },
+  label: { fontSize: 11, textTransform: 'uppercase', marginBottom: 4 },
+  value: { fontSize: 15 },
   hoursList: { gap: 4 },
-  hoursLine: { color: '#d4d4d8', fontSize: 14 },
+  hoursLine: { fontSize: 14 },
 });

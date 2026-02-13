@@ -12,7 +12,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getMyBookings, type Booking, type BookingStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
+import { getColors } from '../../lib/theme';
 
 type TabFilter = 'completed' | 'upcoming' | 'cancelled';
 
@@ -26,7 +28,9 @@ const statusToTab: Record<BookingStatus, TabFilter | null> = {
 export default function AppointmentsScreen() {
   const router = useRouter();
   const language = useAuthStore((s) => s.language);
+  const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
+  const colors = getColors(theme);
   const [tab, setTab] = useState<TabFilter>('upcoming');
   const [list, setList] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,29 +63,29 @@ export default function AppointmentsScreen() {
     const dateStr = item.scheduledDate.split('-').reverse().join('/');
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
         activeOpacity={0.8}
         onPress={() => router.push({ pathname: '/appointment/[id]', params: { id: item._id } })}
       >
         <View style={styles.cardHeader}>
-          <Text style={styles.doctorName}>{item.doctorName ?? item.serviceTitle ?? '—'}</Text>
-          <Text style={styles.specialty}>{item.serviceTitle}</Text>
+          <Text style={[styles.doctorName, { color: colors.text }]}>{item.doctorName ?? item.serviceTitle ?? '—'}</Text>
+          <Text style={[styles.specialty, { color: colors.textSecondary }]}>{item.serviceTitle}</Text>
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={14} color="#facc15" />
-            <Text style={styles.ratingText}>5</Text>
+            <Ionicons name="star" size={14} color={colors.warning} />
+            <Text style={[styles.ratingText, { color: colors.warning }]}>5</Text>
           </View>
         </View>
-        <Text style={styles.dateText}>{dateStr} • {item.scheduledTime}</Text>
+        <Text style={[styles.dateText, { color: colors.primaryLight }]}>{dateStr} • {item.scheduledTime}</Text>
         {(tab === 'completed' || tab === 'upcoming') && (
           <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.reBookBtn}
+              style={[styles.reBookBtn, { backgroundColor: colors.primaryBg }]}
               onPress={() => router.push({ pathname: '/book', params: { clinicId: item.clinicId, serviceId: item.serviceId } })}
             >
-              <Text style={styles.reBookBtnText}>{t.reBook}</Text>
+              <Text style={[styles.reBookBtnText, { color: colors.primaryLight }]}>{t.reBook}</Text>
             </TouchableOpacity>
             {tab === 'completed' && (
-              <TouchableOpacity style={styles.addReviewBtn}>
+              <TouchableOpacity style={[styles.addReviewBtn, { backgroundColor: colors.primary }]}>
                 <Text style={styles.addReviewBtnText}>{t.addReview}</Text>
               </TouchableOpacity>
             )}
@@ -92,21 +96,29 @@ export default function AppointmentsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t.allAppointments}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t.allAppointments}</Text>
       </View>
       <View style={styles.tabs}>
         {(['upcoming', 'complete', 'cancelled'] as const).map((key) => (
           <TouchableOpacity
             key={key}
-            style={[styles.tab, tab === (key === 'complete' ? 'completed' : key) && styles.tabActive]}
+            style={[
+              styles.tab,
+              { backgroundColor: colors.border },
+              tab === (key === 'complete' ? 'completed' : key) && { backgroundColor: colors.primary }
+            ]}
             onPress={() => setTab(key === 'complete' ? 'completed' : key)}
           >
-            <Text style={[styles.tabText, tab === (key === 'complete' ? 'completed' : key) && styles.tabTextActive]}>
+            <Text style={[
+              styles.tabText,
+              { color: colors.textSecondary },
+              tab === (key === 'complete' ? 'completed' : key) && { color: '#fff', fontWeight: '600' }
+            ]}>
               {key === 'complete' ? t.complete : key === 'upcoming' ? t.upcoming : t.cancelled}
             </Text>
           </TouchableOpacity>
@@ -114,12 +126,12 @@ export default function AppointmentsScreen() {
       </View>
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.centered}>
-          <Ionicons name="calendar-outline" size={48} color="#52525b" />
-          <Text style={styles.emptyText}>{t.noResultsFound}</Text>
+          <Ionicons name="calendar-outline" size={48} color={colors.textTertiary} />
+          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>{t.noResultsFound}</Text>
         </View>
       ) : (
         <FlatList
@@ -127,7 +139,7 @@ export default function AppointmentsScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#8b5cf6" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />}
         />
       )}
     </View>
@@ -135,7 +147,7 @@ export default function AppointmentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -143,51 +155,43 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
   },
   backBtn: { padding: 8, marginLeft: -8 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginLeft: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '600', marginLeft: 8 },
   tabs: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   tab: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#27272a',
   },
-  tabActive: { backgroundColor: '#7c3aed' },
-  tabText: { color: '#a1a1aa', fontSize: 14 },
-  tabTextActive: { color: '#fff', fontWeight: '600' },
+  tabText: { fontSize: 14 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { color: '#71717a', marginTop: 12, fontSize: 14 },
+  emptyText: { marginTop: 12, fontSize: 14 },
   listContent: { padding: 16, paddingBottom: 40 },
   card: {
-    backgroundColor: '#18181b',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#27272a',
   },
   cardHeader: { marginBottom: 8 },
-  doctorName: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  specialty: { color: '#a1a1aa', fontSize: 13, marginTop: 2 },
+  doctorName: { fontSize: 17, fontWeight: '700' },
+  specialty: { fontSize: 13, marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  ratingText: { color: '#facc15', fontSize: 13 },
-  dateText: { color: '#a78bfa', fontSize: 14, marginBottom: 12 },
+  ratingText: { fontSize: 13 },
+  dateText: { fontSize: 14, marginBottom: 12 },
   actions: { flexDirection: 'row', gap: 10 },
   reBookBtn: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: 'rgba(167, 139, 250, 0.2)',
     alignItems: 'center',
   },
-  reBookBtnText: { color: '#a78bfa', fontSize: 14, fontWeight: '600' },
+  reBookBtnText: { fontSize: 14, fontWeight: '600' },
   addReviewBtn: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#7c3aed',
     alignItems: 'center',
   },
   addReviewBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },

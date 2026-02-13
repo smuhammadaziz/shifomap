@@ -14,7 +14,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail, getServiceById, createBooking, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicBranchPublic, type ClinicServicePublic } from '../lib/api';
 import { useAuthStore } from '../store/auth-store';
+import { useThemeStore } from '../store/theme-store';
 import { getTranslations } from '../lib/translations';
+import { getColors } from '../lib/theme';
 
 type DaySchedule = { day: number; from: string; to: string; lunchFrom?: string; lunchTo?: string };
 
@@ -68,7 +70,9 @@ export default function BookScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ clinicId?: string; serviceId?: string }>();
   const language = useAuthStore((s) => s.language);
+  const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
+  const colors = getColors(theme);
   const [clinic, setClinic] = useState<ClinicDetailPublic | null>(null);
   const [service, setService] = useState<ClinicServicePublic | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,8 +194,8 @@ export default function BookScreen() {
 
   if (loading || !clinic) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -205,43 +209,43 @@ export default function BookScreen() {
     : '';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t.bookAppointment}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t.bookAppointment}</Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {service && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t.selectService}</Text>
-            <View style={styles.serviceCard}>
-              <View style={styles.serviceIconWrap}>
-                <Ionicons name="medical" size={24} color="#a78bfa" />
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t.selectService}</Text>
+            <View style={[styles.serviceCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <View style={[styles.serviceIconWrap, { backgroundColor: colors.primaryBg }]}>
+                <Ionicons name="medical" size={24} color={colors.primaryLight} />
               </View>
               <View style={styles.serviceCardBody}>
-                <Text style={styles.serviceCardTitle}>{service.title}</Text>
-                <Text style={styles.serviceCardMeta}>
+                <Text style={[styles.serviceCardTitle, { color: colors.text }]}>{service.title}</Text>
+                <Text style={[styles.serviceCardMeta, { color: colors.textSecondary }]}>
                   {formatPrice(service.price)} • {service.durationMin} {t.minutes}
                 </Text>
               </View>
-              <Ionicons name="chevron-down" size={20} color="#71717a" />
+              <Ionicons name="chevron-down" size={20} color={colors.textTertiary} />
             </View>
           </View>
         )}
 
         {serviceDoctors.length > 1 && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t.selectDoctor}</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t.selectDoctor}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
               {serviceDoctors.map((doc) => (
                 <TouchableOpacity
                   key={doc._id}
-                  style={[styles.chip, selectedDoctorId === doc._id && styles.chipSelected]}
+                  style={[styles.chip, { backgroundColor: colors.backgroundSecondary }, selectedDoctorId === doc._id && { backgroundColor: colors.primary }]}
                   onPress={() => setSelectedDoctorId(doc._id)}
                 >
-                  <Text style={[styles.chipText, selectedDoctorId === doc._id && styles.chipTextSelected]}>{doc.fullName}</Text>
+                  <Text style={[styles.chipText, { color: colors.textSecondary }, selectedDoctorId === doc._id && styles.chipTextSelected]}>{doc.fullName}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -250,43 +254,43 @@ export default function BookScreen() {
 
         {serviceBranches.length > 1 && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t.selectBranch}</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t.selectBranch}</Text>
             {serviceBranches.map((b) => (
               <TouchableOpacity
                 key={b._id}
-                style={styles.branchRow}
+                style={[styles.branchRow, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
                 onPress={() => setBranchModalBranch(b)}
               >
-                <Text style={styles.branchRowText}>{b.name}</Text>
-                <Ionicons name="chevron-forward" size={18} color="#71717a" />
+                <Text style={[styles.branchRowText, { color: colors.text }]}>{b.name}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
               </TouchableOpacity>
             ))}
           </View>
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t.date}</Text>
-          <View style={styles.calendar}>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t.date}</Text>
+          <View style={[styles.calendar, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
             <View style={styles.calendarHeader}>
               <TouchableOpacity
                 onPress={() =>
                   setCalendarMonth((m) => (m.month === 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: m.month - 1 }))
                 }
               >
-                <Ionicons name="chevron-back" size={24} color="#a1a1aa" />
+                <Ionicons name="chevron-back" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
-              <Text style={styles.calendarMonthLabel}>{monthLabel}</Text>
+              <Text style={[styles.calendarMonthLabel, { color: colors.text }]}>{monthLabel}</Text>
               <TouchableOpacity
                 onPress={() =>
                   setCalendarMonth((m) => (m.month === 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: m.month + 1 }))
                 }
               >
-                <Ionicons name="chevron-forward" size={24} color="#a1a1aa" />
+                <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.weekdayRow}>
               {WEEKDAYS.map((w) => (
-                <Text key={w} style={styles.weekdayText}>
+                <Text key={w} style={[styles.weekdayText, { color: colors.textTertiary }]}>
                   {w}
                 </Text>
               ))}
@@ -300,11 +304,11 @@ export default function BookScreen() {
                 return (
                   <TouchableOpacity
                     key={dateStr}
-                    style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+                    style={[styles.dayCell, isSelected && { backgroundColor: colors.primary }]}
                     onPress={() => !isPast && setSelectedDate(dateStr)}
                     disabled={isPast}
                   >
-                    <Text style={[styles.dayCellText, isSelected && styles.dayCellTextSelected, isPast && styles.dayCellTextPast]}>
+                    <Text style={[styles.dayCellText, { color: colors.text }, isSelected && styles.dayCellTextSelected, isPast && { color: colors.textTertiary }]}>
                       {day}
                     </Text>
                   </TouchableOpacity>
@@ -315,16 +319,16 @@ export default function BookScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t.availability}</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t.availability}</Text>
           <View style={styles.slotsGrid}>
             {slots.map((slot) => (
               <TouchableOpacity
                 key={slot}
-                style={[styles.slotChip, selectedTime === slot && styles.slotChipSelected]}
+                style={[styles.slotChip, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }, selectedTime === slot && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                 onPress={() => setSelectedTime(slot)}
               >
                 {selectedTime === slot && <Ionicons name="checkmark" size={14} color="#fff" style={styles.slotCheck} />}
-                <Text style={[styles.slotChipText, selectedTime === slot && styles.slotChipTextSelected]}>{slot}</Text>
+                <Text style={[styles.slotChipText, { color: colors.text }, selectedTime === slot && styles.slotChipTextSelected]}>{slot}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -332,10 +336,10 @@ export default function BookScreen() {
 
         {(selectedDate || selectedTime) && service && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t.summary}</Text>
-            <View style={styles.summaryCard}>
-              <Ionicons name="calendar" size={20} color="#a78bfa" />
-              <Text style={styles.summaryText}>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t.summary}</Text>
+            <View style={[styles.summaryCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+              <Ionicons name="calendar" size={20} color={colors.primaryLight} />
+              <Text style={[styles.summaryText, { color: colors.text }]}>
                 {service.title} • {selectedDateStr} • {selectedTime ?? '--'}
               </Text>
             </View>
@@ -343,7 +347,7 @@ export default function BookScreen() {
         )}
 
         <TouchableOpacity
-          style={[styles.confirmBtn, (!canConfirm || submitting) && styles.confirmBtnDisabled]}
+          style={[styles.confirmBtn, { backgroundColor: colors.primary }, (!canConfirm || submitting) && styles.confirmBtnDisabled]}
           onPress={handleConfirm}
           disabled={!canConfirm || submitting}
         >
@@ -362,8 +366,8 @@ export default function BookScreen() {
       <Modal visible={successVisible} transparent animationType="fade">
         <View style={styles.successOverlay}>
           <View style={styles.successBox}>
-            <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
-            <Text style={styles.successTitle}>{t.bookingSuccess}</Text>
+            <Ionicons name="checkmark-circle" size={64} color={colors.success} />
+            <Text style={[styles.successTitle, { color: colors.text }]}>{t.bookingSuccess}</Text>
           </View>
         </View>
       </Modal>
@@ -371,16 +375,16 @@ export default function BookScreen() {
       {branchModalBranch && (
         <Modal visible={!!branchModalBranch} transparent animationType="slide">
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setBranchModalBranch(null)}>
-            <View style={styles.branchModal}>
-              <Text style={styles.branchModalTitle}>{branchModalBranch.name}</Text>
-              {branchModalBranch.phone ? <Text style={styles.branchModalRow}>{t.phone}: {branchModalBranch.phone}</Text> : null}
+            <View style={[styles.branchModal, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border }]}>
+              <Text style={[styles.branchModalTitle, { color: colors.text }]}>{branchModalBranch.name}</Text>
+              {branchModalBranch.phone ? <Text style={[styles.branchModalRow, { color: colors.textSecondary }]}>{t.phone}: {branchModalBranch.phone}</Text> : null}
               {(branchModalBranch.address?.city || branchModalBranch.address?.street) && (
-                <Text style={styles.branchModalRow}>
+                <Text style={[styles.branchModalRow, { color: colors.textSecondary }]}>
                   {t.location}: {[branchModalBranch.address?.city, branchModalBranch.address?.street].filter(Boolean).join(', ')}
                 </Text>
               )}
               <TouchableOpacity
-                style={styles.yandexBtn}
+                style={[styles.yandexBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
                   const { lat, lng } = branchModalBranch.address?.geo ?? {};
                   if (lat != null && lng != null) openYandexMaps(lat, lng);
@@ -390,7 +394,7 @@ export default function BookScreen() {
                 <Text style={styles.yandexBtnText}>{t.openInYandexMaps}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.branchModalClose} onPress={() => setBranchModalBranch(null)}>
-                <Text style={styles.branchModalCloseText}>{t.back}</Text>
+                <Text style={[styles.branchModalCloseText, { color: colors.primaryLight }]}>{t.back}</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -401,7 +405,7 @@ export default function BookScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
@@ -410,92 +414,77 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
   },
   backBtn: { padding: 8, marginLeft: -8 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginLeft: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '600', marginLeft: 8 },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 24 },
   section: { marginBottom: 20 },
-  sectionLabel: { color: '#a1a1aa', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  sectionLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
   serviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181b',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#27272a',
   },
-  serviceIconWrap: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(167, 139, 250, 0.2)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  serviceIconWrap: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   serviceCardBody: { flex: 1 },
-  serviceCardTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  serviceCardMeta: { color: '#a1a1aa', fontSize: 13, marginTop: 4 },
+  serviceCardTitle: { fontSize: 16, fontWeight: '600' },
+  serviceCardMeta: { fontSize: 13, marginTop: 4 },
   chipScroll: { marginHorizontal: -4 },
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#27272a',
     marginRight: 8,
   },
-  chipSelected: { backgroundColor: '#7c3aed' },
-  chipText: { color: '#a1a1aa', fontSize: 14 },
+  chipText: { fontSize: 14 },
   chipTextSelected: { color: '#fff', fontWeight: '600' },
   branchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#18181b',
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#27272a',
   },
-  branchRowText: { color: '#fff', fontSize: 15 },
-  calendar: { backgroundColor: '#18181b', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#27272a' },
+  branchRowText: { fontSize: 15 },
+  calendar: { borderRadius: 16, padding: 16, borderWidth: 1 },
   calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  calendarMonthLabel: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  calendarMonthLabel: { fontSize: 16, fontWeight: '600' },
   weekdayRow: { flexDirection: 'row', marginBottom: 8 },
-  weekdayText: { flex: 1, color: '#71717a', fontSize: 12, textAlign: 'center' },
+  weekdayText: { flex: 1, fontSize: 12, textAlign: 'center' },
   daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center' },
-  dayCellSelected: { backgroundColor: '#7c3aed', borderRadius: 20 },
-  dayCellText: { color: '#fff', fontSize: 14 },
+  dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 20 },
+  dayCellText: { fontSize: 14 },
   dayCellTextSelected: { color: '#fff', fontWeight: '700' },
-  dayCellTextPast: { color: '#52525b' },
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   slotChip: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#27272a',
     borderWidth: 1,
-    borderColor: '#3f3f46',
     minWidth: 90,
     alignItems: 'center',
   },
-  slotChipSelected: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
   slotCheck: { position: 'absolute', top: 6, right: 8 },
-  slotChipText: { color: '#fff', fontSize: 14 },
+  slotChipText: { fontSize: 14 },
   slotChipTextSelected: { color: '#fff', fontWeight: '600' },
   summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181b',
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#27272a',
     gap: 12,
   },
-  summaryText: { color: '#fff', fontSize: 15, flex: 1 },
+  summaryText: { fontSize: 15, flex: 1 },
   confirmBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7c3aed',
     paddingVertical: 16,
     borderRadius: 16,
     gap: 10,
@@ -510,23 +499,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   successBox: { alignItems: 'center', padding: 32 },
-  successTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 16 },
+  successTitle: { fontSize: 18, fontWeight: '600', marginTop: 16 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   branchModal: {
-    backgroundColor: '#18181b',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderTopColor: '#27272a',
   },
-  branchModalTitle: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 12 },
-  branchModalRow: { color: '#d4d4d8', fontSize: 15, marginBottom: 8 },
+  branchModalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  branchModalRow: { fontSize: 15, marginBottom: 8 },
   yandexBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7c3aed',
     paddingVertical: 14,
     borderRadius: 14,
     gap: 8,
@@ -534,5 +520,5 @@ const styles = StyleSheet.create({
   },
   yandexBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   branchModalClose: { marginTop: 12, alignItems: 'center' },
-  branchModalCloseText: { color: '#a78bfa', fontSize: 16 },
+  branchModalCloseText: { fontSize: 16 },
 });

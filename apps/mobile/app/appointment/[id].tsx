@@ -18,7 +18,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getBookingById, cancelBooking, type Booking } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
+import { getColors } from '../../lib/theme';
 import Skeleton from '../components/Skeleton';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
@@ -40,7 +42,9 @@ export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const language = useAuthStore((s) => s.language);
+  const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
+  const colors = getColors(theme);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,8 +99,8 @@ export default function AppointmentDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Skeleton width={24} height={24} borderRadius={4} />
           <Skeleton width={160} height={18} style={{ marginLeft: 8 }} />
         </View>
@@ -113,10 +117,10 @@ export default function AppointmentDetailScreen() {
 
   if (error || !booking) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{t.noResultsFound}</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.error }]}>{t.noResultsFound}</Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtnFull}>
-          <Text style={styles.backBtnText}>← {t.back}</Text>
+          <Text style={[styles.backBtnText, { color: colors.primary }]}>← {t.back}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -127,55 +131,55 @@ export default function AppointmentDetailScreen() {
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t.yourAppointment}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t.yourAppointment}</Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Doctor card */}
-        <View style={styles.doctorCard}>
+        <View style={[styles.doctorCard, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}>
           <View style={styles.doctorAvatarWrap}>
-            <Image source={{ uri: DEFAULT_AVATAR }} style={styles.doctorAvatar} />
+            <Image source={{ uri: DEFAULT_AVATAR }} style={[styles.doctorAvatar, { backgroundColor: colors.border }]} />
           </View>
           <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{booking.doctorName ?? '—'}</Text>
-            <Text style={styles.doctorSpecialty}>{booking.serviceTitle ?? '—'}</Text>
+            <Text style={[styles.doctorName, { color: colors.text }]}>{booking.doctorName ?? '—'}</Text>
+            <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]}>{booking.serviceTitle ?? '—'}</Text>
             <View style={styles.doctorIcons}>
               <View style={styles.iconBadge}>
-                <Ionicons name="star" size={14} color="#facc15" />
-                <Text style={styles.iconBadgeText}>5</Text>
+                <Ionicons name="star" size={14} color={colors.warning} />
+                <Text style={[styles.iconBadgeText, { color: colors.warning }]}>5</Text>
               </View>
               <View style={styles.iconBadge}>
-                <Ionicons name="chatbubble-outline" size={14} color="#71717a" />
-                <Text style={styles.iconBadgeTextMuted}>—</Text>
+                <Ionicons name="chatbubble-outline" size={14} color={colors.textTertiary} />
+                <Text style={[styles.iconBadgeTextMuted, { color: colors.textTertiary }]}>—</Text>
               </View>
               <TouchableOpacity style={styles.iconBadge}>
-                <Ionicons name="heart-outline" size={16} color="#71717a" />
+                <Ionicons name="heart-outline" size={16} color={colors.textTertiary} />
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Date & time */}
         <View style={styles.dateSection}>
-          <View style={styles.datePill}>
+          <View style={[styles.datePill, { backgroundColor: colors.primary }]}>
             <Text style={styles.datePillText}>{datePill}</Text>
           </View>
           <View style={styles.dateTimeRow}>
-            <Text style={styles.dayTimeText}>{dayName}, {booking.scheduledTime}</Text>
+            <Text style={[styles.dayTimeText, { color: colors.textSecondary }]}>{dayName}, {booking.scheduledTime}</Text>
             <View style={styles.statusIcons}>
               {(booking.status === 'confirmed' || booking.status === 'completed') && (
-                <View style={styles.statusIconWrap}>
+                <View style={[styles.statusIconWrap, { backgroundColor: colors.success }]}>
                   <Ionicons name="checkmark" size={18} color="#fff" />
                 </View>
               )}
               {booking.status === 'cancelled' && (
-                <View style={[styles.statusIconWrap, styles.statusIconCancel]}>
+                <View style={[styles.statusIconWrap, { backgroundColor: colors.error }]}>
                   <Ionicons name="close" size={18} color="#fff" />
                 </View>
               )}
@@ -183,32 +187,32 @@ export default function AppointmentDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Booking For */}
         <View style={styles.bookingForSection}>
-          <Row label={t.bookingFor} value="—" />
-          <Row label={t.completeFullName} value="—" />
-          <Row label={t.completeAge} value="—" />
-          <Row label={t.completeGender} value="—" />
+          <Row label={t.bookingFor} value="—" colors={colors} />
+          <Row label={t.completeFullName} value="—" colors={colors} />
+          <Row label={t.completeAge} value="—" colors={colors} />
+          <Row label={t.completeGender} value="—" colors={colors} />
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Problem */}
         <View style={styles.problemSection}>
-          <Text style={styles.problemLabel}>{t.problem}</Text>
-          <Text style={styles.problemPlaceholder}>—</Text>
+          <Text style={[styles.problemLabel, { color: colors.textTertiary }]}>{t.problem}</Text>
+          <Text style={[styles.problemPlaceholder, { color: colors.textSecondary }]}>—</Text>
         </View>
 
         {canCancel && (
           <TouchableOpacity
-            style={styles.cancelBtn}
+            style={[styles.cancelBtn, { borderColor: colors.error, backgroundColor: colors.errorBg }]}
             onPress={() => setSheetVisible(true)}
             activeOpacity={0.85}
           >
-            <Ionicons name="close-circle-outline" size={22} color="#f87171" />
-            <Text style={styles.cancelBtnText}>{t.cancelAppointment}</Text>
+            <Ionicons name="close-circle-outline" size={22} color={colors.error} />
+            <Text style={[styles.cancelBtnText, { color: colors.error }]}>{t.cancelAppointment}</Text>
           </TouchableOpacity>
         )}
 
@@ -226,20 +230,20 @@ export default function AppointmentDetailScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.sheetAvoid}
         >
-          <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{t.whyCancel}</Text>
+          <Animated.View style={[styles.sheet, { backgroundColor: colors.backgroundCard, borderColor: colors.border, transform: [{ translateY: slideAnim }] }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.textTertiary }]} />
+            <Text style={[styles.sheetTitle, { color: colors.textSecondary }]}>{t.whyCancel}</Text>
             <TextInput
-              style={styles.sheetInput}
+              style={[styles.sheetInput, { backgroundColor: colors.backgroundSecondary, color: colors.text }]}
               placeholder={t.whyCancel}
-              placeholderTextColor="#71717a"
+              placeholderTextColor={colors.textTertiary}
               value={cancelReason}
               onChangeText={setCancelReason}
               multiline
               numberOfLines={3}
             />
             <TouchableOpacity
-              style={[styles.sheetConfirmBtn, cancelling && styles.sheetConfirmBtnDisabled]}
+              style={[styles.sheetConfirmBtn, { backgroundColor: colors.error }, cancelling && styles.sheetConfirmBtnDisabled]}
               onPress={handleCancelConfirm}
               disabled={cancelling}
             >
@@ -250,7 +254,7 @@ export default function AppointmentDetailScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.sheetDismiss} onPress={() => setSheetVisible(false)}>
-              <Text style={styles.sheetDismissText}>{t.back}</Text>
+              <Text style={[styles.sheetDismissText, { color: colors.primaryLight }]}>{t.back}</Text>
             </TouchableOpacity>
           </Animated.View>
         </KeyboardAvoidingView>
@@ -259,21 +263,21 @@ export default function AppointmentDetailScreen() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, colors }: { label: string; value: string; colors: any }) {
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
+      <Text style={[styles.rowLabel, { color: colors.textTertiary }]}>{label}</Text>
+      <Text style={[styles.rowValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
+  container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: '#f87171', marginBottom: 12 },
+  errorText: { marginBottom: 12 },
   backBtnFull: { padding: 12 },
-  backBtnText: { color: '#8b5cf6', fontSize: 16 },
+  backBtnText: { fontSize: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -281,19 +285,16 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
   },
   backBtn: { padding: 8, marginLeft: -8 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginLeft: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '600', marginLeft: 8 },
   scroll: { flex: 1 },
   scrollContent: { padding: 20 },
   doctorCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(167, 139, 250, 0.15)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(167, 139, 250, 0.3)',
     marginBottom: 4,
   },
   doctorAvatarWrap: { marginRight: 14 },
@@ -301,20 +302,18 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#3f3f46',
   },
   doctorInfo: { flex: 1 },
-  doctorName: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  doctorSpecialty: { color: '#a1a1aa', fontSize: 14, marginTop: 4 },
+  doctorName: { fontSize: 18, fontWeight: '700' },
+  doctorSpecialty: { fontSize: 14, marginTop: 4 },
   doctorIcons: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   iconBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBadgeText: { color: '#facc15', fontSize: 13 },
-  iconBadgeTextMuted: { color: '#71717a', fontSize: 13 },
-  divider: { height: 1, backgroundColor: '#27272a', marginVertical: 16 },
+  iconBadgeText: { fontSize: 13 },
+  iconBadgeTextMuted: { fontSize: 13 },
+  divider: { height: 1, marginVertical: 16 },
   dateSection: { marginBottom: 4 },
   datePill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#7c3aed',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 24,
@@ -326,24 +325,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 12,
   },
-  dayTimeText: { color: '#a1a1aa', fontSize: 15 },
+  dayTimeText: { fontSize: 15 },
   statusIcons: { flexDirection: 'row', gap: 8 },
   statusIconWrap: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#22c55e',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  statusIconCancel: { backgroundColor: '#f87171' },
   bookingForSection: { marginBottom: 4 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  rowLabel: { color: '#71717a', fontSize: 14 },
-  rowValue: { color: '#f4f4f5', fontSize: 14, fontWeight: '500' },
+  rowLabel: { fontSize: 14 },
+  rowValue: { fontSize: 14, fontWeight: '500' },
   problemSection: { marginBottom: 20 },
-  problemLabel: { color: '#71717a', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  problemPlaceholder: { color: '#a1a1aa', fontSize: 14 },
+  problemLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  problemPlaceholder: { fontSize: 14 },
   cancelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -352,10 +349,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(248, 113, 113, 0.4)',
-    backgroundColor: 'rgba(248, 113, 113, 0.1)',
   },
-  cancelBtnText: { color: '#f87171', fontSize: 16, fontWeight: '600' },
+  cancelBtnText: { fontSize: 16, fontWeight: '600' },
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -365,7 +360,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#18181b',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -373,30 +367,25 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: '#27272a',
   },
   sheetHandle: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#52525b',
     alignSelf: 'center',
     marginBottom: 20,
   },
-  sheetTitle: { color: '#a1a1aa', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  sheetTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
   sheetInput: {
-    backgroundColor: '#27272a',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#fff',
     fontSize: 15,
     minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: 16,
   },
   sheetConfirmBtn: {
-    backgroundColor: '#f87171',
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -404,5 +393,5 @@ const styles = StyleSheet.create({
   sheetConfirmBtnDisabled: { opacity: 0.6 },
   sheetConfirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   sheetDismiss: { alignItems: 'center', marginTop: 12 },
-  sheetDismissText: { color: '#a78bfa', fontSize: 16 },
+  sheetDismissText: { fontSize: 16 },
 });

@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore, needsProfile } from '../store/auth-store';
+import { useThemeStore } from '../store/theme-store';
+import { getColors } from '../lib/theme';
 
 const SplashScreen = () => {
   const router = useRouter();
@@ -11,6 +13,8 @@ const SplashScreen = () => {
   const patient = useAuthStore((s) => s.patient);
   const language = useAuthStore((s) => s.language);
   const hydrate = useAuthStore((s) => s.hydrate);
+  const theme = useThemeStore((s) => s.theme);
+  const colors = getColors(theme);
 
   useEffect(() => {
     hydrate();
@@ -36,13 +40,17 @@ const SplashScreen = () => {
     return () => clearTimeout(t);
   }, [hydrated, token, patient, language, router]);
 
+  const gradientColors = theme === 'light'
+    ? [colors.background, colors.backgroundSecondary, colors.backgroundSecondary]
+    : ['#09090b', '#18181b', '#27272a'];
+
   return (
     <LinearGradient
-      colors={['#09090b', '#18181b', '#27272a']}
+      colors={gradientColors}
       style={styles.container}
     >
-      <Text style={styles.text}>ShifoYo'l</Text>
-      <ActivityIndicator size="large" color="#a78bfa" style={styles.spinner} />
+      <Text style={[styles.text, { color: colors.text }]}>ShifoYo'l</Text>
+      <ActivityIndicator size="large" color={colors.primaryLight} style={styles.spinner} />
     </LinearGradient>
   );
 };
@@ -56,7 +64,6 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#ffffff',
   },
   spinner: {
     position: 'absolute',

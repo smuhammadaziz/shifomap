@@ -16,8 +16,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 import { authPhonePassword, getConnectionErrorMessage, getApiErrorMessage } from '../../lib/api';
 import { getTranslations } from '../../lib/translations';
+import { getColors } from '../../lib/theme';
 
 const PHONE_REGEX = /^\+?998\d{9}$/;
 
@@ -43,8 +45,10 @@ export default function PasswordScreen() {
   const rawPhone = (params.phone ?? pendingPhone ?? '').trim();
   const phone = normalizePhone(rawPhone);
   const language = useAuthStore((s) => s.language) ?? 'uz';
+  const theme = useThemeStore((s) => s.theme);
   const setToken = useAuthStore((s) => s.setToken);
   const setPatient = useAuthStore((s) => s.setPatient);
+  const colors = getColors(theme);
 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -113,8 +117,8 @@ export default function PasswordScreen() {
 
   if (!showScreen) {
     return (
-      <View style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -122,9 +126,13 @@ export default function PasswordScreen() {
   const isValid = password.length >= 8;
   const phoneDisplay = `${PHONE_REGEX.test(phone) ? '+998 ' + formatPhoneForDisplay(phone) : phone}`;
 
+  const gradientColors: readonly [string, string, string] = theme === 'light'
+    ? [colors.background, colors.backgroundSecondary, colors.backgroundSecondary]
+    : ['#0a0a0f', '#12121a', '#1a1a24'];
+
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#12121a', '#1a1a24']}
+      colors={gradientColors}
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -133,29 +141,33 @@ export default function PasswordScreen() {
       >
         <View style={styles.content}>
           <TouchableOpacity
-            style={styles.backBtn}
+            style={[styles.backBtn, { backgroundColor: theme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)' }]}
             onPress={() => router.back()}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="arrow-back" size={24} color="#fafafa" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
 
-          <View style={styles.iconWrap}>
-            <Ionicons name="lock-closed-outline" size={40} color="#8b5cf6" />
+          <View style={[styles.iconWrap, { backgroundColor: colors.primaryBg }]}>
+            <Ionicons name="lock-closed-outline" size={40} color={colors.primary} />
           </View>
-          <Text style={styles.title}>{t.passwordTitle}</Text>
-          <Text style={styles.subtitle}>{t.passwordSubtitle}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t.passwordTitle}</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t.passwordSubtitle}</Text>
 
-          <View style={styles.phoneDisplay}>
-            <Ionicons name="call-outline" size={16} color="#71717a" />
-            <Text style={styles.phoneDisplayText}>{phoneDisplay}</Text>
+          <View style={[styles.phoneDisplay, { backgroundColor: colors.backgroundCard }]}>
+            <Ionicons name="call-outline" size={16} color={colors.textTertiary} />
+            <Text style={[styles.phoneDisplayText, { color: colors.textSecondary }]}>{phoneDisplay}</Text>
           </View>
 
-          <View style={[styles.passwordCard, focused && styles.passwordCardFocused]}>
+          <View style={[
+            styles.passwordCard,
+            { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+            focused && { borderColor: colors.primary, backgroundColor: colors.backgroundInputFocused }
+          ]}>
             <TextInput
-              style={styles.passwordInput}
+              style={[styles.passwordInput, { color: colors.text }]}
               placeholder={t.passwordPlaceholder}
-              placeholderTextColor="#52525b"
+              placeholderTextColor={colors.textTertiary}
               value={password}
               onChangeText={setPassword}
               onFocus={() => setFocused(true)}
@@ -170,15 +182,19 @@ export default function PasswordScreen() {
               onPress={() => setSecure((s) => !s)}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Ionicons name={secure ? 'eye-off-outline' : 'eye-outline'} size={22} color="#71717a" />
+              <Ionicons name={secure ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textTertiary} />
             </TouchableOpacity>
           </View>
           {password.length > 0 && password.length < 8 && (
-            <Text style={styles.minHint}>{t.passwordError}</Text>
+            <Text style={[styles.minHint, { color: colors.error }]}>{t.passwordError}</Text>
           )}
 
           <TouchableOpacity
-            style={[styles.continueButton, (!isValid || loading) && styles.continueButtonDisabled]}
+            style={[
+              styles.continueButton,
+              { backgroundColor: colors.primary },
+              (!isValid || loading) && styles.continueButtonDisabled
+            ]}
             onPress={onSubmit}
             disabled={!isValid || loading}
             activeOpacity={0.85}
@@ -202,14 +218,14 @@ export default function PasswordScreen() {
         onRequestClose={() => setErrorPopover(null)}
       >
         <Pressable style={styles.popoverOverlay} onPress={() => setErrorPopover(null)}>
-          <Pressable style={styles.popoverCard} onPress={(ev) => ev.stopPropagation()}>
-            <View style={styles.popoverIconWrap}>
-              <Ionicons name="lock-closed" size={32} color="#f87171" />
+          <Pressable style={[styles.popoverCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={(ev) => ev.stopPropagation()}>
+            <View style={[styles.popoverIconWrap, { backgroundColor: colors.errorBg }]}>
+              <Ionicons name="lock-closed" size={32} color={colors.error} />
             </View>
-            <Text style={styles.popoverTitle}>{errorPopover?.title ?? ''}</Text>
-            <Text style={styles.popoverMessage}>{errorPopover?.message ?? ''}</Text>
+            <Text style={[styles.popoverTitle, { color: colors.text }]}>{errorPopover?.title ?? ''}</Text>
+            <Text style={[styles.popoverMessage, { color: colors.textSecondary }]}>{errorPopover?.message ?? ''}</Text>
             <TouchableOpacity
-              style={styles.popoverButton}
+              style={[styles.popoverButton, { backgroundColor: colors.primary }]}
               onPress={() => setErrorPopover(null)}
               activeOpacity={0.85}
             >
@@ -226,7 +242,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loadingRoot: {
     flex: 1,
-    backgroundColor: '#0a0a0f',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -240,7 +255,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -248,7 +262,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
@@ -256,13 +269,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#fafafa',
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: '#a1a1aa',
     marginBottom: 24,
     lineHeight: 22,
   },
@@ -270,24 +281,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#18181b',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 20,
   },
   phoneDisplayText: {
-    color: '#a1a1aa',
     fontSize: 15,
     fontWeight: '500',
   },
   passwordCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181b',
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#27272a',
     paddingHorizontal: 20,
     marginBottom: 8,
     shadowColor: '#000',
@@ -296,13 +303,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  passwordCardFocused: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#1c1c22',
-  },
   passwordInput: {
     flex: 1,
-    color: '#fafafa',
     fontSize: 17,
     paddingVertical: 18,
   },
@@ -310,7 +312,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   minHint: {
-    color: '#f87171',
     fontSize: 12,
     marginBottom: 16,
     marginLeft: 4,
@@ -320,10 +321,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#8b5cf6',
     borderRadius: 16,
     paddingVertical: 18,
-    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -348,10 +347,8 @@ const styles = StyleSheet.create({
   popoverCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: '#18181b',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#27272a',
     padding: 28,
     alignItems: 'center',
     shadowColor: '#000',
@@ -364,7 +361,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(248, 113, 113, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
@@ -372,19 +368,16 @@ const styles = StyleSheet.create({
   popoverTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fafafa',
     marginBottom: 10,
     textAlign: 'center',
   },
   popoverMessage: {
     fontSize: 15,
-    color: '#a1a1aa',
     lineHeight: 22,
     textAlign: 'center',
     marginBottom: 24,
   },
   popoverButton: {
-    backgroundColor: '#8b5cf6',
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 14,

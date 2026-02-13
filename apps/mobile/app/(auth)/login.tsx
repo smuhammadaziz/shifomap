@@ -14,7 +14,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
+import { getColors } from '../../lib/theme';
 
 const PHONE_PREFIX = '+998';
 
@@ -30,11 +32,13 @@ function formatPhoneDisplay(digits: string): string {
 export default function Login() {
   const router = useRouter();
   const language = useAuthStore((s) => s.language) ?? 'uz';
+  const theme = useThemeStore((s) => s.theme);
   const [digits, setDigits] = useState('');
   const [navigating, setNavigating] = useState(false);
   const [focused, setFocused] = useState(false);
 
   const t = getTranslations(language);
+  const colors = getColors(theme);
   const setPendingPhone = useAuthStore((s) => s.setPendingPhone);
 
   const onPhoneNext = () => {
@@ -63,9 +67,13 @@ export default function Login() {
   const isValid = digits.length === 9;
   const displayValue = formatPhoneDisplay(digits);
 
+  const gradientColors = theme === 'light' 
+    ? [colors.background, colors.backgroundSecondary, colors.backgroundSecondary]
+    : ['#0a0a0f', '#12121a', '#1a1a24'];
+
   return (
     <LinearGradient
-      colors={['#0a0a0f', '#12121a', '#1a1a24']}
+      colors={gradientColors}
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -73,22 +81,26 @@ export default function Login() {
         style={styles.keyboard}
       >
         <View style={styles.content}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="call-outline" size={40} color="#8b5cf6" />
+          <View style={[styles.iconWrap, { backgroundColor: colors.primaryBg }]}>
+            <Ionicons name="call-outline" size={40} color={colors.primary} />
           </View>
-          <Text style={styles.title}>{t.loginTitle}</Text>
-          <Text style={styles.subtitle}>{t.loginSubtitle}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t.loginTitle}</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t.loginSubtitle}</Text>
 
-          <View style={[styles.phoneCard, focused && styles.phoneCardFocused]}>
+          <View style={[
+            styles.phoneCard,
+            { backgroundColor: colors.backgroundCard, borderColor: colors.border },
+            focused && { borderColor: colors.primary, backgroundColor: colors.backgroundInputFocused }
+          ]}>
             <View style={styles.phoneRow}>
             <View style={styles.prefixWrap}>
-                <Text style={styles.prefix}>{PHONE_PREFIX}</Text>
+                <Text style={[styles.prefix, { color: colors.textSecondary }]}>{PHONE_PREFIX}</Text>
               </View>
               <View style={styles.inputWrap}>
                 <TextInput
-                  style={styles.phoneInput}
+                  style={[styles.phoneInput, { color: colors.text }]}
                   placeholder={t.loginPhonePlaceholder}
-                  placeholderTextColor="#52525b"
+                  placeholderTextColor={colors.textTertiary}
                   value={displayValue}
                   onChangeText={onPhoneChange}
                   onFocus={() => setFocused(true)}
@@ -104,7 +116,8 @@ export default function Login() {
                         key={i}
                         style={[
                           styles.digitChip,
-                          digits.length > i * 3 ? styles.digitChipFilled : null,
+                          { backgroundColor: colors.border },
+                          digits.length > i * 3 ? { backgroundColor: colors.primary } : null,
                         ]}
                       />
                     ))}
@@ -112,14 +125,18 @@ export default function Login() {
                 )}
               </View>
             </View>
-            <View style={styles.phoneHint}>
-              <Ionicons name="information-circle-outline" size={14} color="#71717a" />
-              <Text style={styles.phoneHintText}>{t.loginPhoneHint}</Text>
+            <View style={[styles.phoneHint, { borderTopColor: colors.border }]}>
+              <Ionicons name="information-circle-outline" size={14} color={colors.textTertiary} />
+              <Text style={[styles.phoneHintText, { color: colors.textTertiary }]}>{t.loginPhoneHint}</Text>
             </View>
           </View>
 
           <TouchableOpacity
-            style={[styles.nextButton, (!isValid || navigating) && styles.nextButtonDisabled]}
+            style={[
+              styles.nextButton,
+              { backgroundColor: colors.primary },
+              (!isValid || navigating) && styles.nextButtonDisabled
+            ]}
             onPress={onPhoneNext}
             disabled={!isValid || navigating}
             activeOpacity={0.85}
@@ -147,7 +164,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
@@ -155,21 +171,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#fafafa',
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: '#a1a1aa',
     marginBottom: 32,
     lineHeight: 22,
   },
   phoneCard: {
-    backgroundColor: '#18181b',
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#27272a',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
@@ -180,10 +192,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  phoneCardFocused: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#1c1c22',
-  },
   phoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -193,13 +201,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   prefix: {
-    color: '#a1a1aa',
     fontSize: 18,
     fontWeight: '600',
   },
   inputWrap: { flex: 1 },
   phoneInput: {
-    color: '#fafafa',
     fontSize: 22,
     fontWeight: '600',
     paddingVertical: 12,
@@ -214,10 +220,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#27272a',
-  },
-  digitChipFilled: {
-    backgroundColor: '#8b5cf6',
   },
   phoneHint: {
     flexDirection: 'row',
@@ -229,7 +231,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#27272a',
   },
   phoneHintText: {
-    color: '#71717a',
     fontSize: 12,
   },
   nextButton: {
@@ -237,10 +238,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#8b5cf6',
     borderRadius: 16,
     paddingVertical: 18,
-    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
