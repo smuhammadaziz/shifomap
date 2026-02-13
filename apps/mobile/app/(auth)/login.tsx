@@ -9,8 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
@@ -20,7 +20,6 @@ import { getColors } from '../../lib/theme';
 
 const PHONE_PREFIX = '+998';
 
-/** Format 9 digits as 99 999 99 99 (e.g. 901234567 → 90 123 45 67) */
 function formatPhoneDisplay(digits: string): string {
   const d = digits.replace(/\D/g, '').slice(0, 9);
   if (d.length <= 2) return d;
@@ -49,7 +48,6 @@ export default function Login() {
     const fullPhone = PHONE_PREFIX + digits;
     setPendingPhone(fullPhone);
     setNavigating(true);
-    // Defer navigation so store update is committed first (fixes first-tap flicker)
     const href = `/(auth)/password?phone=${encodeURIComponent(fullPhone)}`;
     requestAnimationFrame(() => {
       setTimeout(() => {
@@ -60,82 +58,78 @@ export default function Login() {
   };
 
   const onPhoneChange = (text: string) => {
-    const next = text.replace(/\D/g, '').slice(0, 9);
-    setDigits(next);
+    setDigits(text.replace(/\D/g, '').slice(0, 9));
   };
 
   const isValid = digits.length === 9;
   const displayValue = formatPhoneDisplay(digits);
 
-  const gradientColors = theme === 'light' 
-    ? [colors.background, colors.backgroundSecondary, colors.backgroundSecondary]
-    : ['#0a0a0f', '#12121a', '#1a1a24'];
-
   return (
-    <LinearGradient
-      colors={gradientColors}
-      style={styles.container}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboard}
       >
-        <View style={styles.content}>
-          <View style={[styles.iconWrap, { backgroundColor: colors.primaryBg }]}>
-            <Ionicons name="call-outline" size={40} color={colors.primary} />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.topBlock}>
+            <Text style={[styles.logo, { color: colors.text }]}>ShifoYo'l</Text>
+            <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+              {t.loginSubtitle}
+            </Text>
           </View>
-          <Text style={[styles.title, { color: colors.text }]}>{t.loginTitle}</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t.loginSubtitle}</Text>
 
-          <View style={[
-            styles.phoneCard,
-            { backgroundColor: colors.backgroundCard, borderColor: colors.border },
-            focused && { borderColor: colors.primary, backgroundColor: colors.backgroundInputFocused }
-          ]}>
-            <View style={styles.phoneRow}>
-            <View style={styles.prefixWrap}>
-                <Text style={[styles.prefix, { color: colors.textSecondary }]}>{PHONE_PREFIX}</Text>
-              </View>
-              <View style={styles.inputWrap}>
-                <TextInput
-                  style={[styles.phoneInput, { color: colors.text }]}
-                  placeholder={t.loginPhonePlaceholder}
-                  placeholderTextColor={colors.textTertiary}
-                  value={displayValue}
-                  onChangeText={onPhoneChange}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                  keyboardType="phone-pad"
-                  maxLength={12}
-                  editable={!navigating}
-                />
-                {digits.length > 0 && (
-                  <View style={styles.digitChips}>
-                    {[0, 1, 2].map((i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.digitChip,
-                          { backgroundColor: colors.border },
-                          digits.length > i * 3 ? { backgroundColor: colors.primary } : null,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
+          <View style={styles.formBlock}>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+              {t.loginTitle}
+            </Text>
+            <View
+              style={[
+                styles.inputRow,
+                { borderBottomColor: focused ? colors.primary : colors.border },
+                focused && styles.inputRowFocused,
+              ]}
+            >
+              <Text style={[styles.prefix, { color: colors.textTertiary }]}>{PHONE_PREFIX}</Text>
+              <View style={[styles.prefixDivider, { backgroundColor: colors.border }]} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder={t.loginPhonePlaceholder}
+                placeholderTextColor={colors.textPlaceholder}
+                value={displayValue}
+                onChangeText={onPhoneChange}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                keyboardType="phone-pad"
+                maxLength={12}
+                editable={!navigating}
+              />
             </View>
-            <View style={[styles.phoneHint, { borderTopColor: colors.border }]}>
-              <Ionicons name="information-circle-outline" size={14} color={colors.textTertiary} />
-              <Text style={[styles.phoneHintText, { color: colors.textTertiary }]}>{t.loginPhoneHint}</Text>
-            </View>
+            {digits.length > 0 && (
+              <View style={styles.dotsRow}>
+                {[0, 1, 2].map((i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.dot,
+                      { backgroundColor: colors.border },
+                      digits.length > i * 3 && { backgroundColor: colors.primary, opacity: 1 },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+            <Text style={[styles.hint, { color: colors.textTertiary }]}>{t.loginPhoneHint}</Text>
           </View>
 
           <TouchableOpacity
             style={[
-              styles.nextButton,
+              styles.btn,
               { backgroundColor: colors.primary },
-              (!isValid || navigating) && styles.nextButtonDisabled
+              (!isValid || navigating) && styles.btnDisabled,
             ]}
             onPress={onPhoneNext}
             disabled={!isValid || navigating}
@@ -145,113 +139,87 @@ export default function Login() {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Text style={styles.nextButtonText}>{t.loginNext}</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                <Text style={styles.btnText}>{t.loginNext}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  keyboard: { flex: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: 28 },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 28,
-  },
-  title: {
-    fontSize: 28,
+  keyboard: { flex: 1 },
+  scrollContent: { paddingHorizontal: 28, paddingTop: 80, paddingBottom: 48 },
+  topBlock: { marginBottom: 48 },
+  logo: {
+    fontSize: 26,
     fontWeight: '700',
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
-  subtitle: {
-    fontSize: 15,
-    marginBottom: 32,
-    lineHeight: 22,
+  tagline: {
+    fontSize: 14,
+    lineHeight: 20,
+    maxWidth: 280,
   },
-  phoneCard: {
-    borderRadius: 20,
-    borderWidth: 1.5,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4,
+  formBlock: { marginBottom: 36 },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  phoneRow: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderBottomWidth: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 0,
   },
-  prefixWrap: {
-    marginRight: 12,
-    paddingVertical: 4,
+  inputRowFocused: {
+    borderBottomWidth: 3,
   },
   prefix: {
+    fontSize: 17,
+    fontWeight: '500',
+    marginRight: 12,
+  },
+  prefixDivider: {
+    width: 1,
+    height: 20,
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '600',
+    paddingVertical: 0,
+    letterSpacing: 1.5,
   },
-  inputWrap: { flex: 1 },
-  phoneInput: {
-    fontSize: 22,
-    fontWeight: '600',
-    paddingVertical: 12,
-    letterSpacing: 2,
+  dotsRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    opacity: 0.5,
   },
-  digitChips: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 4,
-  },
-  digitChip: {
-    width: 8,
-    height: 4,
-    borderRadius: 2,
-  },
-  phoneHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#27272a',
-  },
-  phoneHintText: {
+  hint: {
     fontSize: 12,
+    marginTop: 10,
   },
-  nextButton: {
+  btn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    borderRadius: 16,
-    paddingVertical: 18,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
   },
-  nextButtonDisabled: {
-    opacity: 0.5,
-    shadowOpacity: 0,
-  },
-  nextButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
+  btnDisabled: { opacity: 0.5 },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

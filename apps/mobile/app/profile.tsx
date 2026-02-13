@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,6 +36,7 @@ const ProfileDashboard = () => {
 
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
   const [nextBookingLoading, setNextBookingLoading] = useState(true);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const fetchNextBooking = useCallback(() => {
     setNextBookingLoading(true);
@@ -54,9 +55,22 @@ const ProfileDashboard = () => {
   const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi');
   const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
 
-  const onLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
+  const onLogout = () => {
+    Alert.alert(
+      language === 'ru' ? 'Выйти?' : 'Chiqish?',
+      language === 'ru' ? 'Вы уверены?' : 'Ishonchingiz komilmi?',
+      [
+        { text: language === 'ru' ? 'Отмена' : 'Bekor qilish', style: 'cancel' },
+        {
+          text: language === 'ru' ? 'Выйти' : 'Chiqish',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -158,12 +172,12 @@ const ProfileDashboard = () => {
           <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary, marginTop: 24, marginBottom: 16 }]}>{t.dailyMeds}</Text>
+        {/* <Text style={[styles.sectionTitle, { color: colors.textSecondary, marginTop: 24, marginBottom: 16 }]}>{t.dailyMeds}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.medsScroll}>
           <MedCard name="Vitamin D" schedule={`8:00 AM • ${t.taken}`} icon="capsules" color="#22c55e" bgColor="rgba(34, 197, 94, 0.1)" colors={colors} />
           <MedCard name="Amoxicillin" schedule={`2:00 PM • ${t.upcoming}`} icon="pills" color="#f97316" bgColor="rgba(249, 115, 22, 0.1)" colors={colors} />
           <MedCard name="Iron Supp" schedule={`8:00 PM • ${t.upcoming}`} icon="glass-whiskey" color="#3b82f6" bgColor="rgba(59, 130, 246, 0.1)" colors={colors} />
-        </ScrollView>
+        </ScrollView> */}
 
         <View style={[styles.settingsGroup, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/settings')}>
@@ -172,7 +186,7 @@ const ProfileDashboard = () => {
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <TouchableOpacity style={styles.settingRow}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => setShowPaymentModal(true)}>
             <Ionicons name="card-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
             <Text style={[styles.settingLabel, { color: colors.text }]}>{t.paymentMethods}</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
@@ -184,6 +198,28 @@ const ProfileDashboard = () => {
           <Text style={[styles.logoutText, { color: colors.error }]}>{t.logOut}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={showPaymentModal} transparent animationType="fade" onRequestClose={() => setShowPaymentModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowPaymentModal(false)}>
+          <Pressable
+            style={[styles.comingSoonCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={[styles.comingSoonIconWrap, { backgroundColor: colors.primaryBg }]}>
+              <Ionicons name="card-outline" size={32} color={colors.primary} />
+            </View>
+            <Text style={[styles.comingSoonTitle, { color: colors.text }]}>{t.comingSoonTitle}</Text>
+            <Text style={[styles.comingSoonMessage, { color: colors.textSecondary }]}>{t.comingSoonMessage}</Text>
+            <TouchableOpacity
+              style={[styles.comingSoonBtn, { backgroundColor: colors.primary }]}
+              onPress={() => setShowPaymentModal(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.comingSoonBtnText}>{t.errorDismiss}</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -297,6 +333,33 @@ const styles = StyleSheet.create({
     logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 40 },
     logoutText: { fontSize: 15, fontWeight: '600' },
 
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    comingSoonCard: {
+        width: '100%',
+        maxWidth: 320,
+        borderRadius: 20,
+        borderWidth: 1,
+        padding: 24,
+        alignItems: 'center',
+    },
+    comingSoonIconWrap: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    comingSoonTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+    comingSoonMessage: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
+    comingSoonBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, minWidth: 120, alignItems: 'center' },
+    comingSoonBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
 
 export default ProfileDashboard;

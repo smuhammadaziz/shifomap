@@ -11,8 +11,8 @@ import {
   Alert,
   Modal,
   Pressable,
+  ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
@@ -28,7 +28,6 @@ function normalizePhone(raw: string): string {
   return s.startsWith('+') ? s : `+${s}`;
 }
 
-/** Format +998901234567 → 99 123 45 67 (without +998 prefix in display) */
 function formatPhoneForDisplay(phone: string): string {
   const d = phone.replace(/\D/g, '').slice(-9);
   if (d.length <= 2) return d;
@@ -61,7 +60,6 @@ export default function PasswordScreen() {
   const t = getTranslations(language);
   const hasValidPhone = phone.length > 0 && PHONE_REGEX.test(phone);
 
-  // Show form immediately when we have valid phone (from store); only redirect if invalid after a tick
   useEffect(() => {
     if (redirectDone.current) return;
     if (hasValidPhone) {
@@ -124,76 +122,76 @@ export default function PasswordScreen() {
   }
 
   const isValid = password.length >= 8;
-  const phoneDisplay = `${PHONE_REGEX.test(phone) ? '+998 ' + formatPhoneForDisplay(phone) : phone}`;
-
-  const gradientColors: readonly [string, string, string] = theme === 'light'
-    ? [colors.background, colors.backgroundSecondary, colors.backgroundSecondary]
-    : ['#0a0a0f', '#12121a', '#1a1a24'];
+  const phoneDisplay = PHONE_REGEX.test(phone) ? '+998 ' + formatPhoneForDisplay(phone) : phone;
 
   return (
-    <LinearGradient
-      colors={gradientColors}
-      style={styles.container}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboard}
       >
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: theme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)' }]}
+            style={styles.backBtn}
             onPress={() => router.back()}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
 
-          <View style={[styles.iconWrap, { backgroundColor: colors.primaryBg }]}>
-            <Ionicons name="lock-closed-outline" size={40} color={colors.primary} />
+          <View style={styles.topBlock}>
+            <Text style={[styles.title, { color: colors.text }]}>{t.passwordTitle}</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t.passwordSubtitle}</Text>
           </View>
-          <Text style={[styles.title, { color: colors.text }]}>{t.passwordTitle}</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t.passwordSubtitle}</Text>
 
-          <View style={[styles.phoneDisplay, { backgroundColor: colors.backgroundCard }]}>
+          <View style={styles.phoneRow}>
             <Ionicons name="call-outline" size={16} color={colors.textTertiary} />
-            <Text style={[styles.phoneDisplayText, { color: colors.textSecondary }]}>{phoneDisplay}</Text>
+            <Text style={[styles.phoneText, { color: colors.textSecondary }]}>{phoneDisplay}</Text>
           </View>
 
-          <View style={[
-            styles.passwordCard,
-            { backgroundColor: colors.backgroundCard, borderColor: colors.border },
-            focused && { borderColor: colors.primary, backgroundColor: colors.backgroundInputFocused }
-          ]}>
-            <TextInput
-              style={[styles.passwordInput, { color: colors.text }]}
-              placeholder={t.passwordPlaceholder}
-              placeholderTextColor={colors.textTertiary}
-              value={password}
-              onChangeText={setPassword}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              secureTextEntry={secure}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setSecure((s) => !s)}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          <View style={styles.formBlock}>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>{t.passwordPlaceholder}</Text>
+            <View
+              style={[
+                styles.inputRow,
+                { borderBottomColor: focused ? colors.primary : colors.border },
+                focused && styles.inputRowFocused,
+              ]}
             >
-              <Ionicons name={secure ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textTertiary} />
-            </TouchableOpacity>
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder={t.passwordPlaceholder}
+                placeholderTextColor={colors.textPlaceholder}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                secureTextEntry={secure}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                onPress={() => setSecure((s) => !s)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name={secure ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            {password.length > 0 && password.length < 8 && (
+              <Text style={[styles.minHint, { color: colors.error }]}>{t.passwordError}</Text>
+            )}
           </View>
-          {password.length > 0 && password.length < 8 && (
-            <Text style={[styles.minHint, { color: colors.error }]}>{t.passwordError}</Text>
-          )}
 
           <TouchableOpacity
             style={[
-              styles.continueButton,
+              styles.btn,
               { backgroundColor: colors.primary },
-              (!isValid || loading) && styles.continueButtonDisabled
+              (!isValid || loading) && styles.btnDisabled,
             ]}
             onPress={onSubmit}
             disabled={!isValid || loading}
@@ -203,12 +201,12 @@ export default function PasswordScreen() {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Text style={styles.continueButtonText}>{t.passwordContinue}</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                <Text style={styles.btnText}>{t.passwordContinue}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <Modal
@@ -218,23 +216,26 @@ export default function PasswordScreen() {
         onRequestClose={() => setErrorPopover(null)}
       >
         <Pressable style={styles.popoverOverlay} onPress={() => setErrorPopover(null)}>
-          <Pressable style={[styles.popoverCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onPress={(ev) => ev.stopPropagation()}>
+          <Pressable
+            style={[styles.popoverCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+            onPress={(ev) => ev.stopPropagation()}
+          >
             <View style={[styles.popoverIconWrap, { backgroundColor: colors.errorBg }]}>
-              <Ionicons name="lock-closed" size={32} color={colors.error} />
+              <Ionicons name="lock-closed" size={28} color={colors.error} />
             </View>
             <Text style={[styles.popoverTitle, { color: colors.text }]}>{errorPopover?.title ?? ''}</Text>
             <Text style={[styles.popoverMessage, { color: colors.textSecondary }]}>{errorPopover?.message ?? ''}</Text>
             <TouchableOpacity
-              style={[styles.popoverButton, { backgroundColor: colors.primary }]}
+              style={[styles.popoverBtn, { backgroundColor: colors.primary }]}
               onPress={() => setErrorPopover(null)}
               activeOpacity={0.85}
             >
-              <Text style={styles.popoverButtonText}>{t.errorDismiss}</Text>
+              <Text style={styles.popoverBtnText}>{t.errorDismiss}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -245,98 +246,67 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  keyboard: { flex: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: 28 },
+  keyboard: { flex: 1 },
+  scrollContent: { paddingHorizontal: 28, paddingTop: 56, paddingBottom: 48 },
   backBtn: {
-    position: 'absolute',
-    top: 56,
-    left: 28,
-    zIndex: 10,
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 24,
   },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 28,
+  topBlock: { marginBottom: 28 },
+  logo: {
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 15,
-    marginBottom: 24,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
+    maxWidth: 300,
   },
-  phoneDisplay: {
+  phoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 28,
   },
-  phoneDisplayText: {
-    fontSize: 15,
-    fontWeight: '500',
+  phoneText: { fontSize: 15, fontWeight: '500' },
+  formBlock: { marginBottom: 36 },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  passwordCard: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    paddingHorizontal: 20,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4,
+    borderBottomWidth: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 0,
   },
-  passwordInput: {
+  inputRowFocused: { borderBottomWidth: 3 },
+  input: {
     flex: 1,
     fontSize: 17,
-    paddingVertical: 18,
+    paddingVertical: 0,
   },
-  eyeBtn: {
-    padding: 8,
-  },
-  minHint: {
-    fontSize: 12,
-    marginBottom: 16,
-    marginLeft: 4,
-  },
-  continueButton: {
+  minHint: { fontSize: 12, marginTop: 10 },
+  btn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    borderRadius: 16,
-    paddingVertical: 18,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
   },
-  continueButtonDisabled: {
-    opacity: 0.5,
-    shadowOpacity: 0,
-  },
-  continueButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
+  btnDisabled: { opacity: 0.5 },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   popoverOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -347,46 +317,21 @@ const styles = StyleSheet.create({
   popoverCard: {
     width: '100%',
     maxWidth: 320,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 28,
+    padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 12,
   },
   popoverIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  popoverTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  popoverMessage: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  popoverButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 14,
-    minWidth: 140,
-    alignItems: 'center',
-  },
-  popoverButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  popoverTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  popoverMessage: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
+  popoverBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, minWidth: 120, alignItems: 'center' },
+  popoverBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
