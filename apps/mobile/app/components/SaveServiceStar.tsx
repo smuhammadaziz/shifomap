@@ -2,6 +2,8 @@ import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSavedServicesStore, toSavedServiceItem } from '../../store/saved-services-store';
+import { useThemeStore } from '../../store/theme-store';
+import { getColors } from '../../lib/theme';
 import type { PublicServiceItem } from '../../lib/api';
 
 interface SaveServiceStarProps {
@@ -20,6 +22,8 @@ interface SaveServiceStarProps {
 }
 
 export default function SaveServiceStar({ service, size = 22, onSave, onUnsave }: SaveServiceStarProps) {
+  const theme = useThemeStore((s) => s.theme);
+  const colors = getColors(theme);
   const isSaved = useSavedServicesStore((s) => s.isSaved(service._id));
   const addService = useSavedServicesStore((s) => s.addService);
   const removeService = useSavedServicesStore((s) => s.removeService);
@@ -39,7 +43,7 @@ export default function SaveServiceStar({ service, size = 22, onSave, onUnsave }
       <Ionicons
         name={isSaved ? 'star' : 'star-outline'}
         size={size}
-        color={isSaved ? '#facc15' : '#fff'}
+        color={isSaved ? colors.warning : colors.text}
       />
     </TouchableOpacity>
   );

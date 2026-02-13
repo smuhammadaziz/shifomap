@@ -114,7 +114,7 @@ export default function AppointmentsScreen() {
       </View>
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color="#14228e" />
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.centered}>
@@ -127,7 +127,7 @@ export default function AppointmentsScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#8b5cf6" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#14228e" />}
         />
       )}
     </View>
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#27272a',
   },
-  tabActive: { backgroundColor: '#7c3aed' },
+  tabActive: { backgroundColor: '#14228e' },
   tabText: { color: '#a1a1aa', fontSize: 14 },
   tabTextActive: { color: '#fff', fontWeight: '600' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   specialty: { color: '#a1a1aa', fontSize: 13, marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   ratingText: { color: '#facc15', fontSize: 13 },
-  dateText: { color: '#a78bfa', fontSize: 14, marginBottom: 12 },
+  dateText: { color: '#4a5fd4', fontSize: 14, marginBottom: 12 },
   actions: { flexDirection: 'row', gap: 10 },
   reBookBtn: {
     flex: 1,
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(167, 139, 250, 0.2)',
     alignItems: 'center',
   },
-  reBookBtnText: { color: '#a78bfa', fontSize: 14, fontWeight: '600' },
+  reBookBtnText: { color: '#4a5fd4', fontSize: 14, fontWeight: '600' },
   addReviewBtn: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#14228e',
     alignItems: 'center',
   },
   addReviewBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },

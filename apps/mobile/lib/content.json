@@ -19,6 +19,8 @@
     "upNext": "Keyingi",
     "seeAll": "Hammasi",
     "consultation": "KONSULTATSIYA",
+    "noUpcomingTitle": "Yaqinlashuvchi uchrashuv yo'q",
+    "noUpcomingSubtitle": "Tibbiy xizmatga yozilganingizda shu yerda ko'rinadi",
     "visitHistory": "Tashriflar tarixi",
     "visitHistorySubtitle": "O'tmish konsultatsiyalar va eslatmalar",
     "dailyMeds": "Kunlik dori",
@@ -156,6 +158,7 @@
     "problem": "Muammo",
     "cancelSuccess": "Navbat bekor qilindi",
     "clinics": "Klinikalar",
+    "services": "Xizmatlar",
     "seeMoreClinics": "Barcha klinikalar",
     "nServices": "{{n}} xizmat"
   },
@@ -179,6 +182,8 @@
     "upNext": "Далее",
     "seeAll": "Все",
     "consultation": "КОНСУЛЬТАЦИЯ",
+    "noUpcomingTitle": "Нет предстоящих визитов",
+    "noUpcomingSubtitle": "Здесь появится ваша следующая запись",
     "visitHistory": "История визитов",
     "visitHistorySubtitle": "Прошлые консультации и заметки",
     "dailyMeds": "Лекарства на день",
@@ -316,6 +321,7 @@
     "problem": "Проблема",
     "cancelSuccess": "Запись отменена",
     "clinics": "Клиники",
+    "services": "Услуги",
     "seeMoreClinics": "Все клиники",
     "nServices": "{{n}} услуг"
   }

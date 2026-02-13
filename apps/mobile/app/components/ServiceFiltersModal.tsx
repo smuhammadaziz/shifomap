@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3f3f46',
   },
-  chipActive: { backgroundColor: '#3b0764', borderColor: '#7c3aed' },
+  chipActive: { backgroundColor: '#0d1659', borderColor: '#14228e' },
   chipText: { color: '#a1a1aa', fontSize: 14 },
   chipTextActive: { color: '#e9d5ff', fontWeight: '600' },
   row: { flexDirection: 'row', gap: 12 },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#18181b',
   },
   applyBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#14228e',
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',

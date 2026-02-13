@@ -1,12 +1,29 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useAuthStore, DEFAULT_AVATAR } from '../store/auth-store';
 import { useThemeStore } from '../store/theme-store';
 import { getTranslations } from '../lib/translations';
 import { getColors } from '../lib/theme';
+import { getNextUpcomingBooking, type Booking } from '../lib/api';
+
+const DEFAULT_DOCTOR_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
+
+function formatUpcomingDate(dateStr: string, lang: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+  if (isToday) return lang === 'ru' ? 'Сегодня' : 'Bugun';
+  if (isTomorrow) return lang === 'ru' ? 'Завтра' : 'Ertaga';
+  return `${d.toString().padStart(2, '0')}/${m.toString().padStart(2, '0')}/${y}`;
+}
 
 const ProfileDashboard = () => {
   const router = useRouter();
@@ -16,6 +33,23 @@ const ProfileDashboard = () => {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+
+  const [nextBooking, setNextBooking] = useState<Booking | null>(null);
+  const [nextBookingLoading, setNextBookingLoading] = useState(true);
+
+  const fetchNextBooking = useCallback(() => {
+    setNextBookingLoading(true);
+    getNextUpcomingBooking()
+      .then(setNextBooking)
+      .catch(() => setNextBooking(null))
+      .finally(() => setNextBookingLoading(false));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchNextBooking();
+    }, [fetchNextBooking])
+  );
 
   const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi');
   const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
@@ -43,39 +77,77 @@ const ProfileDashboard = () => {
           </View>
           <View style={styles.userInfo}>
             <Text style={[styles.userName, { color: colors.text }]}>{displayName}</Text>
-            <View style={styles.premiumTag}>
-              <FontAwesome5 name="crown" size={12} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.premiumText, { color: colors.primary }]}>{t.premiumMember}</Text>
-            </View>
+            
           </View>
         </View>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.upNext}</Text>
-          <TouchableOpacity><Text style={[styles.seeAll, { color: colors.primary }]}>{t.seeAll}</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/appointments')} hitSlop={12}>
+            <Text style={[styles.seeAll, { color: colors.primary }]}>{t.seeAll}</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={[styles.upNextCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <View style={styles.upNextHeader}>
-            <View style={[styles.consultationTag, { backgroundColor: colors.primaryBg }]}>
-              <Text style={[styles.consultationText, { color: colors.primaryLight }]}>{t.consultation}</Text>
+        {nextBookingLoading ? (
+          <View style={[styles.upNextCard, styles.upNextCardEmpty, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.emptySubtext, { color: colors.textTertiary }]}>{t.seeAll}</Text>
+          </View>
+        ) : nextBooking && (nextBooking.status === 'pending' || nextBooking.status === 'confirmed') ? (
+          <TouchableOpacity
+            style={[styles.upNextCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+            activeOpacity={0.9}
+            onPress={() => router.push({ pathname: '/appointment/[id]', params: { id: nextBooking._id } })}
+          >
+            <View style={styles.upNextHeader}>
+              <View style={[styles.consultationTag, { backgroundColor: colors.primaryBg }]}>
+                <Text style={[styles.consultationText, { color: colors.primaryLight }]}>{t.consultation}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.videoButton, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}
+                onPress={(e) => { e.stopPropagation(); }}
+              >
+                <Ionicons name="videocam" size={20} color={colors.text} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={[styles.videoButton, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}>
-              <Ionicons name="videocam" size={20} color={colors.text} />
+            <Text style={[styles.timeText, { color: colors.text }]}>{nextBooking.scheduledTime}</Text>
+            <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+              {formatUpcomingDate(nextBooking.scheduledDate, language ?? 'uz')}
+            </Text>
+            <View style={styles.doctorRow}>
+              <Image source={{ uri: DEFAULT_DOCTOR_AVATAR }} style={styles.doctorAvatar} />
+              <View style={styles.doctorInfo}>
+                <Text style={[styles.doctorName, { color: colors.text }]} numberOfLines={1}>
+                  {nextBooking.doctorName ?? '—'}
+                </Text>
+                <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {nextBooking.serviceTitle ?? '—'}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.upNextCard, styles.upNextCardEmpty, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <View style={[styles.emptyIconWrap, { backgroundColor: colors.primaryBg }]}>
+              <Ionicons name="calendar-outline" size={32} color={colors.primaryLight} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>{t.noUpcomingTitle}</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>{t.noUpcomingSubtitle}</Text>
+            <TouchableOpacity
+              style={[styles.emptyCta, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/(tabs)')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.emptyCtaText}>{t.noUpcomingPromo}</Text>
             </TouchableOpacity>
           </View>
-          <Text style={[styles.timeText, { color: colors.text }]}>10:00 AM</Text>
-          <Text style={[styles.dateText, { color: colors.textSecondary }]}>Today, Oct 24</Text>
-          <View style={styles.doctorRow}>
-            <Image source={{ uri: 'https://i.pravatar.cc/150?u=dr' }} style={styles.doctorAvatar} />
-            <View style={styles.doctorInfo}>
-              <Text style={[styles.doctorName, { color: colors.text }]}>Dr. Sarah Jenkins</Text>
-              <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]}>Cardiologist</Text>
-            </View>
-          </View>
-        </View>
+        )}
 
-        <TouchableOpacity style={[styles.historyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.historyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+          onPress={() => router.push('/(tabs)/appointments')}
+          activeOpacity={0.8}
+        >
           <View style={[styles.historyIconBox, { backgroundColor: colors.border }]}>
             <Ionicons name="time-outline" size={24} color={colors.text} />
           </View>
@@ -153,6 +225,28 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         marginBottom: 16,
     },
+    upNextCardEmpty: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 28,
+    },
+    emptyIconWrap: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14,
+    },
+    emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6, textAlign: 'center' },
+    emptySubtext: { fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
+    emptyCta: {
+        marginTop: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 14,
+    },
+    emptyCtaText: { color: '#fff', fontSize: 14, fontWeight: '600' },
     upNextHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
     consultationTag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
     consultationText: { fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },

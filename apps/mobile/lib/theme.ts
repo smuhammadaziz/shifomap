@@ -14,12 +14,12 @@ export const lightColors = {
   
   border: '#e4e4e7',
   borderLight: '#f4f4f5',
-  borderFocus: '#7c3aed',
+  borderFocus: '#14228e',
   
-  primary: '#7c3aed',
-  primaryLight: '#a78bfa',
-  primaryBg: 'rgba(124, 58, 237, 0.1)',
-  primaryBgActive: 'rgba(124, 58, 237, 0.15)',
+  primary: '#14228e',
+  primaryLight: '#4a5fd4',
+  primaryBg: 'rgba(20, 34, 142, 0.1)',
+  primaryBgActive: 'rgba(20, 34, 142, 0.15)',
   
   success: '#22c55e',
   successBg: 'rgba(34, 197, 94, 0.1)',
@@ -36,8 +36,8 @@ export const lightColors = {
   cardShadow: 'rgba(0, 0, 0, 0.05)',
   overlay: 'rgba(0, 0, 0, 0.5)',
   
-  iconPurple: '#a78bfa',
-  iconPurpleBg: 'rgba(167, 139, 250, 0.1)',
+  iconPurple: '#4a5fd4',
+  iconPurpleBg: 'rgba(20, 34, 142, 0.1)',
   
   iconGreen: '#22c55e',
   iconGreenBg: 'rgba(34, 197, 94, 0.1)',
@@ -46,11 +46,11 @@ export const lightColors = {
   iconGrayBg: 'rgba(113, 113, 122, 0.1)',
   
   switchTrackFalse: '#d1d5db',
-  switchTrackTrue: '#8b5cf6',
+  switchTrackTrue: '#14228e',
   switchThumb: '#ffffff',
   
-  badge: '#ede9fe',
-  badgeText: '#6d28d9',
+  badge: '#e8eaf6',
+  badgeText: '#14228e',
   
   onlineIndicator: '#22c55e',
 };
@@ -69,12 +69,12 @@ export const darkColors = {
   
   border: '#27272a',
   borderLight: '#27272a',
-  borderFocus: '#7c3aed',
+  borderFocus: '#14228e',
   
-  primary: '#7c3aed',
-  primaryLight: '#a78bfa',
-  primaryBg: 'rgba(124, 58, 237, 0.1)',
-  primaryBgActive: 'rgba(124, 58, 237, 0.15)',
+  primary: '#14228e',
+  primaryLight: '#4a5fd4',
+  primaryBg: 'rgba(20, 34, 142, 0.1)',
+  primaryBgActive: 'rgba(20, 34, 142, 0.15)',
   
   success: '#22c55e',
   successBg: 'rgba(34, 197, 94, 0.1)',
@@ -91,8 +91,8 @@ export const darkColors = {
   cardShadow: 'rgba(0, 0, 0, 0.3)',
   overlay: 'rgba(0, 0, 0, 0.7)',
   
-  iconPurple: '#a78bfa',
-  iconPurpleBg: 'rgba(167, 139, 250, 0.1)',
+  iconPurple: '#4a5fd4',
+  iconPurpleBg: 'rgba(20, 34, 142, 0.1)',
   
   iconGreen: '#22c55e',
   iconGreenBg: 'rgba(34, 197, 94, 0.1)',
@@ -101,11 +101,11 @@ export const darkColors = {
   iconGrayBg: 'rgba(113, 113, 122, 0.1)',
   
   switchTrackFalse: '#3f3f46',
-  switchTrackTrue: '#8b5cf6',
+  switchTrackTrue: '#14228e',
   switchThumb: '#ffffff',
   
-  badge: '#2e1065',
-  badgeText: '#a78bfa',
+  badge: 'rgba(20, 34, 142, 0.25)',
+  badgeText: '#4a5fd4',
   
   onlineIndicator: '#22c55e',
 };

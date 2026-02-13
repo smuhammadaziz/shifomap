@@ -23,7 +23,7 @@ import SaveServiceStar from '../components/SaveServiceStar';
 import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
-import { searchServicesSuggest, getNextUpcomingBooking, getClinicsList, type PublicServiceItem, type Booking, type ClinicListItem } from '../../lib/api';
+import { searchServicesSuggest, getNextUpcomingBooking, getClinicsList, searchServicesWithFilters, type PublicServiceItem, type Booking, type ClinicListItem } from '../../lib/api';
 import Skeleton from '../components/Skeleton';
 import { getColors } from '../../lib/theme';
 
@@ -40,6 +40,17 @@ function formatPrice(price: PublicServiceItem['price']): string {
 }
 
 const DEBOUNCE_MS = 500;
+const FEATURED_SERVICES_COUNT = 8;
+const SERVICES_POOL_SIZE = 40;
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 const HomeScreen = () => {
   const router = useRouter();
@@ -57,8 +68,30 @@ const HomeScreen = () => {
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
   const [clinics, setClinics] = useState<ClinicListItem[]>([]);
   const [clinicsLoading, setClinicsLoading] = useState(true);
+  const [featuredServices, setFeaturedServices] = useState<PublicServiceItem[]>([]);
+  const [featuredServicesLoading, setFeaturedServicesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   // const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  const fetchFeaturedServices = useCallback(async () => {
+    setFeaturedServicesLoading(true);
+    try {
+      const result = await searchServicesWithFilters({}, 1, SERVICES_POOL_SIZE);
+      const pool = (result.services ?? []).filter((s) => s.isActive);
+      const shuffled = shuffleArray(pool);
+      setFeaturedServices(shuffled.slice(0, FEATURED_SERVICES_COUNT));
+    } catch {
+      setFeaturedServices([]);
+    } finally {
+      setFeaturedServicesLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchFeaturedServices();
+    }, [fetchFeaturedServices])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -66,11 +99,12 @@ const HomeScreen = () => {
       await Promise.all([
         getClinicsList(4).then(setClinics).catch(() => setClinics([])),
         getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null)),
+        fetchFeaturedServices(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchFeaturedServices]);
 
   const fetchNextBooking = useCallback(() => {
     getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null));
@@ -328,6 +362,49 @@ const HomeScreen = () => {
           )}
         </View>
 
+        <View style={styles.clinicsSection}>
+          <View style={styles.clinicsSectionHeader}>
+            <Text style={[styles.clinicsSectionTitle, { color: colors.text }]}>{t.services}</Text>
+            <TouchableOpacity onPress={() => router.push('/services-results')} hitSlop={12}>
+              <Text style={[styles.clinicsViewAll, { color: colors.primaryLight }]}>{t.viewAll}</Text>
+            </TouchableOpacity>
+          </View>
+          {featuredServicesLoading ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.clinicsScrollContent} style={styles.clinicsScroll}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <View key={i} style={[styles.serviceCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+                  <Skeleton width="100%" height={112} style={styles.serviceCardCover} />
+                  <View style={styles.serviceCardInfo}>
+                    <Skeleton width="90%" height={14} style={{ marginBottom: 6 }} />
+                    <Skeleton width={70} height={18} style={{ marginBottom: 4 }} />
+                    <Skeleton width={60} height={12} />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.clinicsScrollContent} style={styles.clinicsScroll}>
+              {featuredServices.map((s) => (
+                <TouchableOpacity
+                  key={s._id}
+                  style={[styles.serviceCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+                  activeOpacity={0.9}
+                  onPress={() => router.push({ pathname: '/service/[id]', params: { id: s._id } })}
+                >
+                  <View style={styles.serviceCardCoverWrap}>
+                    <Image source={{ uri: s.serviceImage || DEFAULT_IMAGE }} style={[styles.serviceCardCover, { backgroundColor: colors.border }]} />
+                  </View>
+                  <View style={styles.serviceCardInfo}>
+                    <Text style={[styles.serviceCardName, { color: colors.text }]} numberOfLines={2}>{s.title}</Text>
+                    <Text style={[styles.serviceCardPrice, { color: colors.primaryLight }]}>{formatPrice(s.price)}</Text>
+                    <Text style={[styles.serviceCardMeta, { color: colors.textTertiary }]}>{s.durationMin} {t.minutes}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
         {/* <Specialties /> */}
         <FeaturedClinics />
 
@@ -475,6 +552,19 @@ const styles = StyleSheet.create({
   clinicCardRating: { fontSize: 12, fontWeight: '600' },
   clinicCardMetaDot: { fontSize: 10 },
   clinicCardBranches: { fontSize: 11 },
+
+  serviceCard: {
+    width: 200,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  serviceCardCoverWrap: { width: '100%', height: 112 },
+  serviceCardCover: { width: '100%', height: 112 },
+  serviceCardInfo: { padding: 12 },
+  serviceCardName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  serviceCardPrice: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  serviceCardMeta: { fontSize: 12 },
 });
 
 export default HomeScreen;

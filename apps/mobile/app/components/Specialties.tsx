@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     sectionTitle: { color: '#a1a1aa', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 15, paddingHorizontal: 20 },
     scrollContent: { paddingHorizontal: 20 },
     chip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181b', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, marginRight: 12, borderWidth: 1, borderColor: '#27272a' },
-    chipActive: { backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' },
+    chipActive: { backgroundColor: '#14228e', borderColor: '#14228e' },
     chipIcon: { marginRight: 8 },
     chipText: { color: '#a1a1aa', fontSize: 14, fontWeight: '500' },
     chipTextActive: { color: '#ffffff' },
