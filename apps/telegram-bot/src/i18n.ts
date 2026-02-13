@@ -28,7 +28,7 @@ export const t = {
     askNewPressButton: "🩺 Yangi savol berish uchun «Shaxsiy doktor» tugmasini qayta bosing.",
     aboutUs: "ℹ️ Biz haqimizda",
     aboutUsPost:
-      "🎉 ShifoYo'l - salomatlikni boshqarish uchun kerak bo'lgan barcha narsalar bir joyda jamlangan platforma. Bu hali faqat birinchi qadam va boshlanishi.\n\n⚡️ InshaAllah tez orada ilovamiz tayyor bo'ladi va ishga tushadi. Hozir esa saytimiz orqali barcha funksiyalar bilan batafsil tanishib chiqishingiz mumkin.\n\n📢 Rasmiy kanal: @shifo_yol",
+      "🎉 ShifoYo'l — klinikalar va bemorlarni bog'lovchi zamonaviy tibbiy platforma.\n\n⚡️ Loyiha hozir boshlang'ich bosqichda. InshaAllah, tez orada ilova ishga tushadi. Hozircha sayt va bot orqali platforma imkoniyatlari bilan tanishishingiz mumkin.\n\n🤖 ShifoYo'l maslahatchi boti:\n • platforma qanday ishlashini tushuntiradi\n • AI orqali dastlabki maslahat beradi\n • savol, fikr va takliflarni qabul qiladi",
   },
   ru: {
     hi: "Привет",
@@ -57,7 +57,7 @@ export const t = {
     askNewPressButton: "🩺 Чтобы задать новый вопрос, нажмите кнопку «Личный доктор» снова.",
     aboutUs: "ℹ️ О нас",
     aboutUsPost:
-      "🎉 ShifoYo'l — платформа, где собрано всё необходимое для управления здоровьем. Это пока только первый шаг и начало.\n\n⚡️ Иншааллах скоро приложение будет готово и запустится. Пока вы можете подробно ознакомиться со всеми функциями на нашем сайте.\n\n📢 Официальный канал: @shifo_yol",
+      "🎉 ShifoYo'l — современная медицинская платформа, связывающая клиники и пациентов.\n\n⚡️ Проект сейчас на начальном этапе. ИншаАллах, вскоре приложение заработает. Пока вы можете ознакомиться с возможностями платформы через сайт и бот.\n\n🤖 Консультационный бот ShifoYo'l:\n • объясняет, как работает платформа\n • дает первичную консультацию через ИИ\n • принимает вопросы, мнения и предложения",
   },
 } as const
 
