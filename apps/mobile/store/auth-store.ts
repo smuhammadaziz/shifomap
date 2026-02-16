@@ -6,6 +6,7 @@ import type { Patient } from '../lib/api';
 const TOKEN_KEY = '@shifo_token';
 const PATIENT_KEY = '@shifo_patient';
 const LANGUAGE_KEY = '@shifo_language';
+const ONBOARDING_SEEN_KEY = '@shifo_onboarding_seen';
 
 export type AppLanguage = 'uz' | 'ru' | 'en';
 
@@ -16,11 +17,14 @@ interface AuthState {
   language: AppLanguage | null;
   /** Phone number set before navigating to password screen (cleared after use) */
   pendingPhone: string | null;
+  /** true = user has completed or skipped onboarding */
+  onboardingSeen: boolean;
   hydrated: boolean;
   setToken: (token: string | null) => void;
   setPatient: (patient: Patient | null) => void;
   setPendingPhone: (phone: string | null) => void;
   setLanguage: (lang: AppLanguage) => Promise<void>;
+  setOnboardingSeen: () => Promise<void>;
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
   savePatient: (p: Patient) => Promise<void>;
@@ -31,6 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   patient: null,
   language: null,
   pendingPhone: null,
+  onboardingSeen: false,
   hydrated: false,
 
   setToken: (token) => {
@@ -59,6 +64,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await AsyncStorage.setItem(LANGUAGE_KEY, lang);
   },
 
+  setOnboardingSeen: async () => {
+    set({ onboardingSeen: true });
+    await AsyncStorage.setItem(ONBOARDING_SEEN_KEY, '1');
+  },
+
   savePatient: async (p) => {
     set({ patient: p });
     await AsyncStorage.setItem(PATIENT_KEY, JSON.stringify(p));
@@ -66,14 +76,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrate: async () => {
     try {
-      const [token, patientJson, lang] = await Promise.all([
+      const [token, patientJson, lang, onboardingSeen] = await Promise.all([
         AsyncStorage.getItem(TOKEN_KEY),
         AsyncStorage.getItem(PATIENT_KEY),
         AsyncStorage.getItem(LANGUAGE_KEY),
+        AsyncStorage.getItem(ONBOARDING_SEEN_KEY),
       ]);
       const patient = patientJson ? (JSON.parse(patientJson) as Patient) : null;
       const language = lang ? (lang as AppLanguage) : null;
-      set({ token, patient, language, hydrated: true });
+      set({ token, patient, language, onboardingSeen: onboardingSeen === '1', hydrated: true });
       setAuthToken(token);
     } catch {
       set({ hydrated: true });

@@ -16,4 +16,12 @@ config.resolver.nodeModulesPaths = [
 // Use Expo default (false) so expo doctor passes
 config.resolver.disableHierarchicalLookup = false;
 
+// SVG support
+config.transformer = {
+  ...config.transformer,
+  babelTransformerPath: require.resolve('react-native-svg-transformer/expo'),
+};
+config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg'];
+
 module.exports = config;

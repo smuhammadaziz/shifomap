@@ -162,7 +162,15 @@
     "clinics": "Klinikalar",
     "services": "Xizmatlar",
     "seeMoreClinics": "Barcha klinikalar",
-    "nServices": "{{n}} xizmat"
+    "nServices": "{{n}} xizmat",
+    "onboardingSkip": "O'tkazib yuborish",
+    "onboardingNext": "Keyingi",
+    "onboardingStep1Title": "Shifokorlar bilan onlayn konsultatsiya",
+    "onboardingStep1Subtitle": "Uydan chiqmasdan onlayn qabulga yoziling",
+    "onboardingStep2Title": "Klinika yoki shifokorni bron qiling",
+    "onboardingStep2Subtitle": "Tez va qulay onlayn navbat oling",
+    "onboardingStep3Title": "Shifokor haqida batafsil ma'lumot",
+    "onboardingStep3Subtitle": "Xizmatlar va sharhlarni o'rganing"
   },
   "ru": {
     "tabHome": "Главная",
@@ -327,6 +335,14 @@
     "clinics": "Клиники",
     "services": "Услуги",
     "seeMoreClinics": "Все клиники",
-    "nServices": "{{n}} услуг"
+    "nServices": "{{n}} услуг",
+    "onboardingSkip": "Пропустить",
+    "onboardingNext": "Далее",
+    "onboardingStep1Title": "Онлайн консультация с врачами",
+    "onboardingStep1Subtitle": "Записывайтесь на приём не выходя из дома",
+    "onboardingStep2Title": "Забронируйте клинику или врача",
+    "onboardingStep2Subtitle": "Быстро и без лишних хлопот",
+    "onboardingStep3Title": "Подробная информация о враче",
+    "onboardingStep3Subtitle": "Услуги и отзывы в одном месте"
   }
 }
