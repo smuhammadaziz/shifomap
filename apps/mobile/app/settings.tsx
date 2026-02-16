@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Switch, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -88,9 +88,6 @@ export default function SettingsScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>{t.settings}</Text>
-        <TouchableOpacity>
-          <Ionicons name="notifications-outline" size={24} color={colors.text} />
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -107,16 +104,16 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t.accountSettings}</Text>
           <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-            <SettingItem icon="person-circle-outline" label={t.editProfile} colors={colors} />
-            <SettingItem icon="document-text-outline" label={t.personalInfo} colors={colors} />
-            <View style={styles.languageRow}>
+            <SettingItem icon="person-circle-outline" label={t.editProfile} colors={colors} onPress={() => router.push('/edit-profile')} />
+            {/* <SettingItem icon="document-text-outline" label={t.personalInfo} colors={colors} /> */}
+            {/* <View style={styles.languageRow}>
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: colors.iconPurpleBg }]}>
                   <Ionicons name="globe-outline" size={20} color={colors.iconPurple} />
                 </View>
                 <Text style={[styles.rowLabel, { color: colors.text }]}>{t.language}</Text>
               </View>
-            </View>
+            </View> */}
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
           </View>
           <View style={styles.languageSwitcher}>
@@ -238,7 +235,7 @@ export default function SettingsScreen() {
               />
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <View style={styles.row}>
+            {/* <View style={styles.row}>
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: colors.iconGrayBg }]}>
                   <Ionicons name="notifications-outline" size={20} color={colors.iconGray} />
@@ -251,24 +248,23 @@ export default function SettingsScreen() {
                 trackColor={{ false: colors.switchTrackFalse, true: colors.switchTrackTrue }}
                 thumbColor={colors.switchThumb}
               />
-            </View>
+            </View> */}
           </View>
         </View>
 
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t.healthSecurity}</Text>
           <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
             <SettingItem icon="alarm-outline" label={t.pillReminderSettings} colors={colors} />
             <SettingItem icon="shield-checkmark-outline" label={t.privacyPolicy} colors={colors} />
             <SettingItem icon="lock-closed-outline" label={t.changePassword} colors={colors} />
           </View>
-        </View>
+        </View> */}
 
         <View style={styles.section}>
           <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t.support}</Text>
           <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-            <SettingItem icon="help-circle-outline" label={t.helpSupport} isExternal colors={colors} />
-            <SettingItem icon="mail-outline" label={t.contactUs} colors={colors} />
+            <SettingItem icon="paper-plane-outline" label={t.contactUs} colors={colors} onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')} isExternal />
           </View>
         </View>
 

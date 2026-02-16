@@ -5,6 +5,7 @@ import {
   authPhonePasswordBodySchema,
   completeProfileBodySchema,
   updatePatientBodySchema,
+  changePatientPasswordBodySchema,
 } from "./patients.model"
 import {
   authGoogle,
@@ -13,6 +14,7 @@ import {
   getMe,
   completeProfile,
   updateMe,
+  changePatientPassword,
 } from "./patients.service"
 import { requirePatientAuth } from "@/common/middleware/auth"
 import { logger } from "@/common/logger"
@@ -130,6 +132,22 @@ export const patientsRoutes = new Elysia({ prefix: "/patients" })
       }
     }
     const result = await updateMe(auth.sub, parsed.data)
+    set.status = 200
+    return { success: true, data: result }
+  })
+  // POST /v1/patients/me/change-password
+  .post("/me/change-password", async ({ body, auth, set }) => {
+    const parsed = changePatientPasswordBodySchema.safeParse(body ?? {})
+    if (!parsed.success) {
+      set.status = 400
+      return {
+        success: false,
+        error: "Validation failed",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten().fieldErrors,
+      }
+    }
+    const result = await changePatientPassword(auth.sub, parsed.data)
     set.status = 200
     return { success: true, data: result }
   })

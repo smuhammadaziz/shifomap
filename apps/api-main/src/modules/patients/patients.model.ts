@@ -68,7 +68,13 @@ export const updatePatientBodySchema = z.object({
   gender: z.enum(["male", "female"]).optional(),
   age: z.number().int().min(1).max(150).nullable().optional(),
   avatarUrl: z.string().url().optional(),
-  contacts: z.object({ email: z.string().email().nullable().optional() }).optional(),
+  contacts: z
+    .object({
+      email: z.string().email().nullable().optional(),
+      phone: z.string().regex(/^\+998\d{9}$/).optional(),
+      telegram: z.string().max(64).nullable().optional(),
+    })
+    .optional(),
   location: z.object({ city: z.string().max(64).optional() }).optional(),
   preferences: z
     .object({
@@ -77,6 +83,13 @@ export const updatePatientBodySchema = z.object({
     })
     .optional(),
 })
+
+export const changePatientPasswordBodySchema = z.object({
+  oldPassword: z.string().min(8, "Password must be at least 8 characters"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+})
+
+export type ChangePatientPasswordBody = z.infer<typeof changePatientPasswordBodySchema>
 
 export type AuthGoogleBody = z.infer<typeof authGoogleBodySchema>
 export type AuthPhoneBody = z.infer<typeof authPhoneBodySchema>

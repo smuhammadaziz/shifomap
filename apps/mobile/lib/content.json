@@ -31,7 +31,7 @@
     "logOut": "Chiqish",
     "taken": "Qabul qilindi",
     "upcoming": "Kutilmoqda",
-    "accountSettings": "HISOB SOZLAMALARI",
+    "accountSettings": "Sozlamalar",
     "editProfile": "Profilni tahrirlash",
     "personalInfo": "Shaxsiy ma'lumotlar",
     "language": "Til",
@@ -170,7 +170,14 @@
     "onboardingStep2Title": "Klinika yoki shifokorni bron qiling",
     "onboardingStep2Subtitle": "Tez va qulay onlayn navbat oling",
     "onboardingStep3Title": "Shifokor haqida batafsil ma'lumot",
-    "onboardingStep3Subtitle": "Xizmatlar va sharhlarni o'rganing"
+    "onboardingStep3Subtitle": "Xizmatlar va sharhlarni o'rganing",
+    "editProfileTelegram": "Telegram",
+    "editProfileTelegramPlaceholder": "@username yoki +998901234567",
+    "editProfileOldPassword": "Joriy parol",
+    "editProfileNewPassword": "Yangi parol",
+    "editProfileSave": "Saqlash",
+    "editProfileSuccess": "Profil yangilandi",
+    "editProfilePasswordSuccess": "Parol o'zgartirildi"
   },
   "ru": {
     "tabHome": "Главная",
@@ -343,6 +350,13 @@
     "onboardingStep2Title": "Забронируйте клинику или врача",
     "onboardingStep2Subtitle": "Быстро и без лишних хлопот",
     "onboardingStep3Title": "Подробная информация о враче",
-    "onboardingStep3Subtitle": "Услуги и отзывы в одном месте"
+    "onboardingStep3Subtitle": "Услуги и отзывы в одном месте",
+    "editProfileTelegram": "Telegram",
+    "editProfileTelegramPlaceholder": "@username или +998901234567",
+    "editProfileOldPassword": "Текущий пароль",
+    "editProfileNewPassword": "Новый пароль",
+    "editProfileSave": "Сохранить",
+    "editProfileSuccess": "Профиль обновлён",
+    "editProfilePasswordSuccess": "Пароль изменён"
   }
 }

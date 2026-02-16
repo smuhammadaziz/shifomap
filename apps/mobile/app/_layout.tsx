@@ -32,6 +32,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" options={screenOptions} />
         <Stack.Screen name="(tabs)" options={screenOptions} />
         <Stack.Screen name="profile" options={screenOptions} />
+        <Stack.Screen name="edit-profile" options={screenOptions} />
         <Stack.Screen name="settings" options={screenOptions} />
         <Stack.Screen name="services-results" options={screenOptions} />
         <Stack.Screen name="service/[id]" options={screenOptions} />

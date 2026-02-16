@@ -128,7 +128,7 @@ export async function updateMe(updates: Partial<{
   gender: 'male' | 'female';
   age: number | null;
   avatarUrl: string;
-  contacts: { email: string | null };
+  contacts: { email?: string | null; phone?: string; telegram?: string | null };
   location: { city: string };
   preferences: Partial<{ language: 'uz' | 'ru' | 'en'; notificationsEnabled: boolean }>;
 }>): Promise<Patient> {
@@ -137,6 +137,15 @@ export async function updateMe(updates: Partial<{
     updates
   );
   if (!data.success) throw new Error('Failed to update profile');
+  return data.data;
+}
+
+export async function changePatientPassword(oldPassword: string, newPassword: string): Promise<Patient> {
+  const { data } = await api.post<{ success: boolean; data: Patient }>(
+    '/patients/me/change-password',
+    { oldPassword, newPassword }
+  );
+  if (!data.success) throw new Error('Failed to change password');
   return data.data;
 }
 

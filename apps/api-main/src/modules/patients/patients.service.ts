@@ -17,6 +17,7 @@ import type {
   AuthPhonePasswordBody,
   CompleteProfileBody,
   UpdatePatientBody,
+  ChangePatientPasswordBody,
 } from "./patients.model"
 import { mapDocToPublicPatient } from "./patients.model"
 import { signPatientToken } from "@/common/middleware/auth"
@@ -262,6 +263,8 @@ export async function updateMe(patientId: string, body: UpdatePatientBody) {
   if (body.age !== undefined) updates.age = body.age
   if (body.avatarUrl !== undefined) updates.avatarUrl = body.avatarUrl
   if (body.contacts?.email !== undefined) updates["contacts.email"] = body.contacts.email
+  if (body.contacts?.phone !== undefined) updates["contacts.phone"] = body.contacts.phone
+  if (body.contacts?.telegram !== undefined) updates["contacts.telegram"] = body.contacts.telegram
   if (body.location?.city !== undefined) updates["location.city"] = body.location.city
   if (body.preferences?.language !== undefined)
     updates["preferences.language"] = body.preferences.language
@@ -269,5 +272,23 @@ export async function updateMe(patientId: string, body: UpdatePatientBody) {
     updates["preferences.notificationsEnabled"] = body.preferences.notificationsEnabled
   const updated = await updatePatientProfile(new ObjectId(patientId), updates)
   if (!updated) throw badRequest("Failed to update profile")
+  return mapDocToPublicPatient(updated)
+}
+
+export async function changePatientPassword(
+  patientId: string,
+  body: ChangePatientPasswordBody
+) {
+  if (!ObjectId.isValid(patientId)) throw badRequest("Invalid patient ID")
+  const patient = await findPatientById(new ObjectId(patientId))
+  if (!patient) throw unauthorized("Patient not found")
+  if (patient.auth.type !== "phone" || !patient.auth.passwordHash) {
+    throw badRequest("Password change is not available for this account")
+  }
+  const valid = await verifyPassword(body.oldPassword, patient.auth.passwordHash)
+  if (!valid) throw unauthorized("Invalid password")
+  const passwordHash = await hashPassword(body.newPassword)
+  const updated = await updatePatientPassword(new ObjectId(patientId), passwordHash)
+  if (!updated) throw badRequest("Failed to update password")
   return mapDocToPublicPatient(updated)
 }

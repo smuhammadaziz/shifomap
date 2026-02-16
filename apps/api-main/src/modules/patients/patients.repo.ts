@@ -79,6 +79,8 @@ export async function updatePatientProfile(
     age?: number | null
     avatarUrl?: string
     "contacts.email"?: string | null
+    "contacts.phone"?: string
+    "contacts.telegram"?: string | null
     "location.city"?: string
     "preferences.language"?: PatientLanguage
     "preferences.notificationsEnabled"?: boolean
@@ -92,6 +94,8 @@ export async function updatePatientProfile(
   if (updates.age !== undefined) setFields.age = updates.age
   if (updates.avatarUrl != null) setFields.avatarUrl = updates.avatarUrl
   if (updates["contacts.email"] !== undefined) setFields["contacts.email"] = updates["contacts.email"]
+  if (updates["contacts.phone"] !== undefined) setFields["contacts.phone"] = updates["contacts.phone"]
+  if (updates["contacts.telegram"] !== undefined) setFields["contacts.telegram"] = updates["contacts.telegram"]
   if (updates["location.city"] != null) setFields["location.city"] = updates["location.city"]
   if (updates["preferences.language"] != null) setFields["preferences.language"] = updates["preferences.language"]
   if (updates["preferences.notificationsEnabled"] !== undefined)
