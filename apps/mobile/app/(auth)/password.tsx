@@ -154,7 +154,6 @@ export default function PasswordScreen() {
           </View>
 
           <View style={styles.formBlock}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>{t.passwordPlaceholder}</Text>
             <View
               style={[
                 styles.inputRow,
