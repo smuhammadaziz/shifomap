@@ -344,16 +344,9 @@ const HomeScreen = () => {
                       </View>
                     </View>
                     <View style={styles.clinicCardInfo}>
-                      <Text style={[styles.clinicCardName, { color: colors.text }]} numberOfLines={1}>{c.clinicDisplayName}</Text>
-                      {tagline ? <Text style={[styles.clinicCardTagline, { color: colors.textTertiary }]} numberOfLines={1}>{tagline}</Text> : null}
-                      <View style={styles.clinicCardMetaRow}>
-                        <View style={styles.clinicCardRatingWrap}>
-                          <Ionicons name="star" size={12} color={colors.warning} />
-                          <Text style={[styles.clinicCardRating, { color: colors.warning }]}>{c.rating.avg > 0 ? c.rating.avg.toFixed(1) : '—'} {c.rating.count > 0 ? `(${c.rating.count})` : ''}</Text>
-                        </View>
-                        <Text style={[styles.clinicCardMetaDot, { color: colors.textTertiary }]}>•</Text>
-                        <Text style={[styles.clinicCardBranches, { color: colors.textTertiary }]}>{c.branchesCount} {t.branches}</Text>
-                      </View>
+                      <Text style={[styles.clinicCardName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="middle">{c.clinicDisplayName}</Text>
+                      {tagline ? <Text style={[styles.clinicCardTagline, { color: colors.textTertiary }]} numberOfLines={1} ellipsizeMode="middle">{tagline}</Text> : null}
+                      
                     </View>
                   </TouchableOpacity>
                 );
@@ -394,10 +387,10 @@ const HomeScreen = () => {
                   <View style={styles.serviceCardCoverWrap}>
                     <Image source={{ uri: s.serviceImage || DEFAULT_IMAGE }} style={[styles.serviceCardCover, { backgroundColor: colors.border }]} />
                   </View>
-                  <View style={styles.serviceCardInfo}>
-                    <Text style={[styles.serviceCardName, { color: colors.text }]} numberOfLines={2}>{s.title}</Text>
-                    <Text style={[styles.serviceCardPrice, { color: colors.primaryLight }]}>{formatPrice(s.price)}</Text>
-                    <Text style={[styles.serviceCardMeta, { color: colors.textTertiary }]}>{s.durationMin} {t.minutes}</Text>
+                    <View style={styles.serviceCardInfo}>
+                    <Text style={[styles.serviceCardName, { color: colors.text }]} numberOfLines={2} ellipsizeMode="middle">{s.title}</Text>
+                    <Text style={[styles.serviceCardPrice, { color: colors.primaryLight }]} numberOfLines={1} ellipsizeMode="middle">{formatPrice(s.price)}</Text>
+                    {/* <Text style={[styles.serviceCardMeta, { color: colors.textTertiary }]}>{s.durationMin} {t.minutes}</Text> */}
                   </View>
                 </TouchableOpacity>
               ))}
@@ -544,14 +537,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   clinicCardBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  clinicCardInfo: { padding: 12 },
+  clinicCardInfo: { padding: 12, minWidth: 0 },
   clinicCardName: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
   clinicCardTagline: { fontSize: 12, marginBottom: 6 },
-  clinicCardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  clinicCardRatingWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  clinicCardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'nowrap', minWidth: 0 },
+  clinicCardRatingWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   clinicCardRating: { fontSize: 12, fontWeight: '600' },
-  clinicCardMetaDot: { fontSize: 10 },
-  clinicCardBranches: { fontSize: 11 },
+  clinicCardMetaDot: { fontSize: 10, flexShrink: 0 },
+  clinicCardBranches: { fontSize: 11, flexShrink: 1, minWidth: 0 },
 
   serviceCard: {
     width: 200,
@@ -561,7 +554,7 @@ const styles = StyleSheet.create({
   },
   serviceCardCoverWrap: { width: '100%', height: 112 },
   serviceCardCover: { width: '100%', height: 112 },
-  serviceCardInfo: { padding: 12 },
+  serviceCardInfo: { padding: 12, minWidth: 0 },
   serviceCardName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
   serviceCardPrice: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
   serviceCardMeta: { fontSize: 12 },

@@ -72,7 +72,7 @@ export default function AppointmentsScreen() {
           <Text style={[styles.specialty, { color: colors.textSecondary }]}>{item.serviceTitle}</Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={colors.warning} />
-            <Text style={[styles.ratingText, { color: colors.warning }]}>5</Text>
+            {/* <Text style={[styles.ratingText, { color: colors.warning }]}>5</Text> */}
           </View>
         </View>
         <Text style={[styles.dateText, { color: colors.primaryLight }]}>{dateStr} • {item.scheduledTime}</Text>
