@@ -43,7 +43,7 @@ export const t = {
     cmdSettings: "Sozlamalar",
     cmdAbout: "Biz haqimizda",
     aboutUsPost:
-      "🎉 ShifoYo'l — klinikalar va bemorlarni bog'lovchi zamonaviy tibbiy platforma.\n\n⚡️ Loyiha hozir boshlang'ich bosqichda. InshaAllah, tez orada ilova ishga tushadi. Hozircha sayt va bot orqali platforma imkoniyatlari bilan tanishishingiz mumkin.\n\n🤖 ShifoYo'l maslahatchi boti:\n • platforma qanday ishlashini tushuntiradi\n • AI orqali dastlabki maslahat beradi\n • savol, fikr va takliflarni qabul qiladi",
+      "🎉 ShifoYo'l — klinikalar va bemorlarni bog'lovchi zamonaviy tibbiy platforma.\n\n⚡️ Loyiha hozir boshlang'ich bosqichda. InshaAllah, tez orada ilovamiz ishga tushadi. Hozircha sayt va bot orqali platforma imkoniyatlari bilan tanishishingiz mumkin.\n\n🤖 ShifoYo'l maslahatchi boti:\n • platforma qanday ishlashini tushuntiradi\n • AI orqali dastlabki maslahat beradi\n • savol, fikr va takliflarni qabul qiladi",
   },
   ru: {
     hi: "Привет",
