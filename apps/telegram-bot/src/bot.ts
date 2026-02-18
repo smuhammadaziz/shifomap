@@ -6,6 +6,7 @@ import {
   findUserByTgChatId,
   upsertUser,
   appendMessage,
+  updateUserName,
   canUseAi,
   consumeAiUsage,
   addReferralBonus,
@@ -27,6 +28,8 @@ const userLang = new Map<number, Lang>()
 const pendingReferral = new Map<number, number>() // chatId -> referrerChatId
 const waitingForSupportMessage = new Set<number>()
 const waitingForAiPrompt = new Set<number>()
+const waitingForNewName = new Set<number>()
+const waitingForLanguageChange = new Set<number>()
 
 function formatDate(d: Date): string {
   const day = d.getDate().toString().padStart(2, "0")
@@ -46,6 +49,16 @@ function mainMenuKeyboard(l: Lang) {
   return Markup.keyboard([
     [Markup.button.text(msg.myDoctor)],
     [Markup.button.text(msg.support), Markup.button.text(msg.aboutUs)],
+    [Markup.button.text(msg.settings)],
+  ]).resize()
+}
+
+function settingsMenuKeyboard(l: Lang) {
+  const msg = getLang(l)
+  return Markup.keyboard([
+    [Markup.button.text(msg.back)],
+    [Markup.button.text(msg.changeName), Markup.button.text(msg.changeLanguage)],
+    [Markup.button.text(msg.myAiUsage)],
   ]).resize()
 }
 
@@ -57,6 +70,21 @@ function isSupportButton(text: string): boolean {
 }
 function isAboutUsButton(text: string): boolean {
   return text === t.uz.aboutUs || text === t.ru.aboutUs
+}
+function isSettingsButton(text: string): boolean {
+  return text === t.uz.settings || text === t.ru.settings
+}
+function isBackButton(text: string): boolean {
+  return text === t.uz.back || text === t.ru.back
+}
+function isChangeNameButton(text: string): boolean {
+  return text === t.uz.changeName || text === t.ru.changeName
+}
+function isChangeLanguageButton(text: string): boolean {
+  return text === t.uz.changeLanguage || text === t.ru.changeLanguage
+}
+function isMyAiUsageButton(text: string): boolean {
+  return text === t.uz.myAiUsage || text === t.ru.myAiUsage
 }
 
 // /start – language selection or referral payload
@@ -79,12 +107,81 @@ bot.start(async (ctx) => {
   )
 })
 
-// Language selection
+// /ai – open AI (personal doctor) flow
+bot.command("ai", async (ctx) => {
+  const chatId = ctx.chat.id
+  if (!userLang.has(chatId)) {
+    await ctx.reply(
+      "Tilni tanlang / Выберите язык:",
+      Markup.keyboard([
+        [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+      ]).resize()
+    )
+    return
+  }
+  const l = lang(ctx)
+  const msg = getLang(l)
+  const user = await findUserByTgChatId(chatId)
+  if (!user) {
+    await ctx.reply(msg.pleaseStartAndShareFirst)
+    return
+  }
+  if (!canUseAi(user)) {
+    const botUsername = (await ctx.telegram.getMe()).username
+    await ctx.reply(
+      `${msg.aiLimitReached}\n\n${msg.yourReferralLink}\nhttps://t.me/${botUsername}?start=ref_${chatId}`
+    )
+    return
+  }
+  waitingForAiPrompt.add(chatId)
+  await ctx.reply(msg.personalDoctorIntro, Markup.removeKeyboard())
+})
+
+// /settings – open settings menu
+bot.command("settings", async (ctx) => {
+  const chatId = ctx.chat.id
+  if (!userLang.has(chatId)) {
+    await ctx.reply(
+      "Tilni tanlang / Выберите язык:",
+      Markup.keyboard([
+        [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+      ]).resize()
+    )
+    return
+  }
+  const l = lang(ctx)
+  const msg = getLang(l)
+  await ctx.reply(msg.chooseAction, settingsMenuKeyboard(l))
+})
+
+// /about – show about us
+bot.command("about", async (ctx) => {
+  const chatId = ctx.chat.id
+  if (!userLang.has(chatId)) {
+    await ctx.reply(
+      "Tilni tanlang / Выберите язык:",
+      Markup.keyboard([
+        [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+      ]).resize()
+    )
+    return
+  }
+  const l = lang(ctx)
+  const msg = getLang(l)
+  await ctx.reply(`${msg.aboutUsPost}\n\n`)
+})
+
+// Language selection (start flow or change-language-from-settings)
 bot.hears(["O'zbekcha", "Русский"], async (ctx) => {
   const text = ctx.message.text
   const newLang: Lang = text === "Русский" ? "ru" : "uz"
   userLang.set(ctx.chat.id, newLang)
   const msg = getLang(newLang)
+  if (waitingForLanguageChange.has(ctx.chat.id)) {
+    waitingForLanguageChange.delete(ctx.chat.id)
+    await ctx.reply(msg.thanks, mainMenuKeyboard(newLang))
+    return
+  }
   await ctx.reply(msg.sharePhonePrompt, Markup.keyboard([Markup.button.contactRequest(msg.sharePhone)]).resize())
 })
 
@@ -136,6 +233,62 @@ bot.on(message("text"), async (ctx) => {
   }
   const l = lang(ctx)
   const msg = getLang(l)
+
+  // Change name flow (user sent new name as text)
+  if (waitingForNewName.has(chatId)) {
+    waitingForNewName.delete(chatId)
+    const user = await findUserByTgChatId(chatId)
+    if (!user) {
+      await ctx.reply(msg.pleaseStartAndShareFirst)
+      return
+    }
+    const newName = text.trim() || user.name
+    await updateUserName(chatId, newName)
+    await ctx.reply(msg.nameUpdated, mainMenuKeyboard(l))
+    return
+  }
+
+  // Settings menu actions
+  if (isSettingsButton(text)) {
+    await ctx.reply(msg.chooseAction, settingsMenuKeyboard(l))
+    return
+  }
+  if (isBackButton(text)) {
+    await ctx.reply(msg.backToMenu, mainMenuKeyboard(l))
+    return
+  }
+  if (isChangeNameButton(text)) {
+    const user = await findUserByTgChatId(chatId)
+    if (!user) {
+      await ctx.reply(msg.pleaseStartAndShareFirst)
+      return
+    }
+    waitingForNewName.add(chatId)
+    await ctx.reply(msg.enterNewName, Markup.removeKeyboard())
+    return
+  }
+  if (isChangeLanguageButton(text)) {
+    waitingForLanguageChange.add(chatId)
+    await ctx.reply(msg.chooseLang, Markup.keyboard([
+      [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+    ]).resize())
+    return
+  }
+  if (isMyAiUsageButton(text)) {
+    const user = await findUserByTgChatId(chatId)
+    if (!user) {
+      await ctx.reply(msg.pleaseStartAndShareFirst)
+      return
+    }
+    const today = new Date()
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
+    const usedToday = user.aiUsedTodayDate === todayStr ? (user.aiUsedToday ?? 0) : 0
+    const total = user.aiQuestionsTotal ?? 0
+    const bonus = user.aiBonusBank ?? 0
+    const statsText = msg.aiUsageStats(total, usedToday, bonus)
+    await ctx.reply(statsText, settingsMenuKeyboard(l))
+    return
+  }
 
   // Support flow
   if (waitingForSupportMessage.has(chatId)) {
@@ -251,6 +404,16 @@ bot.on(message("text"), async (ctx) => {
   }
 })
 
+function getCommandsForLang(l: Lang) {
+  const msg = getLang(l)
+  return [
+    { command: "start", description: msg.cmdStart },
+    { command: "ai", description: msg.cmdAi },
+    { command: "settings", description: msg.cmdSettings },
+    { command: "about", description: msg.cmdAbout },
+  ]
+}
+
 export async function runBot(): Promise<void> {
   await connectMongo()
   const db = getDb()
@@ -260,6 +423,11 @@ export async function runBot(): Promise<void> {
     const msg = e instanceof Error ? e.message : String(e)
     if (!msg.includes("already exists") && !msg.includes("duplicate")) throw e
   }
+  const commandsUz = getCommandsForLang("uz")
+  const commandsRu = getCommandsForLang("ru")
+  await bot.telegram.setMyCommands(commandsUz)
+  await bot.telegram.setMyCommands(commandsUz, { language_code: "uz" })
+  await bot.telegram.setMyCommands(commandsRu, { language_code: "ru" })
   await bot.launch()
   console.log("Telegram bot is running")
 }

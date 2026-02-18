@@ -20,6 +20,8 @@ export interface TelegramUserDoc {
   aiBonusBank?: number
   aiUsedToday?: number
   aiUsedTodayDate?: string
+  /** Total number of AI questions ever asked by this user */
+  aiQuestionsTotal?: number
 }
 
 export async function findUserByTgChatId(tgChatId: number): Promise<TelegramUserDoc | null> {
@@ -51,6 +53,7 @@ export async function upsertUser(data: {
         aiBonusBank: 0,
         aiUsedToday: 0,
         aiUsedTodayDate: today,
+        aiQuestionsTotal: 0,
       },
     },
     { upsert: true, returnDocument: "after" }
@@ -64,6 +67,14 @@ export async function upsertUser(data: {
     )
   }
   return user
+}
+
+export async function updateUserName(tgChatId: number, name: string): Promise<void> {
+  const db = getDb()
+  await db.collection<TelegramUserDoc>(TELEGRAM_USERS_COLLECTION).updateOne(
+    { tgChatId },
+    { $set: { name, updatedAt: new Date() } }
+  )
 }
 
 export async function appendMessage(tgChatId: number, text: string): Promise<void> {
@@ -104,13 +115,14 @@ export async function consumeAiUsage(tgChatId: number): Promise<void> {
           aiUsedTodayDate: today,
           updatedAt: new Date(),
         },
+        $inc: { aiQuestionsTotal: 1 },
       }
     )
   } else if (bonus > 0) {
     await db.collection(TELEGRAM_USERS_COLLECTION).updateOne(
       { tgChatId },
       {
-        $inc: { aiBonusBank: -1 },
+        $inc: { aiBonusBank: -1, aiQuestionsTotal: 1 },
         $set: { updatedAt: new Date() },
       }
     )
