@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, ActivityIndicator, Image, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore, needsProfile } from '../store/auth-store';
 import { useThemeStore } from '../store/theme-store';
 import { getColors } from '../lib/theme';
+
+const LOGO = require('../assets/play_store_512-Photoroom.png');
 
 const SplashScreen = () => {
   const router = useRouter();
@@ -16,10 +18,30 @@ const SplashScreen = () => {
   const hydrate = useAuthStore((s) => s.hydrate);
   const theme = useThemeStore((s) => s.theme);
   const colors = getColors(theme);
+  const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    let mounted = true;
+    const heartbeat = () => {
+      if (!mounted) return;
+      Animated.sequence([
+        // Beat 1: up then down
+        Animated.timing(scale, { toValue: 1.12, duration: 220, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 0.96, duration: 180, useNativeDriver: true }),
+        // Beat 2: up then down
+        Animated.timing(scale, { toValue: 1.1, duration: 220, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 0.98, duration: 180, useNativeDriver: true }),
+        // Rest back to normal
+        Animated.timing(scale, { toValue: 1, duration: 350, useNativeDriver: true }),
+      ]).start(() => heartbeat());
+    };
+    heartbeat();
+    return () => { mounted = false; };
+  }, [scale]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -54,7 +76,9 @@ const SplashScreen = () => {
       colors={gradientColors}
       style={styles.container}
     >
-      <Text style={[styles.text, { color: colors.text }]}>ShifoYo'l</Text>
+      <Animated.View style={[styles.logoWrap, { transform: [{ scale }] }]}>
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+      </Animated.View>
       <ActivityIndicator size="large" color={colors.primaryLight} style={styles.spinner} />
     </LinearGradient>
   );
@@ -66,9 +90,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: {
-    fontSize: 48,
-    fontWeight: 'bold',
+  logoWrap: {
+    width: 180,
+    height: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: '60%',
+    height: '60%',
   },
   spinner: {
     position: 'absolute',
