@@ -56,6 +56,7 @@ import {
   publicGetClinicServices,
   publicGetClinicDetails,
   publicListClinics,
+  getMyClinicReviews,
 } from "./clinics.service"
 import { requireAuth } from "@/common/middleware/auth"
 
@@ -315,6 +316,30 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
     }
     try {
       const result = await getClinicDetails(clinicId)
+      set.status = 200
+      return { success: true, data: result }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  // Clinic owner: get my clinic reviews with patient details (optional serviceId/doctorId filter)
+  .get("/my-clinic/reviews", async ({ auth, query, set }) => {
+    const clinicId = await resolveClinicIdForOwner(auth)
+    if (!clinicId) {
+      set.status = 403
+      return { success: false, error: "Forbidden: clinic owner only" }
+    }
+    try {
+      const skip = Math.max(0, parseInt((query.skip as string) || "0", 10))
+      const limit = Math.min(50, Math.max(1, parseInt((query.limit as string) || "10", 10)))
+      const serviceId = (query.serviceId as string) || undefined
+      const doctorId = (query.doctorId as string) || undefined
+      const result = await getMyClinicReviews(auth, skip, limit, serviceId, doctorId)
       set.status = 200
       return { success: true, data: result }
     } catch (error: any) {

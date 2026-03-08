@@ -339,8 +339,16 @@ const HomeScreen = () => {
                       <Image source={{ uri: coverUri }} style={[styles.clinicCardCover, { backgroundColor: colors.border }]} />
                       <View style={styles.clinicCardBadge}>
                         <Text style={styles.clinicCardBadgeText}>
-                          {(t.nServices || '{{n}}').replace('{{n}}', String(c.servicesCount))}
+                          {(t.nServices || '{{n}} xizmat').replace('{{n}}', String(c.servicesCount))}
                         </Text>
+                        {c.rating?.count > 0 ? (
+                          <View style={styles.clinicCardBadgeRating}>
+                            <Ionicons name="star" size={12} color="#facc15" />
+                            <Text style={styles.clinicCardBadgeText}>
+                              {c.rating.avg.toFixed(1)}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
                     <View style={styles.clinicCardInfo}>
@@ -386,6 +394,12 @@ const HomeScreen = () => {
                 >
                   <View style={styles.serviceCardCoverWrap}>
                     <Image source={{ uri: s.serviceImage || DEFAULT_IMAGE }} style={[styles.serviceCardCover, { backgroundColor: colors.border }]} />
+                    <View style={styles.serviceCardBadge}>
+                      <Ionicons name="star" size={12} color="#facc15" />
+                      <Text style={styles.serviceCardBadgeText}>
+                        {(s.rating?.avg != null ? s.rating.avg : 0).toFixed(1)}
+                      </Text>
+                    </View>
                   </View>
                     <View style={styles.serviceCardInfo}>
                     <Text style={[styles.serviceCardName, { color: colors.text }]} numberOfLines={2} ellipsizeMode="middle">{s.title}</Text>
@@ -531,10 +545,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  clinicCardBadgeRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   clinicCardBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   clinicCardInfo: { padding: 12, minWidth: 0 },
@@ -552,8 +575,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
   },
-  serviceCardCoverWrap: { width: '100%', height: 112 },
+  serviceCardCoverWrap: { position: 'relative', width: '100%', height: 112 },
   serviceCardCover: { width: '100%', height: 112 },
+  serviceCardBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    zIndex: 10,
+    elevation: 5,
+    minWidth: 44,
+    justifyContent: 'center',
+  },
+  serviceCardBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   serviceCardInfo: { padding: 12, minWidth: 0 },
   serviceCardName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
   serviceCardPrice: { fontSize: 15, fontWeight: '700', marginBottom: 2 },

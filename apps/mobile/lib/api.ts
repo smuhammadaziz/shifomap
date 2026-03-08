@@ -5,8 +5,8 @@ import { Platform } from 'react-native';
 // Android emulator: 10.0.2.2 is the host machine. iOS Simulator: localhost works.
 function getApiBase(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  if (Platform.OS === 'android') return 'https://api.shifoyol.uz';
-  return 'https://api.shifoyol.uz';
+  if (Platform.OS === 'android') return 'http://10.233.118.224:8080';
+  return 'http://10.233.118.224:8080';
 }
 const API_BASE = getApiBase();
 
@@ -163,6 +163,7 @@ export interface PublicServiceItem {
   durationMin: number;
   price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string };
   isActive: boolean;
+  rating?: { avg: number; count: number };
 }
 
 export interface ServiceFilters {
@@ -398,5 +399,57 @@ export async function cancelBooking(bookingId: string, reason?: string | null): 
     reason: reason ?? null,
   });
   if (!data.success) throw new Error('Cancel failed');
+  return data.data;
+}
+
+// --- Reviews (GET public; POST requires auth) ---
+
+export interface ReviewItem {
+  _id: string;
+  clinicId: string;
+  serviceId: string | null;
+  doctorId: string | null;
+  patientId: string;
+  patientName?: string;
+  stars: number;
+  text: string | null;
+  createdAt: string;
+}
+
+export interface ReviewsResponse {
+  reviews: ReviewItem[];
+  total: number;
+  rating: { avg: number; count: number };
+}
+
+export async function getReviews(params: {
+  clinicId: string;
+  serviceId?: string | null;
+  doctorId?: string | null;
+  skip?: number;
+  limit?: number;
+}): Promise<ReviewsResponse> {
+  const { data } = await api.get<{ success: boolean; data: ReviewsResponse }>('/reviews', {
+    params: {
+      clinicId: params.clinicId,
+      ...(params.serviceId != null && { serviceId: params.serviceId }),
+      ...(params.doctorId != null && { doctorId: params.doctorId }),
+      skip: params.skip ?? 0,
+      limit: params.limit ?? 10,
+    },
+  });
+  if (!data.success) throw new Error('Failed to load reviews');
+  return data.data;
+}
+
+export async function submitReview(body: {
+  clinicId: string;
+  serviceId?: string | null;
+  doctorId?: string | null;
+  stars: number;
+  text?: string | null;
+}): Promise<ReviewItem> {
+  const { data } = await api.post<{ success: boolean; data: ReviewItem }>('/reviews', body);
+  if (!data.success) throw new Error('Failed to submit review');
   return data.data;
 }

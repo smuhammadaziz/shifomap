@@ -1,4 +1,4 @@
-import { getDb, PLATFORM_ADMIN_COLLECTION, CLINICS_COLLECTION, PATIENTS_COLLECTION, BOOKINGS_COLLECTION } from "./mongo"
+import { getDb, PLATFORM_ADMIN_COLLECTION, CLINICS_COLLECTION, PATIENTS_COLLECTION, BOOKINGS_COLLECTION, REVIEWS_COLLECTION } from "./mongo"
 
 /**
  * Create indexes for platform_admin collection
@@ -48,6 +48,17 @@ export async function createIndexes(): Promise<void> {
     await patientsColl.createIndex({ status: 1 })
     await patientsColl.createIndex({ "auth.lastLoginAt": -1 })
     await patientsColl.createIndex({ deletedAt: 1 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (!msg.includes("already exists") && !msg.includes("duplicate")) {
+      throw e
+    }
+  }
+
+  // Reviews indexes
+  const reviewsColl = database.collection(REVIEWS_COLLECTION)
+  try {
+    await reviewsColl.createIndex({ clinicId: 1, serviceId: 1, doctorId: 1, createdAt: -1 })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     if (!msg.includes("already exists") && !msg.includes("duplicate")) {

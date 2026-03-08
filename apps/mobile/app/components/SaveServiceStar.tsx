@@ -41,7 +41,7 @@ export default function SaveServiceStar({ service, size = 22, onSave, onUnsave }
   return (
     <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} onPress={handlePress} style={{ padding: 4 }}>
       <Ionicons
-        name={isSaved ? 'star' : 'star-outline'}
+        name={isSaved ? 'bookmark' : 'bookmark-outline'}
         size={size}
         color={isSaved ? colors.warning : colors.text}
       />

@@ -6,6 +6,7 @@ import { usersRoutes } from "@/modules/users/users.routes"
 import { clinicsRoutes } from "@/modules/clinics/clinics.routes"
 import { patientsRoutes } from "@/modules/patients/patients.routes"
 import { bookingsRoutes } from "@/modules/bookings/bookings.routes"
+import { reviewsRoutes } from "@/modules/reviews/reviews.routes"
 import { landingRoutes } from "@/modules/landing/landing.routes"
 import { AppError } from "@/common/errors"
 
@@ -15,8 +16,9 @@ const v1 = new Elysia({ prefix: "/v1" })
   .use(usersRoutes)
   .use(clinicsRoutes)
   .use(patientsRoutes)
-  .use(bookingsRoutes)
-  .use(landingRoutes)
+.use(bookingsRoutes)
+.use(reviewsRoutes)
+.use(landingRoutes)
 
 // Main Elysia app
 export const app = new Elysia()

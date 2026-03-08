@@ -34,7 +34,7 @@ const FeaturedClinics = () => {
 
       {savedServices.length === 0 ? (
         <View style={[styles.emptyState, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <Ionicons name="star-outline" size={40} color={colors.textTertiary} />
+          <Ionicons name="bookmark-outline" size={40} color={colors.textTertiary} />
           <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>{t.noSavedServices}</Text>
           <Text style={[styles.emptyHint, { color: colors.textTertiary }]}>{t.noSavedServicesHint}</Text>
         </View>
@@ -59,9 +59,9 @@ const FeaturedClinics = () => {
                     e.stopPropagation();
                     removeService(service._id);
                   }}
-                  style={styles.starBtn}
+                  style={styles.bookmarkBtn}
                 >
-                  <Ionicons name="star" size={22} color={colors.warning} />
+                  <Ionicons name="bookmark" size={22} color={colors.warning} />
                 </TouchableOpacity>
               </View>
               {service.categoryName ? (
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
 
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   clinicName: { fontSize: 16, fontWeight: 'bold', flex: 1, marginRight: 8 },
-  starBtn: { padding: 4 },
+  bookmarkBtn: { padding: 4 },
 
   clinicDescription: { fontSize: 12, marginTop: 4, lineHeight: 18 },
 

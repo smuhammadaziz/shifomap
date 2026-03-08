@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   X,
+  Star,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { Button } from './ui/button'
@@ -34,6 +35,7 @@ export default function Sidebar() {
       { name: t.sidebar.clinic, href: '/dashboard/clinic', icon: Building2 },
       { name: t.sidebar.accounts, href: '/dashboard/accounts', icon: Users },
       { name: t.sidebar.analytics, href: '/dashboard/analytics', icon: BarChart3 },
+      { name: t.sidebar.ratingsAndReviews, href: '/dashboard/ratings', icon: Star },
     ],
     [t.sidebar]
   )

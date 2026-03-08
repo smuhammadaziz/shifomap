@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb"
-import { getDb, CLINICS_COLLECTION } from "@/db/mongo"
+import { getDb, CLINICS_COLLECTION, REVIEWS_COLLECTION } from "@/db/mongo"
 import type { ClinicDoc, ClinicOwner, ClinicBranch, ClinicDoctor, ClinicCategory, ClinicService } from "./clinics.model"
 import { toObjectId } from "@/common/utils/id"
 
@@ -1144,6 +1144,7 @@ export interface PublicServiceItem {
   durationMin: number
   price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string }
   isActive: boolean
+  rating?: { avg: number; count: number }
 }
 
 /**
@@ -1186,12 +1187,12 @@ export async function searchServicesPublic(
   }
   if (filters.maxPrice != null && filters.maxPrice >= 0) {
     matchService["$and"] = matchService["$and"] ?? []
-    ;(matchService["$and"] as object[]).push({
-      $or: [
-        { "services.price.amount": { $lte: filters.maxPrice } },
-        { "services.price.minAmount": { $lte: filters.maxPrice } },
-      ],
-    })
+      ; (matchService["$and"] as object[]).push({
+        $or: [
+          { "services.price.amount": { $lte: filters.maxPrice } },
+          { "services.price.minAmount": { $lte: filters.maxPrice } },
+        ],
+      })
   }
 
   const facetPipeline: object[] = [
@@ -1225,6 +1226,32 @@ export async function searchServicesPublic(
     { $skip: skip },
     { $limit: limit },
     {
+      $lookup: {
+        from: REVIEWS_COLLECTION,
+        let: { cId: "$_id", sId: "$services._id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$clinicId", "$$cId"] },
+                  { $eq: ["$serviceId", "$$sId"] },
+                ],
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              avg: { $avg: "$stars" },
+              count: { $sum: 1 },
+            },
+          },
+        ],
+        as: "ratingAgg",
+      },
+    },
+    {
       $project: {
         _id: "$services._id",
         clinicId: { $toString: "$_id" },
@@ -1237,6 +1264,21 @@ export async function searchServicesPublic(
         durationMin: "$services.durationMin",
         price: "$services.price",
         isActive: "$services.isActive",
+        rating: {
+          $let: {
+            vars: { r: { $arrayElemAt: ["$ratingAgg", 0] } },
+            in: {
+              $cond: [
+                { $ne: ["$$r", null] },
+                {
+                  avg: { $round: ["$$r.avg", 1] },
+                  count: "$$r.count",
+                },
+                { avg: 0, count: 0 },
+              ],
+            },
+          },
+        },
       },
     },
   ]
@@ -1259,6 +1301,9 @@ export async function searchServicesPublic(
     durationMin: d.durationMin,
     price: d.price,
     isActive: d.isActive,
+    rating: d.rating
+      ? { avg: Number(d.rating.avg), count: Number(d.rating.count) }
+      : undefined,
   }))
   return { services, total }
 }

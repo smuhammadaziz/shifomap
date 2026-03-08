@@ -14,12 +14,13 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getClinicDetail, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicServicePublic } from '../../lib/api';
+import { getClinicDetail, getReviews, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicServicePublic, type ReviewItem } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
 import { getColors } from '../../lib/theme';
 import Skeleton from '../components/Skeleton';
+import ReviewBottomSheet from '../components/ReviewBottomSheet';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 220;
@@ -56,6 +57,13 @@ export default function ClinicDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showAllDoctors, setShowAllDoctors] = useState(false);
   const [showAllServices, setShowAllServices] = useState(false);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const [reviewsSkip, setReviewsSkip] = useState(0);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsLoadMore, setReviewsLoadMore] = useState(false);
+  const [reviewSheetVisible, setReviewSheetVisible] = useState(false);
+  const token = useAuthStore((s) => s.token);
 
   useEffect(() => {
     if (!id) return;
@@ -65,6 +73,45 @@ export default function ClinicDetailScreen() {
       .catch(() => setError('Not found'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const loadReviews = (skip: number, limit: number, append: boolean) => {
+    if (!id) return;
+    if (append) setReviewsLoadMore(true);
+    else setReviewsLoading(true);
+    getReviews({ clinicId: id, skip, limit })
+      .then((res) => {
+        setReviewsTotal(res.total);
+        if (append) setReviews((prev) => [...prev, ...res.reviews]);
+        else setReviews(res.reviews);
+        setReviewsSkip(skip + res.reviews.length);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setReviewsLoading(false);
+        setReviewsLoadMore(false);
+      });
+  };
+
+  useEffect(() => {
+    if (!id || !clinic) return;
+    loadReviews(0, 3, false);
+  }, [id, clinic?._id]);
+
+  const onLoadMoreReviews = () => {
+    loadReviews(reviewsSkip, 10, true);
+  };
+
+  const onReviewSuccess = () => {
+    loadReviews(0, 3, false);
+    if (clinic?.rating) {
+      setClinic((c) => {
+        if (!c?.rating) return c;
+        const count = c.rating.count + 1;
+        const avg = (c.rating.avg * c.rating.count + 5) / count;
+        return { ...c, rating: { avg: Math.round(avg * 10) / 10, count } };
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -116,7 +163,7 @@ export default function ClinicDetailScreen() {
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: colors.error }]}>{t.noResultsFound}</Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtnFull}>
-          <Text style={[styles.backBtnText, { color: colors.primary }]}>← Back</Text>
+          <Text style={[styles.backBtnText, { color: colors.primary }]}>← {t.back}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -193,7 +240,7 @@ export default function ClinicDetailScreen() {
                   <Ionicons name="star" size={18} color={colors.warning} />
                   <Text style={[styles.ratingValue, { color: colors.text }]}>{clinic.rating.avg.toFixed(1)} / 5.0</Text>
                 </View>
-                <Text style={[styles.ratingReviews, { color: colors.textTertiary }]}>Based on {clinic.rating.count} reviews</Text>
+                <Text style={[styles.ratingReviews, { color: colors.textTertiary }]}>{(t.basedOnReviews || '{{n}}').replace('{{n}}', String(clinic.rating.count))}</Text>
               </View>
               <View style={[styles.topRatedPill, { backgroundColor: colors.success }]}>
                 <Text style={styles.topRatedText}>{t.topRated}</Text>
@@ -297,9 +344,65 @@ export default function ClinicDetailScreen() {
             </View>
           )}
 
+          {/* Reviews */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.reviews}</Text>
+            {reviewsLoading && reviews.length === 0 ? (
+              <View style={styles.reviewRow}>
+                <ActivityIndicator size="small" color={colors.primaryLight} />
+              </View>
+            ) : (
+              <>
+                {reviews.map((r) => (
+                  <View key={r._id} style={[styles.reviewRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
+                    <View style={styles.reviewStarsRow}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Ionicons key={s} name={s <= r.stars ? 'star' : 'star-outline'} size={14} color={colors.warning} />
+                      ))}
+                    </View>
+                    {r.text ? <Text style={[styles.reviewText, { color: colors.textSecondary }]}>{r.text}</Text> : null}
+                    <Text style={[styles.reviewDate, { color: colors.textTertiary }]}>{new Date(r.createdAt).toLocaleDateString()}</Text>
+                  </View>
+                ))}
+                {reviewsTotal > reviews.length && (
+                  <TouchableOpacity
+                    style={[styles.loadMoreReviewsBtn, { borderColor: colors.border }]}
+                    onPress={onLoadMoreReviews}
+                    disabled={reviewsLoadMore}
+                  >
+                    {reviewsLoadMore ? (
+                      <ActivityIndicator size="small" color={colors.primaryLight} />
+                    ) : (
+                      <Text style={[styles.loadMoreReviewsText, { color: colors.primaryLight }]}>{t.loadMoreReviews}</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+            {id && clinic && (
+              <TouchableOpacity
+                style={[styles.leaveReviewBtn, { backgroundColor: colors.primaryBg, borderColor: colors.primaryLight }]}
+                onPress={() => setReviewSheetVisible(true)}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="star-outline" size={22} color={colors.primaryLight} />
+                <Text style={[styles.leaveReviewBtnText, { color: colors.primaryLight }]}>{t.writeReview}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={{ height: 100 }} />
         </View>
       </ScrollView>
+
+      <ReviewBottomSheet
+        visible={reviewSheetVisible}
+        onClose={() => setReviewSheetVisible(false)}
+        onSuccess={onReviewSuccess}
+        clinicId={id ?? ''}
+        target="clinic"
+        entityName={clinic?.clinicDisplayName ?? ''}
+      />
     </View>
   );
 }
@@ -440,4 +543,33 @@ const styles = StyleSheet.create({
   },
   bookIcon: { marginRight: 4 },
   bookButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  reviewRow: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  reviewStarsRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 6 },
+  reviewText: { fontSize: 14, marginBottom: 4 },
+  reviewDate: { fontSize: 12 },
+  loadMoreReviewsBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  loadMoreReviewsText: { fontSize: 14, fontWeight: '600' },
+  leaveReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  leaveReviewBtnText: { fontSize: 16, fontWeight: '700' },
 });

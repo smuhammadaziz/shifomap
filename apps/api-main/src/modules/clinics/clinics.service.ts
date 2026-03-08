@@ -40,6 +40,7 @@ import {
   getClinicServicesPublic,
 } from "./clinics.repo"
 import type { PublicServiceFilters } from "./clinics.repo"
+import { listReviewsWithPatientDetails, getRatingForTarget } from "@/modules/reviews/reviews.repo"
 import type {
   ClinicService,
   CreateClinicBody,
@@ -885,4 +886,23 @@ export async function publicGetClinicDetails(clinicId: string) {
     throw notFound("Clinic not found")
   }
   return mapDocToDetailedClinic(clinic)
+}
+
+/**
+ * Get my clinic's reviews with patient details (clinic owner only).
+ * Optional serviceId/doctorId filter for service-level or doctor-level reviews.
+ */
+export async function getMyClinicReviews(
+  auth: { role?: string; clinicId?: string; sub: string },
+  skip: number,
+  limit: number,
+  serviceId?: string | null,
+  doctorId?: string | null
+) {
+  const clinicId = await resolveClinicIdForOwner(auth)
+  if (!clinicId) throw unauthorized("Clinic owner only")
+  const filter = { clinicId, serviceId: serviceId ?? undefined, doctorId: doctorId ?? undefined }
+  const data = await listReviewsWithPatientDetails(filter, skip, limit)
+  const rating = await getRatingForTarget(filter)
+  return { ...data, rating }
 }

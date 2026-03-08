@@ -248,7 +248,7 @@
       "services": "Xizmatlar",
       "doctors": "Shifokorlar",
       "myServices": "Mening xizmatlarim",
-      "myAppointments": "Mening uchrashuvlarim",
+      "myAppointments": "Mening tashriflarim",
       "myClients": "Mening bemorlarim",
       "owners": "Egolar",
       "accounts": "Hisoblar",
@@ -257,7 +257,8 @@
       "rankingRating": "Reyting va baho",
       "stats": "Statistika",
       "analytics": "Tahlillar",
-      "clinicInformations": "Klinika ma'lumotlari"
+      "clinicInformations": "Klinika ma'lumotlari",
+      "ratingsAndReviews": "Baho va sharhlar"
     },
     "clinicInfo": {
       "title": "Klinika ma'lumotlari",
@@ -360,6 +361,19 @@
       "upgradeGateTitle": "Tahlillaringizni ko'rish uchun joriy rejangizni o'zgartiring",
       "upgradeGateChangePlan": "Rejani o'zgartirish",
       "upgradeGateContactAdmin": "Admin bilan bog'lanish"
+    },
+    "ratings": {
+      "title": "Baho va sharhlar",
+      "tabClinic": "Klinika sharhlari",
+      "tabServices": "Xizmatlar bo'yicha",
+      "tabDoctors": "Shifokorlar bo'yicha",
+      "noReviews": "Sharhlar yo'q",
+      "loadMore": "Yana 10 ta yuklash",
+      "ratingLabel": "O'rtacha baho",
+      "reviewsCount": "{{n}} ta sharh",
+      "userDetails": "Foydalanuvchi tafsilotlari",
+      "selectService": "Xizmatni tanlang",
+      "selectDoctor": "Shifokorni tanlang"
     },
     "dashboard": {
       "title": "Boshqaruv paneli",
@@ -702,7 +716,21 @@
       "rankingRating": "Рейтинг и оценка",
       "stats": "Статистика",
       "analytics": "Аналитика",
-      "clinicInformations": "Информация о клинике"
+      "clinicInformations": "Информация о клинике",
+      "ratingsAndReviews": "Оценки и отзывы"
+    },
+    "ratings": {
+      "title": "Оценки и отзывы",
+      "tabClinic": "Отзывы о клинике",
+      "tabServices": "По услугам",
+      "tabDoctors": "По врачам",
+      "noReviews": "Нет отзывов",
+      "loadMore": "Загрузить ещё 10",
+      "ratingLabel": "Средняя оценка",
+      "reviewsCount": "{{n}} отзывов",
+      "userDetails": "Данные пользователя",
+      "selectService": "Выберите услугу",
+      "selectDoctor": "Выберите врача"
     },
     "clinicInfo": {
       "title": "Информация о клинике",
