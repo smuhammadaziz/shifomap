@@ -31,6 +31,8 @@ const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25
 const DEFAULT_CLINIC_LOGO = 'https://static.vecteezy.com/system/resources/thumbnails/036/372/442/small/hospital-building-with-ambulance-emergency-car-on-cityscape-background-cartoon-illustration-vector.jpg';
 const DEFAULT_CLINIC_COVER = 'https://www.shutterstock.com/image-photo/medical-coverage-insurance-concept-hands-260nw-1450246616.jpg';
 
+const APP_LOGO = require('../../assets/play_store_512-Photoroom.png');
+
 function formatPrice(price: PublicServiceItem['price']): string {
   if (price.amount != null) return `${price.amount.toLocaleString()} ${price.currency}`;
   if (price.minAmount != null && price.maxAmount != null) {
@@ -163,6 +165,34 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Fixed header: logo + app name + actions — home screen only */}
+      <View style={[styles.fixedHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+        <View style={styles.fixedHeaderBrand}>
+          <Image source={APP_LOGO} style={styles.fixedHeaderLogo} resizeMode="contain" />
+          <Text style={[styles.fixedHeaderTitle, { color: colors.text }]}>ShifoYo'l</Text>
+        </View>
+        <View style={styles.fixedHeaderActions}>
+          <TouchableOpacity
+            style={styles.fixedHeaderIconBtn}
+            onPress={() => router.push('/settings')}
+            hitSlop={12}
+            accessibilityLabel={t.notifications}
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.fixedHeaderAvatarBtn}
+            onPress={() => router.push('/profile')}
+            activeOpacity={0.85}
+            hitSlop={8}
+            accessibilityLabel={t.profileDashboard}
+          >
+            <Image source={{ uri: avatarUri }} style={[styles.fixedHeaderAvatar, { borderColor: colors.border }]} />
+            <View style={[styles.fixedHeaderOnlineIndicator, { backgroundColor: colors.onlineIndicator, borderColor: colors.background }]} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -177,18 +207,14 @@ const HomeScreen = () => {
           />
         }
       >
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <View style={styles.headerTextContainer}>
             <View style={styles.greetingRow}>
               <Text style={[styles.greeting, { color: colors.text }]}>{t.greeting}</Text>
               <Text style={styles.waveEmoji}> 👋</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.avatarContainer} onPress={() => router.push('/profile')}>
-            <Image source={{ uri: avatarUri }} style={[styles.avatar, { borderColor: colors.border }]} />
-            <View style={[styles.onlineIndicator, { backgroundColor: colors.onlineIndicator, borderColor: colors.background }]} />
-          </TouchableOpacity>
-        </View>
+        </View> */}
 
         <View style={styles.searchSection}>
           <View style={[
@@ -430,6 +456,58 @@ const HomeScreen = () => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+  fixedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingTop: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  fixedHeaderBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  fixedHeaderLogo: {
+    width: 32,
+    height: 32,
+  },
+  fixedHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  fixedHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fixedHeaderIconBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fixedHeaderAvatarBtn: {
+    position: 'relative',
+    marginLeft: 4,
+  },
+  fixedHeaderAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+  },
+  fixedHeaderOnlineIndicator: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    borderWidth: 2,
+  },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
   header: {
