@@ -1,8 +1,22 @@
 import { z } from "zod"
 import type { ObjectId } from "mongodb"
 
-export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed"
-export type CancelBy = "patient" | "clinic"
+export type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "patient_arrived"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+export type CancelBy = "patient" | "clinic" | "doctor"
+
+export type BookingStatusEventType = "created" | BookingStatus
+
+export interface BookingStatusEvent {
+  type: BookingStatusEventType
+  at: Date
+  by: { role: "patient" | "clinic" | "doctor"; id: ObjectId } | null
+ }
 
 /**
  * MongoDB document shape for collection "bookings"
@@ -18,12 +32,20 @@ export interface BookingDoc {
   scheduledDate: string // YYYY-MM-DD for display
   scheduledTime: string // HH:mm for display
   status: BookingStatus
-  price: number | null // set by doctor when status is completed (patient history)
+  // Price snapshot at booking creation time (for patient display)
+  consultationPrice: {
+    amount?: number
+    minAmount?: number
+    maxAmount?: number
+    currency: string
+  } | null
+  price: number | null // optional final price (kept for backward compat)
   cancel: {
     by: CancelBy | null
     reason: string | null
     cancelledAt: Date | null
   }
+  statusHistory: BookingStatusEvent[]
   createdAt: Date
   updatedAt: Date
   deletedAt: Date | null

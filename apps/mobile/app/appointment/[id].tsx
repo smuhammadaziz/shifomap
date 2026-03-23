@@ -32,31 +32,40 @@ function getDayName(dateStr: string): string {
   return DAY_NAMES[d.getDay()] ?? '';
 }
 
-function formatDatePill(dateStr: string): string {
+function formatDateFull(dateStr: string): string {
   const [y, m, d] = dateStr.split('-');
   const month = MONTH_NAMES[parseInt(m, 10) - 1];
   return `${d} ${month}, ${y}`;
 }
 
 export default function AppointmentDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams(); // Can be string | string[]
   const router = useRouter();
-  const language = useAuthStore((s) => s.language);
+  const language = useAuthStore((s) => s.language) ?? 'uz';
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [sheetVisible, setSheetVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
 
+  // Extract a single string ID
+  const bookingId = Array.isArray(id) ? id[0] : id;
+
   const loadBooking = () => {
-    if (!id) return;
+    if (!bookingId) {
+      setLoading(false);
+      setError('Invalid ID');
+      return;
+    }
     setLoading(true);
-    getBookingById(id)
+    getBookingById(bookingId)
       .then(setBooking)
       .catch(() => setError('Not found'))
       .finally(() => setLoading(false));
@@ -64,15 +73,15 @@ export default function AppointmentDetailScreen() {
 
   useEffect(() => {
     loadBooking();
-  }, [id]);
+  }, [bookingId]);
 
   useEffect(() => {
     if (sheetVisible) {
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        damping: 20,
-        stiffness: 200,
+        tension: 50,
+        friction: 6,
       }).start();
     } else {
       slideAnim.setValue(300);
@@ -80,10 +89,10 @@ export default function AppointmentDetailScreen() {
   }, [sheetVisible]);
 
   const handleCancelConfirm = async () => {
-    if (!id) return;
+    if (!bookingId) return;
     setCancelling(true);
     try {
-      const updated = await cancelBooking(id, cancelReason.trim() || null);
+      const updated = await cancelBooking(bookingId, cancelReason.trim() || null);
       setBooking(updated);
       setSheetVisible(false);
       setCancelReason('');
@@ -105,147 +114,199 @@ export default function AppointmentDetailScreen() {
           <Skeleton width={160} height={18} style={{ marginLeft: 8 }} />
         </View>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <Skeleton width="100%" height={100} style={{ marginBottom: 16, borderRadius: 16 }} />
-          <Skeleton width="60%" height={14} style={{ marginBottom: 8 }} />
-          <Skeleton width="100%" height={56} style={{ marginBottom: 20 }} />
-          <Skeleton width="60%" height={14} style={{ marginBottom: 8 }} />
-          <Skeleton width="100%" height={80} style={{ marginBottom: 20 }} />
+          <Skeleton width="100%" height={100} style={{ marginBottom: 20, borderRadius: 20 }} />
+          <Skeleton width="100%" height={90} style={{ marginBottom: 20, borderRadius: 20 }} />
+          <Skeleton width="100%" height={120} style={{ marginBottom: 20, borderRadius: 20 }} />
         </ScrollView>
       </View>
     );
   }
 
+  // Cooler, user-friendly Empty State
   if (error || !booking) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.error }]}>{t.noResultsFound}</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtnFull}>
-          <Text style={[styles.backBtnText, { color: colors.primary }]}>← {t.back}</Text>
-        </TouchableOpacity>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.emptyContainer}>
+          <View style={[styles.emptyIconCircle, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
+            <Ionicons name="document-text-outline" size={64} color={colors.textTertiary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t.noResultsFound}</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            {language === 'ru' ? 'Бронь не найдена или была удалена.' : 'Bron topilmadi yoki o‘chirib tashlangan.'}
+          </Text>
+          <TouchableOpacity style={[styles.emptyBtn, { backgroundColor: colors.primary }]} onPress={() => router.back()}>
+            <Text style={styles.emptyBtnText}>{t.back}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   const dayName = getDayName(booking.scheduledDate);
-  const datePill = formatDatePill(booking.scheduledDate);
-  const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
+  const dateFull = formatDateFull(booking.scheduledDate);
+  const canCancel = booking.status === 'pending' || booking.status === 'confirmed' || booking.status === 'patient_arrived';
+  const steps = [
+    { key: 'confirmed', label: t.bookingConfirmed, icon: 'checkmark-circle' },
+    { key: 'patient_arrived', label: t.patientArrived, icon: 'location' },
+    { key: 'in_progress', label: t.consultationStarted, icon: 'pulse' },
+    { key: 'completed', label: t.consultationCompleted, icon: 'flag' },
+  ] as const;
+  const statusRank: Record<string, number> = {
+    pending: 0,
+    confirmed: 1,
+    patient_arrived: 2,
+    in_progress: 3,
+    completed: 4,
+    cancelled: -1,
+  };
+  const currentRank = statusRank[booking.status] ?? 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>{t.yourAppointment}</Text>
+        <View style={{ width: 40 }} />
       </View>
+
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Doctor card */}
-        <View style={[styles.doctorCard, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}>
-          <View style={styles.doctorAvatarWrap}>
-            <Image source={{ uri: DEFAULT_AVATAR }} style={[styles.doctorAvatar, { backgroundColor: colors.border }]} />
+        
+        {/* Card: Time & Date (Large floating presentation) */}
+        <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
+          <View style={styles.dateTimeHeader}>
+            <View style={[styles.iconBox, { backgroundColor: colors.primaryBg }]}>
+              <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+            </View>
+            <View>
+              <Text style={[styles.dateBig, { color: colors.text }]}>{dateFull}</Text>
+              <Text style={[styles.dayText, { color: colors.textSecondary }]}>{dayName}</Text>
+            </View>
           </View>
+          <View style={[styles.timeDivider, { borderLeftColor: colors.border }]} />
+          <View style={styles.dateTimeTime}>
+            <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>{language === 'ru' ? 'Время' : 'Vaqt'}</Text>
+            <Text style={[styles.timeBig, { color: colors.primary }]}>{booking.scheduledTime}</Text>
+          </View>
+        </View>
+
+        {/* Card: Doctor & Service */}
+        <View style={[styles.glassCard, styles.doctorCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
+          <Image source={{ uri: DEFAULT_AVATAR }} style={[styles.doctorAvatar, { backgroundColor: colors.border }]} />
           <View style={styles.doctorInfo}>
-            <Text style={[styles.doctorName, { color: colors.text }]}>{booking.doctorName ?? '—'}</Text>
-            <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]}>{booking.serviceTitle ?? '—'}</Text>
-            <View style={styles.doctorIcons}>
-              <View style={styles.iconBadge}>
-                <Ionicons name="star" size={14} color={colors.warning} />
-                <Text style={[styles.iconBadgeText, { color: colors.warning }]}>5</Text>
-              </View>
-              <View style={styles.iconBadge}>
-                <Ionicons name="chatbubble-outline" size={14} color={colors.textTertiary} />
-                <Text style={[styles.iconBadgeTextMuted, { color: colors.textTertiary }]}>—</Text>
-              </View>
-              <TouchableOpacity style={styles.iconBadge}>
-                <Ionicons name="heart-outline" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
+            <Text style={[styles.doctorName, { color: colors.text }]} numberOfLines={1}>{booking.doctorName ?? '—'}</Text>
+            <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]} numberOfLines={2}>{booking.serviceTitle ?? '—'}</Text>
+          </View>
+        </View>
+
+        {/* Card: Progress Timeline */}
+        <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t.progress}</Text>
+          
+          {booking.status === 'cancelled' ? (
+            <View style={[styles.cancelledAlert, { backgroundColor: colors.errorBg }]}>
+              <Ionicons name="alert-circle" size={24} color={colors.error} />
+              <Text style={[styles.cancelledAlertText, { color: colors.error }]}>{t.cancelled}</Text>
             </View>
-          </View>
-        </View>
+          ) : (
+            <View style={styles.timelineContainer}>
+              {steps.map((s, idx) => {
+                const stepRank = statusRank[s.key];
+                const done = currentRank >= stepRank;
+                const isCurrent = currentRank === stepRank;
+                const last = idx === steps.length - 1;
 
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-        {/* Date & time */}
-        <View style={styles.dateSection}>
-          <View style={[styles.datePill, { backgroundColor: colors.primary }]}>
-            <Text style={styles.datePillText}>{datePill}</Text>
-          </View>
-          <View style={styles.dateTimeRow}>
-            <Text style={[styles.dayTimeText, { color: colors.textSecondary }]}>{dayName}, {booking.scheduledTime}</Text>
-            <View style={styles.statusIcons}>
-              {(booking.status === 'confirmed' || booking.status === 'completed') && (
-                <View style={[styles.statusIconWrap, { backgroundColor: colors.success }]}>
-                  <Ionicons name="checkmark" size={18} color="#fff" />
-                </View>
-              )}
-              {booking.status === 'cancelled' && (
-                <View style={[styles.statusIconWrap, { backgroundColor: colors.error }]}>
-                  <Ionicons name="close" size={18} color="#fff" />
-                </View>
-              )}
+                return (
+                  <View key={s.key} style={styles.timelineStep}>
+                    {/* Circle and Line */}
+                    <View style={styles.timelineGraphic}>
+                      <View style={[styles.timelineCircle, 
+                        { 
+                          backgroundColor: done ? colors.primary : colors.backgroundCard,
+                          borderColor: done ? colors.primary : colors.border,
+                          borderWidth: done ? 0 : 2
+                        }]}>
+                        {done && <Ionicons name={s.icon as any} size={14} color="#fff" />}
+                      </View>
+                      {!last && (
+                        <View style={[styles.timelineLine, { backgroundColor: done ? colors.primary : colors.border }]} />
+                      )}
+                    </View>
+                    
+                    {/* Text */}
+                    <View style={styles.timelineContent}>
+                      <Text style={[styles.timelineText, { 
+                        color: done ? colors.text : colors.textTertiary,
+                        fontWeight: done ? '700' : '500'
+                      }]}>
+                        {s.label}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
+          )}
+        </View>
+
+        {/* Card: Patient Information */}
+        <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t.bookingFor}</Text>
+          <View style={styles.rows}>
+            <Row label={t.completeFullName} value="—" colors={colors} />
+            <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+            <Row label={t.completeAge} value="—" colors={colors} />
+            <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+            <Row label={t.completeGender} value="—" colors={colors} />
           </View>
         </View>
 
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        <View style={{ height: 100 }} />
+      </ScrollView>
 
-        {/* Booking For */}
-        <View style={styles.bookingForSection}>
-          <Row label={t.bookingFor} value="—" colors={colors} />
-          <Row label={t.completeFullName} value="—" colors={colors} />
-          <Row label={t.completeAge} value="—" colors={colors} />
-          <Row label={t.completeGender} value="—" colors={colors} />
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-        {/* Problem */}
-        <View style={styles.problemSection}>
-          <Text style={[styles.problemLabel, { color: colors.textTertiary }]}>{t.problem}</Text>
-          <Text style={[styles.problemPlaceholder, { color: colors.textSecondary }]}>—</Text>
-        </View>
-
+      {/* Floating Action Buttons */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         {canCancel && (
           <TouchableOpacity
-            style={[styles.cancelBtn, { borderColor: colors.error, backgroundColor: colors.errorBg }]}
+            style={[styles.cancelBtn, { borderColor: colors.error }]}
             onPress={() => setSheetVisible(true)}
-            activeOpacity={0.85}
+            activeOpacity={0.8}
           >
-            <Ionicons name="close-circle-outline" size={22} color={colors.error} />
             <Text style={[styles.cancelBtnText, { color: colors.error }]}>{t.cancelAppointment}</Text>
           </TouchableOpacity>
         )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      </View>
 
       {/* Cancel reason bottom sheet */}
       <Modal visible={sheetVisible} transparent animationType="none">
-        <TouchableOpacity
-          style={styles.sheetBackdrop}
-          activeOpacity={1}
-          onPress={() => setSheetVisible(false)}
-        />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.sheetAvoid}
-        >
+        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSheetVisible(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetAvoid}>
           <Animated.View style={[styles.sheet, { backgroundColor: colors.backgroundCard, borderColor: colors.border, transform: [{ translateY: slideAnim }] }]}>
             <View style={[styles.sheetHandle, { backgroundColor: colors.textTertiary }]} />
-            <Text style={[styles.sheetTitle, { color: colors.textSecondary }]}>{t.whyCancel}</Text>
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>{t.whyCancel}</Text>
+            
             <TextInput
-              style={[styles.sheetInput, { backgroundColor: colors.backgroundSecondary, color: colors.text }]}
+              style={[styles.sheetInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
               placeholder={t.whyCancel}
               placeholderTextColor={colors.textTertiary}
               value={cancelReason}
               onChangeText={setCancelReason}
               multiline
-              numberOfLines={3}
+              numberOfLines={4}
             />
+            
             <TouchableOpacity
               style={[styles.sheetConfirmBtn, { backgroundColor: colors.error }, cancelling && styles.sheetConfirmBtnDisabled]}
               onPress={handleCancelConfirm}
               disabled={cancelling}
+              activeOpacity={0.8}
             >
               {cancelling ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -253,8 +314,9 @@ export default function AppointmentDetailScreen() {
                 <Text style={styles.sheetConfirmBtnText}>{t.cancelAppointment}</Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sheetDismiss} onPress={() => setSheetVisible(false)}>
-              <Text style={[styles.sheetDismissText, { color: colors.primaryLight }]}>{t.back}</Text>
+            
+            <TouchableOpacity style={styles.sheetDismiss} onPress={() => setSheetVisible(false)} activeOpacity={0.8}>
+              <Text style={[styles.sheetDismissText, { color: colors.textSecondary }]}>{t.back}</Text>
             </TouchableOpacity>
           </Animated.View>
         </KeyboardAvoidingView>
@@ -266,7 +328,7 @@ export default function AppointmentDetailScreen() {
 function Row({ label, value, colors }: { label: string; value: string; colors: any }) {
   return (
     <View style={styles.row}>
-      <Text style={[styles.rowLabel, { color: colors.textTertiary }]}>{label}</Text>
+      <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>{label}</Text>
       <Text style={[styles.rowValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
@@ -274,124 +336,122 @@ function Row({ label, value, colors }: { label: string; value: string; colors: a
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { marginBottom: 12 },
-  backBtnFull: { padding: 12 },
-  backBtnText: { fontSize: 16 },
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 56,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    paddingBottom: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  backBtn: { padding: 8, marginLeft: -8 },
-  headerTitle: { fontSize: 18, fontWeight: '600', marginLeft: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  backBtn: { padding: 4 },
+  
+  // Empty states
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
+  emptyIconCircle: {
+    width: 120, height: 120, borderRadius: 60,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 24,
+    elevation: 4, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12,
+  },
+  emptyTitle: { fontSize: 22, fontWeight: '800', marginBottom: 12, textAlign: 'center' },
+  emptyText: { fontSize: 16, fontWeight: '500', textAlign: 'center', marginBottom: 32, lineHeight: 22 },
+  emptyBtn: { paddingVertical: 16, paddingHorizontal: 48, borderRadius: 100 },
+  emptyBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+
   scroll: { flex: 1 },
-  scrollContent: { padding: 20 },
-  doctorCard: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    marginBottom: 4,
-  },
-  doctorAvatarWrap: { marginRight: 14 },
-  doctorAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-  },
-  doctorInfo: { flex: 1 },
-  doctorName: { fontSize: 18, fontWeight: '700' },
-  doctorSpecialty: { fontSize: 14, marginTop: 4 },
-  doctorIcons: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
-  iconBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBadgeText: { fontSize: 13 },
-  iconBadgeTextMuted: { fontSize: 13 },
-  divider: { height: 1, marginVertical: 16 },
-  dateSection: { marginBottom: 4 },
-  datePill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  scrollContent: { padding: 20, gap: 16 },
+
+  // Cooler unified cards
+  glassCard: {
     borderRadius: 24,
+    padding: 20,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
-  datePillText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  dateTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  dayTimeText: { fontSize: 15 },
-  statusIcons: { flexDirection: 'row', gap: 8 },
-  statusIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bookingForSection: { marginBottom: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  rowLabel: { fontSize: 14 },
-  rowValue: { fontSize: 14, fontWeight: '500' },
-  problemSection: { marginBottom: 20 },
-  problemLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  problemPlaceholder: { fontSize: 14 },
-  cancelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  cancelBtnText: { fontSize: 16, fontWeight: '600' },
-  sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  sheetAvoid: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+  
+  // Date Time Big Card
+  dateTimeHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
+  iconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  dateBig: { fontSize: 18, fontWeight: '700', marginBottom: 2 },
+  dayText: { fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  timeDivider: { position: 'absolute', right: 110, top: 0, bottom: 0, borderLeftWidth: 1 },
+  dateTimeTime: { position: 'absolute', right: 20, top: 20, alignItems: 'flex-end', justifyContent: 'center' },
+  timeLabel: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  timeBig: { fontSize: 22, fontWeight: '800' },
+
+  // Doctor Card
+  doctorCard: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  doctorAvatar: { width: 60, height: 60, borderRadius: 30, marginRight: 16 },
+  doctorInfo: { flex: 1 },
+  doctorName: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
+  doctorSpecialty: { fontSize: 15, fontWeight: '500' },
+
+  // Timeline
+  sectionTitle: { fontSize: 17, fontWeight: '700', marginBottom: 20 },
+  cancelledAlert: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16 },
+  cancelledAlertText: { fontSize: 16, fontWeight: '600' },
+  timelineContainer: { paddingLeft: 8 },
+  timelineStep: { flexDirection: 'row', minHeight: 48 },
+  timelineGraphic: { width: 32, alignItems: 'center' },
+  timelineCircle: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+  timelineLine: { width: 2, flex: 1, marginVertical: -4 },
+  timelineContent: { flex: 1, paddingTop: 4, paddingLeft: 12, paddingBottom: 24 },
+  timelineText: { fontSize: 16 },
+
+  // Rows
+  rows: { gap: 14 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowLabel: { fontSize: 15, fontWeight: '500' },
+  rowValue: { fontSize: 15, fontWeight: '700' },
+  rowDivider: { height: StyleSheet.hairlineWidth },
+
+  // Bottom action
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 40,
-    borderWidth: 1,
-    borderBottomWidth: 0,
+    paddingTop: 16,
+    paddingBottom: 34,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  sheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  sheetTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  sheetInput: {
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: 16,
-  },
-  sheetConfirmBtn: {
-    paddingVertical: 14,
-    borderRadius: 14,
+  cancelBtn: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
+  cancelBtnText: { fontSize: 17, fontWeight: '700' },
+
+  // Cancel Sheet
+  sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheetAvoid: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40,
+    borderWidth: 1, borderBottomWidth: 0,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.1, shadowRadius: 24, elevation: 20,
+  },
+  sheetHandle: { width: 48, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 24, opacity: 0.5 },
+  sheetTitle: { fontSize: 20, fontWeight: '800', marginBottom: 16 },
+  sheetInput: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 16,
+    fontSize: 16,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    marginBottom: 24,
+  },
+  sheetConfirmBtn: { paddingVertical: 18, borderRadius: 16, alignItems: 'center' },
   sheetConfirmBtnDisabled: { opacity: 0.6 },
-  sheetConfirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  sheetDismiss: { alignItems: 'center', marginTop: 12 },
-  sheetDismissText: { fontSize: 16 },
+  sheetConfirmBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  sheetDismiss: { alignItems: 'center', marginTop: 16, paddingVertical: 12 },
+  sheetDismissText: { fontSize: 16, fontWeight: '600' },
 });

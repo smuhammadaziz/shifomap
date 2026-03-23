@@ -1,44 +1,42 @@
 'use client'
 
-import { useLanguage } from '@/contexts/language-context'
-import { useAuthStore } from '@/store/auth-store'
-import Cookies from 'js-cookie'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getApiUrl } from '@/lib/api'
-import { Button } from '@/components/ui/button'
+import Cookies from 'js-cookie'
 import Link from 'next/link'
+import { getApiUrl } from '@/lib/api'
+import { useAuthStore } from '@/store/auth-store'
+import { useLanguage } from '@/contexts/language-context'
+import { Button } from '@/components/ui/button'
 
 type BookingItem = {
   _id: string
-  serviceTitle?: string
   scheduledAt?: string
   scheduledDate: string
   scheduledTime: string
   status: string
-  clinicDisplayName?: string
   doctorName?: string
+  serviceTitle?: string
 }
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-export default function MyAppointmentsPage() {
+export default function OwnerBookingsPage() {
   const { t } = useLanguage()
   const user = useAuthStore((s) => s.user)
   const token = useMemo(() => Cookies.get('clinic_auth_token') || null, [])
   const apiUrl = getApiUrl()
+
   const [loading, setLoading] = useState(true)
   const [list, setList] = useState<BookingItem[]>([])
-  const [tab, setTab] = useState<'upcoming' | 'today' | 'past' | 'cancelled' | 'all'>('today')
+  const [tab, setTab] = useState<'today' | 'upcoming' | 'past' | 'cancelled' | 'all'>('today')
 
   const load = useCallback(async () => {
     if (!token) return
     setLoading(true)
     try {
-      const res = await fetch(`${apiUrl}/v1/bookings-manage/doctor`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetch(`${apiUrl}/v1/bookings-manage/clinic`, { headers: { Authorization: `Bearer ${token}` } })
       const json = await res.json()
       setList(res.ok && json?.success ? (json.data ?? []) : [])
     } catch {
@@ -107,17 +105,8 @@ export default function MyAppointmentsPage() {
     return <span className={`${base} bg-gray-50 text-gray-700`}>{label}</span>
   }
 
-  const isDoctor = (user as { role?: string })?.role === 'doctor'
-  if (!isDoctor) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t.sidebar.myAppointments}</h1>
-          <p className="text-gray-600 mt-1">{bk.forbidden ?? 'Ruxsat yo\'q'}</p>
-        </div>
-      </div>
-    )
-  }
+  const canSee = (user as { role?: string })?.role && String((user as any).role).startsWith('clinic_')
+  if (!canSee) return <div className="py-16 text-center text-gray-500">{bk.forbidden ?? 'Ruxsat yo\'q'}</div>
 
   const tabs = [
     { key: 'today' as const, label: bk.today ?? 'Bugun' },
@@ -130,7 +119,7 @@ export default function MyAppointmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">{t.sidebar.myAppointments}</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{t.sidebar.bookings}</h1>
         <p className="text-gray-600 mt-1">{bk.allBookings ?? 'Barcha bronlar'}</p>
       </div>
 
@@ -161,12 +150,10 @@ export default function MyAppointmentsPage() {
             <div key={b._id} className="rounded-2xl border border-gray-200 bg-white p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
               <div className="mb-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="font-semibold text-gray-900 truncate text-base">{b.serviceTitle || '—'}</div>
+                  <div className="font-semibold text-gray-900 truncate text-base">{b.doctorName || '—'}</div>
                   {statusBadge(b.status)}
                 </div>
-                {b.doctorName && (
-                  <div className="text-sm text-gray-600 mt-1 truncate">{b.doctorName}</div>
-                )}
+                <div className="text-sm text-gray-600 mt-1 truncate">{b.serviceTitle || '—'}</div>
                 <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   {b.scheduledDate}
@@ -178,19 +165,11 @@ export default function MyAppointmentsPage() {
               </div>
               <div className="flex gap-2 flex-wrap border-t border-gray-100 pt-3">
                 <Button asChild variant="outline" className="flex-1 min-w-0">
-                  <Link href={`/dashboard/my-appointments/${b._id}`}>{bk.details ?? 'Batafsil'}</Link>
+                  <Link href={`/dashboard/bookings/${b._id}`}>{bk.details ?? 'Batafsil'}</Link>
                 </Button>
                 {b.status === 'pending' && <Button className="flex-1 min-w-0" onClick={() => action(b._id, 'confirm')}>{bk.confirm ?? 'Tasdiqlash'}</Button>}
-                {(b.status === 'confirmed' || b.status === 'patient_arrived') && <Button className="flex-1 min-w-0" onClick={() => action(b._id, 'start')}>{bk.start ?? 'Boshlash'}</Button>}
-                {b.status === 'in_progress' && <Button className="flex-1 min-w-0" onClick={() => action(b._id, 'finish')}>{bk.finish ?? 'Tugatish'}</Button>}
-                {b.status === 'completed' && (
-                  <Button asChild variant="secondary" className="flex-1 min-w-0">
-                    <Link href={`/dashboard/my-appointments/prescription/${b._id}`}>{bk.prescription ?? 'Retsept'}</Link>
-                  </Button>
-                )}
-                {b.status !== 'cancelled' && b.status !== 'completed' && (
-                  <Button variant="destructive" className="flex-1 min-w-0" onClick={() => action(b._id, 'cancel')}>{bk.cancel ?? 'Bekor qilish'}</Button>
-                )}
+                {b.status === 'confirmed' && <Button variant="secondary" className="flex-1 min-w-0" onClick={() => action(b._id, 'patient-arrived')}>{bk.arrived ?? 'Keldi'}</Button>}
+                {b.status !== 'cancelled' && b.status !== 'completed' && <Button variant="destructive" className="flex-1 min-w-0" onClick={() => action(b._id, 'cancel')}>{bk.cancel ?? 'Bekor qilish'}</Button>}
               </div>
             </div>
           ))}

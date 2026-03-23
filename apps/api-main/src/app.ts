@@ -6,8 +6,11 @@ import { usersRoutes } from "@/modules/users/users.routes"
 import { clinicsRoutes } from "@/modules/clinics/clinics.routes"
 import { patientsRoutes } from "@/modules/patients/patients.routes"
 import { bookingsRoutes } from "@/modules/bookings/bookings.routes"
+import { bookingsManageRoutes } from "@/modules/bookings/bookings.manage.routes"
 import { reviewsRoutes } from "@/modules/reviews/reviews.routes"
 import { landingRoutes } from "@/modules/landing/landing.routes"
+import { prescriptionsRoutes, prescriptionsPatientRoutes } from "@/modules/prescriptions/prescriptions.routes"
+import { prescriptionsManageRoutes } from "@/modules/prescriptions/prescriptions.manage.routes"
 import { AppError } from "@/common/errors"
 
 // V1 API routes
@@ -17,7 +20,11 @@ const v1 = new Elysia({ prefix: "/v1" })
   .use(clinicsRoutes)
   .use(patientsRoutes)
 .use(bookingsRoutes)
+.use(bookingsManageRoutes)
 .use(reviewsRoutes)
+.use(prescriptionsRoutes)
+.use(prescriptionsManageRoutes)
+.use(prescriptionsPatientRoutes)
 .use(landingRoutes)
 
 // Main Elysia app

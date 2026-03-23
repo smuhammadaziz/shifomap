@@ -22,6 +22,8 @@ const statusToTab: Record<BookingStatus, TabFilter | null> = {
   completed: 'completed',
   confirmed: 'upcoming',
   pending: 'upcoming',
+  patient_arrived: 'upcoming',
+  in_progress: 'upcoming',
   cancelled: 'cancelled',
 };
 
@@ -37,7 +39,7 @@ export default function AppointmentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const statusFilter: BookingStatus[] =
-    tab === 'completed' ? ['completed'] : tab === 'upcoming' ? ['pending', 'confirmed'] : ['cancelled'];
+    tab === 'completed' ? ['completed'] : tab === 'upcoming' ? ['pending', 'confirmed', 'patient_arrived', 'in_progress'] : ['cancelled'];
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);

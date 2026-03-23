@@ -23,7 +23,7 @@ import SaveServiceStar from '../components/SaveServiceStar';
 import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
-import { searchServicesSuggest, getNextUpcomingBooking, getClinicsList, searchServicesWithFilters, type PublicServiceItem, type Booking, type ClinicListItem } from '../../lib/api';
+import { searchServicesSuggest, getNextUpcomingBooking, getClinicsList, getMyNextPill, searchServicesWithFilters, type PublicServiceItem, type Booking, type ClinicListItem } from '../../lib/api';
 import Skeleton from '../components/Skeleton';
 import { getColors } from '../../lib/theme';
 
@@ -68,6 +68,7 @@ const HomeScreen = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
+  const [nextPill, setNextPill] = useState<{ prescriptionId: string; time: string; medicineName: string } | null>(null);
   const [clinics, setClinics] = useState<ClinicListItem[]>([]);
   const [clinicsLoading, setClinicsLoading] = useState(true);
   const [featuredServices, setFeaturedServices] = useState<PublicServiceItem[]>([]);
@@ -101,6 +102,7 @@ const HomeScreen = () => {
       await Promise.all([
         getClinicsList(4).then(setClinics).catch(() => setClinics([])),
         getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null)),
+        getMyNextPill().then(setNextPill).catch(() => setNextPill(null)),
         fetchFeaturedServices(),
       ]);
     } finally {
@@ -112,14 +114,20 @@ const HomeScreen = () => {
     getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null));
   }, []);
 
+  const fetchNextPill = useCallback(() => {
+    getMyNextPill().then(setNextPill).catch(() => setNextPill(null));
+  }, []);
+
   useEffect(() => {
     fetchNextBooking();
-  }, [fetchNextBooking]);
+    fetchNextPill();
+  }, [fetchNextBooking, fetchNextPill]);
 
   useFocusEffect(
     useCallback(() => {
       fetchNextBooking();
-    }, [fetchNextBooking])
+      fetchNextPill();
+    }, [fetchNextBooking, fetchNextPill])
   );
 
   useEffect(() => {
@@ -309,13 +317,18 @@ const HomeScreen = () => {
                   : t.noUpcomingPromo}
               </Text>
             </TouchableOpacity>
-            {/* <TouchableOpacity style={[styles.dashboardCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.dashboardCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+              onPress={() => router.push('/pill-reminder')}
+            >
               <View style={[styles.iconContainer, { backgroundColor: colors.primaryBg }]}>
                 <Ionicons name="medical" size={24} color={colors.primaryLight} />
               </View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>{t.pillReminders}</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>{t.pillsRemaining}</Text>
-            </TouchableOpacity> */}
+              <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+                {nextPill ? `${nextPill.time} • ${nextPill.medicineName}` : (t.noUpcomingPromo ?? '—')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </TouchableWithoutFeedback>
 

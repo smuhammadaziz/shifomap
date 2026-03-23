@@ -338,7 +338,13 @@ export async function getClinicDetail(clinicId: string): Promise<ClinicDetailPub
 
 // --- Bookings (auth required) ---
 
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'patient_arrived'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
 
 export interface Booking {
   _id: string;
@@ -351,8 +357,10 @@ export interface Booking {
   scheduledDate: string;
   scheduledTime: string;
   status: BookingStatus;
+  consultationPrice?: { amount?: number; minAmount?: number; maxAmount?: number; currency: string } | null;
   price: number | null;
   cancel: { by: 'patient' | 'clinic' | null; reason: string | null; cancelledAt: string | null };
+  statusHistory?: Array<{ type: string; at: string; by: { role: string; id: string } | null }>;
   createdAt: string;
   updatedAt: string;
   clinicDisplayName?: string;
@@ -360,6 +368,79 @@ export interface Booking {
   doctorName?: string | null;
   branchName?: string | null;
   durationMin?: number;
+}
+
+// --- Prescriptions (auth required) ---
+
+export type FoodRelation = 'before_food' | 'after_food' | 'no_relation';
+export type PillStatus = 'pending' | 'taken' | 'skipped';
+
+export interface PrescriptionMedicine {
+  key: string;
+  name: string;
+  dosage: string;
+  durationDays: number;
+  timesPerDay: number;
+  foodRelation: FoodRelation;
+  foodTiming: string | null;
+  notes: string | null;
+  scheduleTimes: string[];
+}
+
+export interface PrescriptionCard {
+  _id: string;
+  bookingId: string;
+  clinicId: string;
+  doctorId: string;
+  doctorName: string;
+  clinicName: string;
+  prescriptionDate: string;
+  medicinesCount: number;
+}
+
+export interface PrescriptionDetail {
+  _id: string;
+  bookingId: string;
+  clinicId: string;
+  doctorId: string;
+  doctorName: string;
+  clinicName: string;
+  prescriptionDate: string;
+  medicines: PrescriptionMedicine[];
+  schedule: { date: string; items: Array<{ medicineKey: string; time: string; name: string; dosage: string; foodRelation: FoodRelation; foodTiming: string | null; notes: string | null; status: PillStatus }> };
+}
+
+export async function getMyPrescriptions(): Promise<PrescriptionCard[]> {
+  const { data } = await api.get<{ success: boolean; data: PrescriptionCard[] }>('/prescriptions/me');
+  if (!data.success) throw new Error('Failed to load prescriptions');
+  return data.data;
+}
+
+export async function getPrescriptionById(id: string, date?: string): Promise<PrescriptionDetail> {
+  const { data } = await api.get<{ success: boolean; data: PrescriptionDetail }>(`/prescriptions/${id}`, {
+    params: date ? { date } : {},
+  });
+  if (!data.success) throw new Error('Prescription not found');
+  return data.data;
+}
+
+export async function setPrescriptionEvent(input: { prescriptionId: string; medicineKey: string; date: string; time: string; action: 'taken' | 'skipped' }) {
+  const { data } = await api.post<{ success: boolean; data: any }>(`/prescriptions/${input.prescriptionId}/event`, {
+    medicineKey: input.medicineKey,
+    date: input.date,
+    time: input.time,
+    action: input.action,
+  });
+  if (!data.success) throw new Error('Failed to update');
+  return data.data;
+}
+
+export async function getMyNextPill(): Promise<{ prescriptionId: string; time: string; medicineName: string } | null> {
+  const { data } = await api.get<{ success: boolean; data: { prescriptionId: string; time: string; medicineName: string } | null }>(
+    '/prescriptions/me/next'
+  );
+  if (!data.success) throw new Error('Failed to load');
+  return data.data;
 }
 
 export async function createBooking(body: {
@@ -373,6 +454,17 @@ export async function createBooking(body: {
   const { data } = await api.post<{ success: boolean; data: Booking }>('/bookings', body);
   if (!data.success) throw new Error('Booking failed');
   return data.data;
+}
+
+export async function getBookedSlots(clinicId: string, doctorId: string, date: string): Promise<string[]> {
+  try {
+    const { data } = await api.get<{ success: boolean; data: string[] }>('/bookings/booked-slots', {
+      params: { clinicId, doctorId, date },
+    });
+    return data.success ? data.data : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getMyBookings(status?: BookingStatus): Promise<Booking[]> {
