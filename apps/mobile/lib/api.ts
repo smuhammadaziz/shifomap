@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-// EXPO_PUBLIC_API_URL: set in .env for physical device (e.g. http://192.168.1.x:8080).
+// EXPO_PUBLIC_API_URL: set in .env (production: https://api.shifoyol.uz, dev: http://192.168.x.x:8080).
 // Android emulator: 10.0.2.2 is the host machine. iOS Simulator: localhost works.
 function getApiBase(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  if (Platform.OS === 'android') return 'http://10.233.118.224:8080';
-  return 'http://10.233.118.224:8080';
+  // Fallback to production backend if .env is not set
+  return 'https://api.shifoyol.uz';
 }
 const API_BASE = getApiBase();
 
@@ -15,7 +15,7 @@ export function getConnectionErrorMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   const code = (err as { code?: string })?.code;
   if (code === 'ERR_NETWORK' || msg.includes('Network Error') || msg.includes('ECONNREFUSED')) {
-    return "Cannot reach server. On a physical device, set EXPO_PUBLIC_API_URL in .env to your computer's IP (e.g. http://192.168.1.x:8080) and restart Expo.";
+    return "Cannot reach server. Please check your internet connection and try again.";
   }
   return msg;
 }
