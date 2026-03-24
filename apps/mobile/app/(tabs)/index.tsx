@@ -190,7 +190,7 @@ const HomeScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.fixedHeaderAvatarBtn}
-            onPress={() => router.push('/profile')}
+            onPress={() => router.push('/(tabs)/profile')}
             activeOpacity={0.85}
             hitSlop={8}
             accessibilityLabel={t.profileDashboard}
@@ -341,6 +341,17 @@ const HomeScreen = () => {
               <Text style={[styles.clinicsViewAll, { color: colors.primaryLight }]}>{t.viewAll}</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={[styles.searchMapBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/clinics-map')}
+          >
+            <Ionicons name="map-outline" size={24} color={colors.primary} style={{ marginRight: 12 }} />
+            <Text style={[styles.searchMapBtnText, { color: colors.text }]}>{t.searchFromMap || 'Search from map'}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
+
           {clinicsLoading ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.clinicsScrollContent} style={styles.clinicsScroll}>
               {[1, 2, 3, 4].map((i) => (
@@ -622,6 +633,19 @@ const styles = StyleSheet.create({
   clinicsSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   clinicsSectionTitle: { fontSize: 18, fontWeight: '700' },
   clinicsViewAll: { fontSize: 14, fontWeight: '600' },
+  searchMapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  searchMapBtnText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   clinicsScroll: { marginHorizontal: -20 },
   clinicsScrollContent: { paddingHorizontal: 20, paddingRight: 24, paddingBottom: 12, gap: 14 },
   clinicCard: {

@@ -851,6 +851,7 @@ export interface PublicClinicListItem {
   categories: string[]
   descriptionShort: string | null
   rating: { avg: number; count: number }
+  branches: Array<{ id: string; name: string; address: { city: string; street: string; geo: { lat: number; lng: number } } }>
 }
 
 /**
@@ -868,6 +869,13 @@ export async function publicListClinics(limit: number = 100): Promise<PublicClin
     categories: Array.isArray(d.category) ? d.category : [],
     descriptionShort: d.description?.short ?? null,
     rating: d.rating ? { avg: d.rating.avg, count: d.rating.count } : { avg: 0, count: 0 },
+    branches: (d.branches ?? [])
+      .filter((b) => b.isActive)
+      .map((b) => ({
+        id: b._id.toHexString(),
+        name: b.name,
+        address: b.address,
+      })),
   }))
 }
 

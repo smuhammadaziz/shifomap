@@ -1,14 +1,14 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert, Modal, Pressable, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useAuthStore, DEFAULT_AVATAR } from '../store/auth-store';
-import { useThemeStore } from '../store/theme-store';
-import { getTranslations } from '../lib/translations';
-import { getColors } from '../lib/theme';
-import { getNextUpcomingBooking, type Booking } from '../lib/api';
+import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
+import { useThemeStore } from '../../store/theme-store';
+import { getTranslations } from '../../lib/translations';
+import { getColors } from '../../lib/theme';
+import { getNextUpcomingBooking, type Booking } from '../../lib/api';
 
 const DEFAULT_DOCTOR_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
 
@@ -83,7 +83,7 @@ const ProfileDashboard = () => {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={styles.userSection}>
           <View style={styles.avatarContainer}>
             <Image source={{ uri: avatarUri }} style={[styles.avatar, { borderColor: colors.border }]} />
@@ -91,7 +91,7 @@ const ProfileDashboard = () => {
           </View>
           <View style={styles.userInfo}>
             <Text style={[styles.userName, { color: colors.text }]}>{displayName}</Text>
-            
+
           </View>
         </View>
 
@@ -180,6 +180,20 @@ const ProfileDashboard = () => {
         </ScrollView> */}
 
         <View style={[styles.settingsGroup, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}>
+            <Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Telegram Bot</Text>
+            <Ionicons name="link-outline" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://shifoyol.uz')}>
+            <Ionicons name="globe-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
+            <Text style={[styles.settingLabel, { color: colors.text }]}>shifoyol.uz</Text>
+            <Ionicons name="link-outline" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.settingsGroup, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/settings')}>
             <Ionicons name="settings-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
             <Text style={[styles.settingLabel, { color: colors.text }]}>{t.settings}</Text>
@@ -192,6 +206,8 @@ const ProfileDashboard = () => {
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
+
+
 
         <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
           <Ionicons name="log-out-outline" size={20} color={colors.error} style={{ marginRight: 8 }} />
@@ -225,141 +241,141 @@ const ProfileDashboard = () => {
 };
 
 const MedCard = ({ name, schedule, icon, color, bgColor, colors }: any) => (
-    <View style={[styles.medCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-        <View style={[styles.medIconBox, { backgroundColor: bgColor }]}>
-            <FontAwesome5 name={icon} size={18} color={color} />
-        </View>
-        <Text style={[styles.medName, { color: colors.text }]}>{name}</Text>
-        <Text style={[styles.medSchedule, { color: color }]}>{schedule}</Text>
+  <View style={[styles.medCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+    <View style={[styles.medIconBox, { backgroundColor: bgColor }]}>
+      <FontAwesome5 name={icon} size={18} color={color} />
     </View>
+    <Text style={[styles.medName, { color: colors.text }]}>{name}</Text>
+    <Text style={[styles.medSchedule, { color: color }]}>{schedule}</Text>
+  </View>
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    content: { flex: 1, padding: 20 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 20, paddingVertical: 15 },
-    backButton: { padding: 4 },
-    headerTitle: { fontSize: 18, fontWeight: '600' },
-    headerRight: { fontSize: 14 },
+  container: { flex: 1 },
+  content: { flex: 1, padding: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 20, paddingVertical: 15 },
+  backButton: { padding: 4 },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
+  headerRight: { fontSize: 14 },
 
-    userSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
-    avatarContainer: { position: 'relative' },
-    avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2 },
-    onlineBadge: { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
-    userInfo: { marginLeft: 16 },
-    userName: { fontSize: 22, fontWeight: 'bold' },
-    premiumTag: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    premiumText: { fontSize: 14, fontWeight: '600' },
+  userSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
+  avatarContainer: { position: 'relative' },
+  avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2 },
+  onlineBadge: { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
+  userInfo: { marginLeft: 16 },
+  userName: { fontSize: 22, fontWeight: 'bold' },
+  premiumTag: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  premiumText: { fontSize: 14, fontWeight: '600' },
 
-    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    sectionTitle: { fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
-    seeAll: { fontSize: 14 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
+  seeAll: { fontSize: 14 },
 
-    upNextCard: {
-        borderRadius: 24,
-        padding: 20,
-        borderWidth: 1,
-        marginBottom: 16,
-    },
-    upNextCardEmpty: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 28,
-    },
-    emptyIconWrap: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 14,
-    },
-    emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6, textAlign: 'center' },
-    emptySubtext: { fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
-    emptyCta: {
-        marginTop: 16,
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 14,
-    },
-    emptyCtaText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-    upNextHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-    consultationTag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-    consultationText: { fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
-    videoButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-    timeText: { fontSize: 32, fontWeight: 'bold', letterSpacing: -1 },
-    dateText: { fontSize: 14, marginBottom: 20 },
-    doctorRow: { flexDirection: 'row', alignItems: 'center' },
-    doctorAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 12 },
-    doctorInfo: { justifyContent: 'center' },
-    doctorName: { fontSize: 14, fontWeight: '600' },
-    doctorSpecialty: { fontSize: 12 },
+  upNextCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  upNextCardEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+  },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6, textAlign: 'center' },
+  emptySubtext: { fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
+  emptyCta: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+  },
+  emptyCtaText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  upNextHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  consultationTag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  consultationText: { fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+  videoButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  timeText: { fontSize: 32, fontWeight: 'bold', letterSpacing: -1 },
+  dateText: { fontSize: 14, marginBottom: 20 },
+  doctorRow: { flexDirection: 'row', alignItems: 'center' },
+  doctorAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 12 },
+  doctorInfo: { justifyContent: 'center' },
+  doctorName: { fontSize: 14, fontWeight: '600' },
+  doctorSpecialty: { fontSize: 12 },
 
-    historyCard: {
-        borderRadius: 20,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-    },
-    historyIconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-    historyInfo: { flex: 1 },
-    historyTitle: { fontSize: 16, fontWeight: '600' },
-    historySubtitle: { fontSize: 12, marginTop: 2 },
+  historyCard: {
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  historyIconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  historyInfo: { flex: 1 },
+  historyTitle: { fontSize: 16, fontWeight: '600' },
+  historySubtitle: { fontSize: 12, marginTop: 2 },
 
-    medsScroll: { paddingRight: 20 },
-    medCard: {
-        width: 130,
-        padding: 16,
-        borderRadius: 20,
-        marginRight: 12,
-        borderWidth: 1,
-    },
-    medIconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-    medName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
-    medSchedule: { fontSize: 10, fontWeight: '500' },
+  medsScroll: { paddingRight: 20 },
+  medCard: {
+    width: 130,
+    padding: 16,
+    borderRadius: 20,
+    marginRight: 12,
+    borderWidth: 1,
+  },
+  medIconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  medName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  medSchedule: { fontSize: 10, fontWeight: '500' },
 
-    settingsGroup: {
-        marginTop: 30,
-        borderRadius: 20,
-        borderWidth: 1,
-        overflow: 'hidden'
-    },
-    settingRow: { flexDirection: 'row', alignItems: 'center', padding: 18 },
-    settingIcon: { marginRight: 16 },
-    settingLabel: { flex: 1, fontSize: 16 },
-    divider: { height: 1, marginLeft: 56 },
+  settingsGroup: {
+    marginTop: 30,
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden'
+  },
+  settingRow: { flexDirection: 'row', alignItems: 'center', padding: 18 },
+  settingIcon: { marginRight: 16 },
+  settingLabel: { flex: 1, fontSize: 16 },
+  divider: { height: 1, marginLeft: 56 },
 
-    logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 40 },
-    logoutText: { fontSize: 15, fontWeight: '600' },
+  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 40 },
+  logoutText: { fontSize: 15, fontWeight: '600' },
 
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    comingSoonCard: {
-        width: '100%',
-        maxWidth: 320,
-        borderRadius: 20,
-        borderWidth: 1,
-        padding: 24,
-        alignItems: 'center',
-    },
-    comingSoonIconWrap: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-    comingSoonTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-    comingSoonMessage: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
-    comingSoonBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, minWidth: 120, alignItems: 'center' },
-    comingSoonBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  comingSoonCard: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+  },
+  comingSoonIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  comingSoonTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  comingSoonMessage: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
+  comingSoonBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, minWidth: 120, alignItems: 'center' },
+  comingSoonBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
 
 export default ProfileDashboard;

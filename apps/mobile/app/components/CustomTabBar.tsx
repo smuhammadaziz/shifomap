@@ -6,8 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../../store/theme-store';
 import { getColors } from '../../lib/theme';
 
-const NUM_TABS = 3;
-
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const insets = useSafeAreaInsets();
     const theme = useThemeStore((s) => s.theme);
@@ -15,9 +13,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
     const [dimensions, setDimensions] = useState({ height: 20, width: 100 });
 
     const tabPositionX = useRef(new Animated.Value(0)).current;
-    const labelOpacities = useRef(
-        Array.from({ length: NUM_TABS }, () => new Animated.Value(0))
-    ).current;
 
     const buttonWidth = dimensions.width / state.routes.length;
 
@@ -29,46 +24,35 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
     };
 
     useEffect(() => {
-        Animated.spring(tabPositionX, {
-            toValue: state.index * buttonWidth,
-            useNativeDriver: true,
-            damping: 15,
-            stiffness: 80,
-        }).start();
+        if (buttonWidth > 0) {
+            Animated.spring(tabPositionX, {
+                toValue: state.index * buttonWidth,
+                useNativeDriver: true,
+                damping: 20,
+                stiffness: 150,
+            }).start();
+        }
     }, [state.index, buttonWidth, tabPositionX]);
 
-    useEffect(() => {
-        state.routes.forEach((_, index) => {
-            Animated.timing(labelOpacities[index], {
-                toValue: state.index === index ? 1 : 0,
-                duration: 200,
-                useNativeDriver: true,
-            }).start();
-        });
-    }, [state.index, state.routes]);
-
     return (
-        <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.tabBarContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={[styles.tabBar, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onLayout={onTabbarLayout}>
-                <Animated.View
-                    style={[
-                        styles.activeTabBackground,
-                        {
-                            backgroundColor: colors.primary,
-                            width: buttonWidth - 10,
-                            transform: [{ translateX: tabPositionX }]
-                        },
-                    ]}
-                />
+                {dimensions.width > 100 && (
+                    <Animated.View
+                        style={[
+                            styles.activeTabIndicator,
+                            {
+                                width: buttonWidth,
+                                transform: [{ translateX: tabPositionX }]
+                            },
+                        ]}
+                    >
+                        <View style={[styles.activeTabCircle, { backgroundColor: colors.primary }]} />
+                    </Animated.View>
+                )}
+                
                 {state.routes.map((route, index) => {
                     const { options } = descriptors[route.key];
-                    const label =
-                        options.tabBarLabel !== undefined
-                            ? options.tabBarLabel
-                            : options.title !== undefined
-                                ? options.title
-                                : route.name;
-
                     const isFocused = state.index === index;
 
                     const onPress = () => {
@@ -83,15 +67,8 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                         }
                     };
 
-                    const onLongPress = () => {
-                        navigation.emit({
-                            type: 'tabLongPress',
-                            target: route.key,
-                        });
-                    };
-
                     let IconComponent: any = Ionicons;
-                    let iconName: any = 'home-outline';
+                    let iconName: any = 'home';
 
                     if (route.name === 'index') {
                         iconName = isFocused ? 'home' : 'home-outline';
@@ -100,6 +77,8 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                     } else if (route.name === 'pill-reminder') {
                         IconComponent = MaterialCommunityIcons;
                         iconName = isFocused ? 'pill' : 'pill';
+                    } else if (route.name === 'profile') {
+                        iconName = 'person';
                     }
 
                     return (
@@ -110,23 +89,15 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                             accessibilityLabel={options.tabBarAccessibilityLabel}
                             testID={(options as any).tabBarTestID}
                             onPress={onPress}
-                            onLongPress={onLongPress}
                             style={styles.tabItem}
-                            activeOpacity={0.7}
+                            activeOpacity={0.8}
                         >
                             <IconComponent
                                 name={iconName}
-                                size={22}
-                                color={isFocused ? '#ffffff' : colors.textSecondary}
+                                size={24}
+                                color={isFocused ? '#ffffff' : colors.textTertiary}
+                                style={{ zIndex: 1 }}
                             />
-                            <Animated.Text
-                                style={[
-                                    styles.tabLabel,
-                                    { opacity: labelOpacities[index], display: isFocused ? 'flex' : 'none' }
-                                ]}
-                            >
-                                {label as string}
-                            </Animated.Text>
                         </TouchableOpacity>
                     );
                 })}
@@ -142,28 +113,33 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         backgroundColor: 'transparent',
+        paddingHorizontal: 24,
     },
     tabBar: {
         flexDirection: 'row',
-        height: 65,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        borderRadius: 40,
+        height: 64,
+        borderRadius: 32,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 15,
+        elevation: 10,
         overflow: 'hidden',
     },
-    activeTabBackground: {
+    activeTabIndicator: {
         position: 'absolute',
         height: '100%',
-        borderRadius: 40,
-        left: 5,
+        left: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    activeTabCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
     },
     tabItem: {
         flex: 1,
@@ -171,12 +147,5 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         height: '100%',
         zIndex: 10,
-        flexDirection: 'row',
-        gap: 6
     },
-    tabLabel: {
-        color: '#ffffff',
-        fontSize: 12,
-        fontWeight: '600',
-    }
 });

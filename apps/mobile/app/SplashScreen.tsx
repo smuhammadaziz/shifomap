@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, ActivityIndicator, Image, Animated } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Image, Animated, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore, needsProfile } from '../store/auth-store';
@@ -79,6 +79,9 @@ const SplashScreen = () => {
       <Animated.View style={[styles.logoWrap, { transform: [{ scale }] }]}>
         <Image source={LOGO} style={styles.logo} resizeMode="contain" />
       </Animated.View>
+      <Animated.Text style={[styles.appName, { transform: [{ scale }], color: theme === 'dark' ? '#fff' : colors.primary }]}>
+        ShifoYo'l
+      </Animated.Text>
       <ActivityIndicator size="large" color={colors.primaryLight} style={styles.spinner} />
     </LinearGradient>
   );
@@ -99,6 +102,12 @@ const styles = StyleSheet.create({
   logo: {
     width: '60%',
     height: '60%',
+  },
+  appName: {
+    fontSize: 34,
+    fontWeight: '800',
+    marginTop: -20,
+    letterSpacing: 1,
   },
   spinner: {
     position: 'absolute',

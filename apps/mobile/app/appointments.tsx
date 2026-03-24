@@ -21,6 +21,8 @@ const statusToTab: Record<BookingStatus, TabFilter | null> = {
   confirmed: 'upcoming',
   pending: 'upcoming',
   cancelled: 'cancelled',
+  patient_arrived: 'upcoming',
+  in_progress: 'upcoming',
 };
 
 export default function AppointmentsScreen() {

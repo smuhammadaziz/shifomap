@@ -13,6 +13,8 @@ import {
   Platform,
   Alert,
   Image,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -286,39 +288,43 @@ export default function AppointmentDetailScreen() {
 
       {/* Cancel reason bottom sheet */}
       <Modal visible={sheetVisible} transparent animationType="none">
-        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSheetVisible(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetAvoid}>
-          <Animated.View style={[styles.sheet, { backgroundColor: colors.backgroundCard, borderColor: colors.border, transform: [{ translateY: slideAnim }] }]}>
-            <View style={[styles.sheetHandle, { backgroundColor: colors.textTertiary }]} />
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>{t.whyCancel}</Text>
+        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setSheetVisible(false); }} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetAvoid}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <Animated.View style={[styles.sheet, { backgroundColor: colors.backgroundCard, borderColor: colors.border, transform: [{ translateY: slideAnim }] }]}>
+              <View style={[styles.sheetHandle, { backgroundColor: colors.textTertiary }]} />
+              <Text style={[styles.sheetTitle, { color: colors.text }]}>{t.whyCancel}</Text>
             
-            <TextInput
-              style={[styles.sheetInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-              placeholder={t.whyCancel}
-              placeholderTextColor={colors.textTertiary}
-              value={cancelReason}
-              onChangeText={setCancelReason}
-              multiline
-              numberOfLines={4}
-            />
+              <ScrollView keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={false}>
+                <TextInput
+                  style={[styles.sheetInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                  placeholder={t.whyCancel}
+                  placeholderTextColor={colors.textTertiary}
+                  value={cancelReason}
+                  onChangeText={setCancelReason}
+                  multiline
+                  numberOfLines={4}
+                />
             
-            <TouchableOpacity
-              style={[styles.sheetConfirmBtn, { backgroundColor: colors.error }, cancelling && styles.sheetConfirmBtnDisabled]}
-              onPress={handleCancelConfirm}
-              disabled={cancelling}
-              activeOpacity={0.8}
-            >
-              {cancelling ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.sheetConfirmBtnText}>{t.cancelAppointment}</Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.sheetConfirmBtn, { backgroundColor: colors.error }, cancelling && styles.sheetConfirmBtnDisabled]}
+                  onPress={handleCancelConfirm}
+                  disabled={cancelling}
+                  activeOpacity={0.8}
+                >
+                  {cancelling ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.sheetConfirmBtnText}>{t.cancelAppointment}</Text>
+                  )}
+                </TouchableOpacity>
             
-            <TouchableOpacity style={styles.sheetDismiss} onPress={() => setSheetVisible(false)} activeOpacity={0.8}>
-              <Text style={[styles.sheetDismissText, { color: colors.textSecondary }]}>{t.back}</Text>
-            </TouchableOpacity>
-          </Animated.View>
+                <TouchableOpacity style={styles.sheetDismiss} onPress={() => setSheetVisible(false)} activeOpacity={0.8}>
+                  <Text style={[styles.sheetDismissText, { color: colors.textSecondary }]}>{t.back}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </Animated.View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </View>

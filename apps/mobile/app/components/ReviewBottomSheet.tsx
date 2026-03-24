@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Platform,
   TextInput,
   ActivityIndicator,
+  ScrollView,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeStore } from '../../store/theme-store';
@@ -49,6 +51,7 @@ export default function ReviewBottomSheet({
   const [stars, setStars] = useState(5);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (visible) {
@@ -76,6 +79,11 @@ export default function ReviewBottomSheet({
     }
   };
 
+  const handleBackdropPress = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
   if (!visible) return null;
 
   const sheetBg = colors.backgroundCard ?? '#18181b';
@@ -85,14 +93,15 @@ export default function ReviewBottomSheet({
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleBackdropPress}>
         <View style={[styles.backdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]} />
       </TouchableWithoutFeedback>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <TouchableWithoutFeedback>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={[styles.sheet, { backgroundColor: sheetBg, borderColor: sheetBorder }]}>
             <View style={styles.handleWrap}>
               <View style={[styles.handle, { backgroundColor: colors.textTertiary }]} />
@@ -109,7 +118,14 @@ export default function ReviewBottomSheet({
               </TouchableOpacity>
             </View>
 
-            <View style={styles.body}>
+            <ScrollView
+              ref={scrollRef}
+              style={styles.bodyScroll}
+              contentContainerStyle={styles.body}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
               <Text style={[styles.label, { color: colors.textSecondary }]}>{t.yourRating}</Text>
               <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((s) => (
@@ -145,6 +161,9 @@ export default function ReviewBottomSheet({
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
+                onFocus={() => {
+                  setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+                }}
               />
 
               {!token && (
@@ -164,7 +183,7 @@ export default function ReviewBottomSheet({
                   <Text style={styles.submitBtnText}>{t.submitReview}</Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -225,6 +244,10 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: 10,
+  },
+  bodyScroll: {
+    maxHeight: 400,
   },
   label: {
     fontSize: 13,

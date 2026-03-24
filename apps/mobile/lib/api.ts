@@ -266,6 +266,7 @@ export interface ClinicListItem {
   categories: string[];
   descriptionShort: string | null;
   rating: { avg: number; count: number };
+  branches: Array<{ id: string; name: string; address: { city: string; street: string; geo: { lat: number; lng: number } } }>;
 }
 
 export async function getClinicsList(limit = 100): Promise<ClinicListItem[]> {

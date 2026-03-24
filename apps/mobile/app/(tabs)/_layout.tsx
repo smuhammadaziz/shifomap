@@ -4,10 +4,11 @@ import CustomTabBar from '../components/CustomTabBar';
 import { useAuthStore } from '../../store/auth-store';
 import { getTranslations } from '../../lib/translations';
 
-const tabTitleKey: Record<string, 'tabHome' | 'tabSchedule' | 'tabPills'> = {
+const tabTitleKey: Record<string, 'tabHome' | 'tabSchedule' | 'tabPills' | 'tabProfile'> = {
   index: 'tabHome',
   appointments: 'tabSchedule',
   'pill-reminder': 'tabPills',
+  profile: 'tabProfile',
 };
 
 export default function TabLayout() {
@@ -26,6 +27,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="appointments" />
       <Tabs.Screen name="pill-reminder" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }
