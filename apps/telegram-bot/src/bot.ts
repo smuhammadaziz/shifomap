@@ -4,6 +4,7 @@ import { env } from "./env.js"
 import { connectMongo, getDb, TELEGRAM_USERS_COLLECTION } from "./db/mongo.js"
 import {
   findUserByTgChatId,
+  findUserByPhoneNumber,
   upsertUser,
   appendMessage,
   updateUserName,
@@ -197,8 +198,13 @@ bot.on(message("contact"), async (ctx) => {
     ? (contact.phone_number.startsWith("+") ? contact.phone_number : `+${contact.phone_number}`)
     : ""
   const name = ctx.from?.first_name ?? ctx.from?.username ?? "User"
+  const msg = getLang(lang(ctx))
   const referrerChatId = pendingReferral.get(ctx.chat.id)
-  const wasNew = (await findUserByTgChatId(ctx.chat.id)) === null
+  
+  // Strict check: Is this user NEW (by ChatID AND Phone)?
+  const userByTg = await findUserByTgChatId(ctx.chat.id)
+  const userByPhone = await findUserByPhoneNumber(phone)
+  const isTrulyNew = !userByTg && !userByPhone
 
   await upsertUser({
     name,
@@ -206,16 +212,21 @@ bot.on(message("contact"), async (ctx) => {
     phoneNumber: phone,
     referredBy: referrerChatId,
   })
-  if (referrerChatId != null && wasNew) {
-    pendingReferral.delete(ctx.chat.id)
-    await addReferralBonus(referrerChatId)
-    try {
-      const refMsg = getLang(userLang.get(referrerChatId) ?? "uz")
-      await ctx.telegram.sendMessage(referrerChatId, refMsg.bonusAdded)
-    } catch (_) { }
-  }
 
-  const msg = getLang(lang(ctx))
+  if (referrerChatId != null) {
+    if (isTrulyNew) {
+      pendingReferral.delete(ctx.chat.id)
+      await addReferralBonus(referrerChatId)
+      try {
+        const refMsg = getLang(userLang.get(referrerChatId) ?? "uz")
+        await ctx.telegram.sendMessage(referrerChatId, refMsg.bonusAdded)
+      } catch (_) { }
+    } else {
+      // User already exists, don't give bonus, optionally notify them
+      pendingReferral.delete(ctx.chat.id)
+      await ctx.reply(msg.referralNotAllowed)
+    }
+  }
   await ctx.reply(msg.thanks, mainMenuKeyboard(lang(ctx)))
 })
 
@@ -234,7 +245,98 @@ bot.on(message("text"), async (ctx) => {
   const l = lang(ctx)
   const msg = getLang(l)
 
-  // Change name flow (user sent new name as text)
+  // 1. Priority: Main menu / Settings buttons
+  // If user clicks a button, we reset any "waiting for text" state.
+  if (
+    isSettingsButton(text) ||
+    isBackButton(text) ||
+    isSupportButton(text) ||
+    isAboutUsButton(text) ||
+    isMyDoctorButton(text) ||
+    isChangeNameButton(text) ||
+    isChangeLanguageButton(text) ||
+    isMyAiUsageButton(text)
+  ) {
+    // Clear all potential "waiting" states when a button was pressed
+    waitingForSupportMessage.delete(chatId)
+    waitingForAiPrompt.delete(chatId)
+    waitingForNewName.delete(chatId)
+    waitingForLanguageChange.delete(chatId)
+
+    if (isSettingsButton(text)) {
+      await ctx.reply(msg.chooseAction, settingsMenuKeyboard(l))
+      return
+    }
+    if (isBackButton(text)) {
+      await ctx.reply(msg.backToMenu, mainMenuKeyboard(l))
+      return
+    }
+    if (isChangeNameButton(text)) {
+      const user = await findUserByTgChatId(chatId)
+      if (!user) {
+        await ctx.reply(msg.pleaseStartAndShareFirst)
+        return
+      }
+      waitingForNewName.add(chatId)
+      await ctx.reply(msg.enterNewName, Markup.removeKeyboard())
+      return
+    }
+    if (isChangeLanguageButton(text)) {
+      waitingForLanguageChange.add(chatId)
+      await ctx.reply(msg.chooseLang, Markup.keyboard([
+        [Markup.button.text(msg.langUz), Markup.button.text(msg.langRu)],
+      ]).resize())
+      return
+    }
+    if (isMyAiUsageButton(text)) {
+      const user = await findUserByTgChatId(chatId)
+      if (!user) {
+        await ctx.reply(msg.pleaseStartAndShareFirst)
+        return
+      }
+      const today = new Date()
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
+      const usedToday = user.aiUsedTodayDate === todayStr ? (user.aiUsedToday ?? 0) : 0
+      const total = user.aiQuestionsTotal ?? 0
+      const bonus = user.aiBonusBank ?? 0
+      const statsText = msg.aiUsageStats(total, usedToday, bonus)
+      await ctx.reply(statsText, settingsMenuKeyboard(l))
+      return
+    }
+    if (isSupportButton(text)) {
+      const user = await findUserByTgChatId(chatId)
+      if (!user) {
+        await ctx.reply(msg.pleaseStartAndShareFirst)
+        return
+      }
+      waitingForSupportMessage.add(chatId)
+      await ctx.reply(msg.typeSupportMessage, Markup.removeKeyboard())
+      return
+    }
+    if (isAboutUsButton(text)) {
+      await ctx.reply(`${msg.aboutUsPost}\n\n`)
+      return
+    }
+    if (isMyDoctorButton(text)) {
+      const user = await findUserByTgChatId(chatId)
+      if (!user) {
+        await ctx.reply(msg.pleaseStartAndShareFirst)
+        return
+      }
+      if (!canUseAi(user)) {
+        const botUsername = (await ctx.telegram.getMe()).username
+        await ctx.reply(
+          `${msg.aiLimitReached}\n\n${msg.yourReferralLink}\nhttps://t.me/${botUsername}?start=ref_${chatId}`
+        )
+        return
+      }
+      waitingForAiPrompt.add(chatId)
+      await ctx.reply(msg.personalDoctorIntro, Markup.removeKeyboard())
+      return
+    }
+  }
+
+  // 2. Secondary: If not a button, check "Waiting for Input" states
   if (waitingForNewName.has(chatId)) {
     waitingForNewName.delete(chatId)
     const user = await findUserByTgChatId(chatId)
@@ -248,49 +350,6 @@ bot.on(message("text"), async (ctx) => {
     return
   }
 
-  // Settings menu actions
-  if (isSettingsButton(text)) {
-    await ctx.reply(msg.chooseAction, settingsMenuKeyboard(l))
-    return
-  }
-  if (isBackButton(text)) {
-    await ctx.reply(msg.backToMenu, mainMenuKeyboard(l))
-    return
-  }
-  if (isChangeNameButton(text)) {
-    const user = await findUserByTgChatId(chatId)
-    if (!user) {
-      await ctx.reply(msg.pleaseStartAndShareFirst)
-      return
-    }
-    waitingForNewName.add(chatId)
-    await ctx.reply(msg.enterNewName, Markup.removeKeyboard())
-    return
-  }
-  if (isChangeLanguageButton(text)) {
-    waitingForLanguageChange.add(chatId)
-    await ctx.reply(msg.chooseLang, Markup.keyboard([
-      [Markup.button.text(msg.langUz), Markup.button.text(msg.langRu)],
-    ]).resize())
-    return
-  }
-  if (isMyAiUsageButton(text)) {
-    const user = await findUserByTgChatId(chatId)
-    if (!user) {
-      await ctx.reply(msg.pleaseStartAndShareFirst)
-      return
-    }
-    const today = new Date()
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
-    const usedToday = user.aiUsedTodayDate === todayStr ? (user.aiUsedToday ?? 0) : 0
-    const total = user.aiQuestionsTotal ?? 0
-    const bonus = user.aiBonusBank ?? 0
-    const statsText = msg.aiUsageStats(total, usedToday, bonus)
-    await ctx.reply(statsText, settingsMenuKeyboard(l))
-    return
-  }
-
-  // Support flow
   if (waitingForSupportMessage.has(chatId)) {
     waitingForSupportMessage.delete(chatId)
     const user = await findUserByTgChatId(chatId)
@@ -319,18 +378,6 @@ bot.on(message("text"), async (ctx) => {
     return
   }
 
-  if (isSupportButton(text)) {
-    const user = await findUserByTgChatId(chatId)
-    if (!user) {
-      await ctx.reply(msg.pleaseStartAndShareFirst)
-      return
-    }
-    waitingForSupportMessage.add(chatId)
-    await ctx.reply(msg.typeSupportMessage, Markup.removeKeyboard())
-    return
-  }
-
-  // AI (Shaxsiy doktor) flow
   if (waitingForAiPrompt.has(chatId)) {
     waitingForAiPrompt.delete(chatId)
     const user = await findUserByTgChatId(chatId)
@@ -371,30 +418,7 @@ bot.on(message("text"), async (ctx) => {
     return
   }
 
-  if (isAboutUsButton(text)) {
-    await ctx.reply(`${msg.aboutUsPost}\n\n`)
-    return
-  }
-
-  if (isMyDoctorButton(text)) {
-    const user = await findUserByTgChatId(chatId)
-    if (!user) {
-      await ctx.reply(msg.pleaseStartAndShareFirst)
-      return
-    }
-    if (!canUseAi(user)) {
-      const botUsername = (await ctx.telegram.getMe()).username
-      await ctx.reply(
-        `${msg.aiLimitReached}\n\n${msg.yourReferralLink}\nhttps://t.me/${botUsername}?start=ref_${chatId}`
-      )
-      return
-    }
-    waitingForAiPrompt.add(chatId)
-    await ctx.reply(msg.personalDoctorIntro, Markup.removeKeyboard())
-    return
-  }
-
-  // Other text: remind buttons
+  // 3. Fallback: remind buttons
   const user = await findUserByTgChatId(chatId)
   if (user) {
     await ctx.reply(msg.tapSupport, mainMenuKeyboard(l))

@@ -30,6 +30,12 @@ export async function findUserByTgChatId(tgChatId: number): Promise<TelegramUser
   return doc ?? null
 }
 
+export async function findUserByPhoneNumber(phoneNumber: string): Promise<TelegramUserDoc | null> {
+  const db = getDb()
+  const doc = await db.collection<TelegramUserDoc>(TELEGRAM_USERS_COLLECTION).findOne({ phoneNumber })
+  return doc ?? null
+}
+
 export async function upsertUser(data: {
   name: string
   tgChatId: number
