@@ -102,7 +102,7 @@ bot.start(async (ctx) => {
   await ctx.reply(
     `${msg.hi}, ${name}! 👋\n\n${msg.chooseLang}`,
     Markup.keyboard([
-      [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+      [Markup.button.text(msg.langUz), Markup.button.text(msg.langRu)],
     ]).resize()
   )
 })
@@ -114,7 +114,7 @@ bot.command("ai", async (ctx) => {
     await ctx.reply(
       "Tilni tanlang / Выберите язык:",
       Markup.keyboard([
-        [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+        [Markup.button.text(t.uz.langUz), Markup.button.text(t.uz.langRu)],
       ]).resize()
     )
     return
@@ -144,7 +144,7 @@ bot.command("settings", async (ctx) => {
     await ctx.reply(
       "Tilni tanlang / Выберите язык:",
       Markup.keyboard([
-        [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+        [Markup.button.text(t.uz.langUz), Markup.button.text(t.uz.langRu)],
       ]).resize()
     )
     return
@@ -161,7 +161,7 @@ bot.command("about", async (ctx) => {
     await ctx.reply(
       "Tilni tanlang / Выберите язык:",
       Markup.keyboard([
-        [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+        [Markup.button.text(t.uz.langUz), Markup.button.text(t.uz.langRu)],
       ]).resize()
     )
     return
@@ -172,9 +172,9 @@ bot.command("about", async (ctx) => {
 })
 
 // Language selection (start flow or change-language-from-settings)
-bot.hears(["O'zbekcha", "Русский"], async (ctx) => {
+bot.hears([t.uz.langUz, t.uz.langRu], async (ctx) => {
   const text = ctx.message.text
-  const newLang: Lang = text === "Русский" ? "ru" : "uz"
+  const newLang: Lang = text === t.uz.langRu ? "ru" : "uz"
   userLang.set(ctx.chat.id, newLang)
   const msg = getLang(newLang)
   if (waitingForLanguageChange.has(ctx.chat.id)) {
@@ -226,7 +226,7 @@ bot.on(message("text"), async (ctx) => {
     await ctx.reply(
       "Tilni tanlang / Выберите язык:",
       Markup.keyboard([
-        [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+        [Markup.button.text(t.uz.langUz), Markup.button.text(t.uz.langRu)],
       ]).resize()
     )
     return
@@ -270,7 +270,7 @@ bot.on(message("text"), async (ctx) => {
   if (isChangeLanguageButton(text)) {
     waitingForLanguageChange.add(chatId)
     await ctx.reply(msg.chooseLang, Markup.keyboard([
-      [Markup.button.text("O'zbekcha"), Markup.button.text("Русский")],
+      [Markup.button.text(msg.langUz), Markup.button.text(msg.langRu)],
     ]).resize())
     return
   }
@@ -360,12 +360,11 @@ bot.on(message("text"), async (ctx) => {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error("[Shaxsiy doktor AI error]", errMsg)
-      const errText = l === "ru" ? "❌ Не удалось подготовить ответ. Попробуйте позже." : "❌ Javob tayyorlanmadi. Keyinroq urinib ko'ring."
       await ctx.telegram.editMessageText(
         ctx.chat.id,
         preparingMsg.message_id,
         undefined,
-        errText
+        msg.aiError
       ).catch(() => { })
       await ctx.reply(msg.askNewPressButton, mainMenuKeyboard(l))
     }
