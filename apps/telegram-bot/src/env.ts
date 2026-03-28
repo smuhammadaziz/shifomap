@@ -9,5 +9,5 @@ export const env = {
   TELEGRAM_GROUP_CHAT_ID: required("TELEGRAM_GROUP_CHAT_ID"),
   MONGODB_URI: required("MONGODB_URI"),
   MONGODB_DB_NAME: required("MONGODB_DB_NAME"),
-  GEMINI_API_KEY: required("GEMINI_API_KEY"),
+  OPENAI_API_KEY: required("OPENAI_API_KEY"),
 }

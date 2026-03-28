@@ -12,7 +12,7 @@ import {
   addReferralBonus,
 } from "./db/telegram-users.repo.js"
 import { getLang, t, type Lang } from "./i18n.js"
-import { generateHealthReply } from "./ai/gemini.js"
+import { generateHealthReply } from "./ai/openai.js"
 
 const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN)
 const GROUP_CHAT_ID = env.TELEGRAM_GROUP_CHAT_ID
