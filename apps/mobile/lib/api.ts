@@ -6,8 +6,8 @@ import { Platform } from 'react-native';
 function getApiBase(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
   // Fallback to production backend if .env is not set
-  // return 'https://api.shifoyol.uz';
-  return 'http://192.168.58.151:8080'
+  return 'https://api.shifoyol.uz';
+  // return 'http://192.168.58.151:8080'
 }
 const API_BASE = getApiBase();
 
