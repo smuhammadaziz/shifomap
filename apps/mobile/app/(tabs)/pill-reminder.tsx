@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
@@ -25,7 +25,6 @@ const PillReminderScreen = () => {
     const [pillName, setPillName] = useState('');
     const [pillTime, setPillTime] = useState('09:00');
     const [pillNotes, setPillNotes] = useState('');
-    const [pillTimesPerDay, setPillTimesPerDay] = useState(1);
     const [submitting, setSubmitting] = useState(false);
 
     const load = useCallback(async (isRefresh = false) => {
@@ -52,19 +51,22 @@ const PillReminderScreen = () => {
             Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', language === 'uz' ? 'Dori nomi kiritilishi shart' : 'Название лекарства обязательно');
             return;
         }
+        if (!/^\d{2}:\d{2}$/.test(pillTime)) {
+            Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', language === 'uz' ? 'Vaqtni HH:MM formatda kiriting (m: 09:00)' : 'Введите время в формате ЧЧ:ММ (н: 09:00)');
+            return;
+        }
         setSubmitting(true);
         try {
             await addCustomReminder({
                 pillName: pillName.trim(),
                 time: pillTime,
                 notes: pillNotes.trim() || null,
-                timesPerDay: pillTimesPerDay
+                timesPerDay: 1
             });
             setModalVisible(false);
             setPillName('');
             setPillNotes('');
             setPillTime('09:00');
-            setPillTimesPerDay(1);
             load();
         } catch (err) {
             Alert.alert('Error', 'Failed to add reminder');
@@ -181,7 +183,7 @@ const PillReminderScreen = () => {
                                             {c.pillName}
                                         </Text>
                                         <Text style={[styles.pillMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-                                            {c.time} • {c.timesPerDay} {language === 'uz' ? 'marta/kun' : 'раз/день'}
+                                            {c.time}
                                         </Text>
                                     </View>
                                     <TouchableOpacity onPress={() => handleDelete(c.id)}>
@@ -207,7 +209,10 @@ const PillReminderScreen = () => {
                 transparent={true}
                 onRequestClose={() => setModalVisible(false)}
             >
-                <View style={styles.modalOverlay}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.modalOverlay}
+                >
                     <View style={[styles.modalContent, { backgroundColor: colors.backgroundCard }]}>
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: colors.text }]}>
@@ -218,7 +223,7 @@ const PillReminderScreen = () => {
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={styles.modalScroll}>
+                        <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
                             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                                 {language === 'uz' ? 'Dori nomi' : 'Название лекарства'}
                             </Text>
@@ -230,34 +235,25 @@ const PillReminderScreen = () => {
                                 placeholderTextColor={colors.textTertiary}
                             />
 
-                            <View style={styles.rowInputs}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                        {language === 'uz' ? 'Vaqti (m: 09:00)' : 'Время (н: 09:00)'}
-                                    </Text>
-                                    <TextInput
-                                        style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                                        value={pillTime}
-                                        onChangeText={setPillTime}
-                                        placeholder="08:30"
-                                        placeholderTextColor={colors.textTertiary}
-                                    />
-                                </View>
-                                <View style={{ width: 12 }} />
-                                <View style={{ width: 100 }}>
-                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                        {language === 'uz' ? 'Kunda' : 'В день'}
-                                    </Text>
-                                    <TextInput
-                                        style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                                        value={pillTimesPerDay.toString()}
-                                        onChangeText={(v) => setPillTimesPerDay(parseInt(v) || 1)}
-                                        keyboardType="number-pad"
-                                        placeholder="1"
-                                        placeholderTextColor={colors.textTertiary}
-                                    />
-                                </View>
-                            </View>
+                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                                {language === 'uz' ? 'Vaqti (m: 09:00)' : 'Время (н: 09:00)'}
+                            </Text>
+                            <TextInput
+                                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                                value={pillTime}
+                                onChangeText={(text) => {
+                                    const digits = text.replace(/\D/g, '').slice(0, 4);
+                                    if (digits.length <= 2) {
+                                        setPillTime(digits);
+                                    } else {
+                                        setPillTime(digits.slice(0, 2) + ':' + digits.slice(2));
+                                    }
+                                }}
+                                placeholder="09:00"
+                                placeholderTextColor={colors.textTertiary}
+                                keyboardType="number-pad"
+                                maxLength={5}
+                            />
 
                             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                                 {language === 'uz' ? 'Eslatma' : 'Заметка'}
@@ -286,7 +282,7 @@ const PillReminderScreen = () => {
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </SafeAreaView>
     );

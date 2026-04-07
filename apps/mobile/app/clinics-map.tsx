@@ -9,6 +9,7 @@ import {
   FlatList,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -227,6 +228,9 @@ export default function ClinicsMapScreen() {
             bounces={false}
             scrollEnabled={false}
             originWhitelist={['*']}
+            cacheEnabled={true}
+            cacheMode="LOAD_CACHE_ELSE_NETWORK"
+            renderToHardwareTextureAndroid={true}
           />
           
           {/* Popup over Map */}
@@ -263,6 +267,32 @@ export default function ClinicsMapScreen() {
                   onPress={() => router.push({ pathname: '/clinic/[id]', params: { id: selectedMarker.clinicId } })}
                >
                   <Text style={styles.popupBtnText}>{t.seeServices || 'See Services'}</Text>
+               </TouchableOpacity>
+               <TouchableOpacity
+                  style={[styles.popupBtn, { backgroundColor: '#34C759', marginTop: 8 }]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    const lat = selectedMarker.lat;
+                    const lng = selectedMarker.lng;
+                    const yandexAppUrl = `yandexnavi://build_route_on_map?lat_to=${lat}&lon_to=${lng}`;
+                    const yandexWebUrl = `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`;
+                    Linking.canOpenURL(yandexAppUrl)
+                      .then((supported) => {
+                        if (supported) {
+                          Linking.openURL(yandexAppUrl);
+                        } else {
+                          Linking.openURL(yandexWebUrl);
+                        }
+                      })
+                      .catch(() => Linking.openURL(yandexWebUrl));
+                  }}
+               >
+                  <View style={styles.directionsBtnContent}>
+                    <Ionicons name="navigate" size={18} color="#fff" />
+                    <Text style={styles.popupBtnText}>
+                      {language === 'uz' ? 'Yo\'nalish olish' : 'Построить маршрут'}
+                    </Text>
+                  </View>
                </TouchableOpacity>
             </View>
           )}
@@ -357,6 +387,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   popupBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  directionsBtnContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   
   listScroll: { padding: 20 },
   listCard: {

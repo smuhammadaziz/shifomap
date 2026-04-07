@@ -121,7 +121,7 @@ const ProfileDashboard = () => {
                 style={[styles.videoButton, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}
                 onPress={(e) => { e.stopPropagation(); }}
               >
-                <Ionicons name="videocam" size={20} color={colors.text} />
+                <Ionicons name="people" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
             <Text style={[styles.timeText, { color: colors.text }]}>{nextBooking.scheduledTime}</Text>
