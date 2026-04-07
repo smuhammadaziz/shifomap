@@ -219,7 +219,16 @@
     "viewPrescription": "Retseptni ko'rish",
     "noPrescription": "Retsept yo'q",
     "inProgress": "Jarayonda",
-    "editProfilePasswordSuccess": "Parol o'zgartirildi"
+    "editProfilePasswordSuccess": "Parol o'zgartirildi",
+    "notificationsTitle": "Bildirishnomalar",
+    "clearAll": "HAMMASINI O'CHIRISH",
+    "all": "Hammasi",
+    "reminders": "Eslatmalar",
+    "clinicsTab": "Klinikalar",
+    "system": "Tizim",
+    "yesterday": "Kecha",
+    "viewDetail": "Batafsil",
+    "dismiss": "Yopish"
   },
   "ru": {
     "tabHome": "Главная",
@@ -441,6 +450,15 @@
     "viewPrescription": "Посмотреть рецепт",
     "noPrescription": "Нет рецепта",
     "inProgress": "В процессе",
-    "editProfilePasswordSuccess": "Пароль изменён"
+    "editProfilePasswordSuccess": "Пароль изменён",
+    "notificationsTitle": "Уведомления",
+    "clearAll": "ОЧИСТИТЬ ВСЁ",
+    "all": "Все",
+    "reminders": "Напоминания",
+    "clinicsTab": "Клиники",
+    "system": "Система",
+    "yesterday": "Вчера",
+    "viewDetail": "Подробнее",
+    "dismiss": "Скрыть"
   }
 }

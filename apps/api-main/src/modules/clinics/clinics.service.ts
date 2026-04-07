@@ -58,6 +58,7 @@ import type {
   CreateServiceBody,
   UpdateServiceBody,
   UpdateClinicInfoBody,
+  ClinicCategory,
 } from "./clinics.model"
 import { mapDocToPublicClinic, mapDocToDetailedClinic } from "./clinics.model"
 import { conflict, unauthorized, notFound } from "@/common/errors"
@@ -848,7 +849,7 @@ export interface PublicClinicListItem {
   coverUrl: string | null
   servicesCount: number
   branchesCount: number
-  categories: string[]
+  categories: string[] | ClinicCategory[]
   descriptionShort: string | null
   rating: { avg: number; count: number }
   branches: Array<{ id: string; name: string; address: { city: string; street: string; geo: { lat: number; lng: number } } }>
@@ -859,6 +860,7 @@ export interface PublicClinicListItem {
  */
 export async function publicListClinics(limit: number = 100): Promise<PublicClinicListItem[]> {
   const docs = await findActiveClinicsForPublic(limit)
+  console.log('[DEBUG-BACKEND] First Clinic Doc from DB:', JSON.stringify(docs[0], null, 2))
   return docs.map((d) => ({
     id: d._id.toHexString(),
     clinicDisplayName: d.clinicDisplayName,
@@ -866,7 +868,7 @@ export async function publicListClinics(limit: number = 100): Promise<PublicClin
     coverUrl: d.branding?.coverUrl ?? null,
     servicesCount: d.stats?.servicesCount ?? 0,
     branchesCount: d.stats?.branchesCount ?? 0,
-    categories: Array.isArray(d.category) ? d.category : [],
+    categories: (Array.isArray(d.categories) && d.categories.length > 0) ? d.categories : (Array.isArray(d.category) ? d.category : []),
     descriptionShort: d.description?.short ?? null,
     rating: d.rating ? { avg: d.rating.avg, count: d.rating.count } : { avg: 0, count: 0 },
     branches: (d.branches ?? [])

@@ -22,8 +22,9 @@ import FeaturedClinics from '../components/FeaturedClinics';
 import SaveServiceStar from '../components/SaveServiceStar';
 import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
+import { useNotificationStore } from '../../store/notification-store';
 import { getTranslations } from '../../lib/translations';
-import { searchServicesSuggest, getNextUpcomingBooking, getClinicsList, getMyNextPill, searchServicesWithFilters, type PublicServiceItem, type Booking, type ClinicListItem } from '../../lib/api';
+import { searchServicesSuggest, getNextUpcomingBooking, getClinicsList, getMyNextPill, searchServicesWithFilters, getServiceFilterOptions, type PublicServiceItem, type Booking, type ClinicListItem } from '../../lib/api';
 import Skeleton from '../components/Skeleton';
 import { getColors } from '../../lib/theme';
 
@@ -74,7 +75,10 @@ const HomeScreen = () => {
   const [featuredServices, setFeaturedServices] = useState<PublicServiceItem[]>([]);
   const [featuredServicesLoading, setFeaturedServicesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  // const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [allCategories, setAllCategories] = useState<{ _id: string; name: string }[]>([]);
+
+  const { getUnreadCount, hydrated: notificationsHydrated, hydrate: hydrateNotifications } = useNotificationStore();
+  const unreadCount = getUnreadCount();
 
   const fetchFeaturedServices = useCallback(async () => {
     setFeaturedServicesLoading(true);
@@ -96,14 +100,21 @@ const HomeScreen = () => {
     }, [fetchFeaturedServices])
   );
 
+  useEffect(() => {
+    if (!notificationsHydrated) {
+      hydrateNotifications();
+    }
+  }, [notificationsHydrated, hydrateNotifications]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await Promise.all([
-        getClinicsList(4).then(setClinics).catch(() => setClinics([])),
+        getClinicsList(5).then(setClinics).catch(() => setClinics([])),
         getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null)),
         getMyNextPill().then(setNextPill).catch(() => setNextPill(null)),
         fetchFeaturedServices(),
+        hydrateNotifications(),
       ]);
     } finally {
       setRefreshing(false);
@@ -131,8 +142,18 @@ const HomeScreen = () => {
   );
 
   useEffect(() => {
-    getClinicsList(4)
-      .then(setClinics)
+    getServiceFilterOptions()
+      .then((res) => {
+        setAllCategories(res.categories);
+      })
+      .catch(() => setAllCategories([]));
+  }, []);
+
+  useEffect(() => {
+    getClinicsList(5)
+      .then((res) => {
+        setClinics(res);
+      })
       .catch(() => setClinics([]))
       .finally(() => setClinicsLoading(false));
   }, []);
@@ -182,21 +203,16 @@ const HomeScreen = () => {
         <View style={styles.fixedHeaderActions}>
           <TouchableOpacity
             style={styles.fixedHeaderIconBtn}
-            onPress={() => router.push('/settings')}
+            onPress={() => router.push('/notifications')}
             hitSlop={12}
             accessibilityLabel={t.notifications}
           >
             <Ionicons name="notifications-outline" size={22} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.fixedHeaderAvatarBtn}
-            onPress={() => router.push('/(tabs)/profile')}
-            activeOpacity={0.85}
-            hitSlop={8}
-            accessibilityLabel={t.profileDashboard}
-          >
-            <Image source={{ uri: avatarUri }} style={[styles.fixedHeaderAvatar, { borderColor: colors.border }]} />
-            <View style={[styles.fixedHeaderOnlineIndicator, { backgroundColor: colors.onlineIndicator, borderColor: colors.background }]} />
+            {unreadCount > 0 && (
+              <View style={[styles.notificationBadge, { backgroundColor: colors.error }]}>
+                <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -312,7 +328,7 @@ const HomeScreen = () => {
               <Text style={[styles.cardTitle, { color: colors.text }]}>{t.myAppointments}</Text>
               <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
                 {nextBooking &&
-                (nextBooking.status === 'pending' || nextBooking.status === 'confirmed')
+                  (nextBooking.status === 'pending' || nextBooking.status === 'confirmed')
                   ? `${nextBooking.scheduledDate.split('-').reverse().join('/')} ${nextBooking.scheduledTime}`
                   : t.noUpcomingPromo}
               </Text>
@@ -332,7 +348,52 @@ const HomeScreen = () => {
           </View>
         </TouchableWithoutFeedback>
 
-        
+        {/* Categories / Filters Section */}
+        <View style={styles.categoriesSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesScrollContent}
+          >
+            {clinicsLoading && clinics.length === 0 ? (
+              [1, 2, 3, 4, 5].map((i) => (
+                <View key={i} style={[styles.categoryChipSkeleton, { backgroundColor: colors.border }]} />
+              ))
+            ) : (
+              (() => {
+                const rawCategories = clinics.slice(0, 5).flatMap(c => c.categories || []);
+                const aggregated: { _id: string; name: string }[] = [];
+                const seenNames = new Set<string>();
+
+                for (const cat of rawCategories) {
+                  const name = typeof cat === 'string' ? cat : cat.name;
+                  const id = typeof cat === 'string' ? (allCategories.find(ac => ac.name === cat)?._id || '') : cat._id;
+
+                  if (name && !seenNames.has(name)) {
+                    seenNames.add(name);
+                    aggregated.push({ _id: id, name });
+                  }
+                }
+
+                return aggregated.map(cat => (
+                  <TouchableOpacity
+                    key={cat.name}
+                    style={[styles.categoryChip, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/services-results',
+                        params: { categoryId: cat._id, q: cat._id ? '' : cat.name }
+                      });
+                    }}
+                  >
+                    <Text style={[styles.categoryChipText, { color: colors.textSecondary }]}>{cat.name}</Text>
+                  </TouchableOpacity>
+                ));
+              })()
+            )}
+          </ScrollView>
+        </View>
 
         <View style={styles.clinicsSection}>
           <View style={styles.clinicsSectionHeader}>
@@ -377,7 +438,8 @@ const HomeScreen = () => {
             >
               {clinics.map((c) => {
                 const coverUri = c.coverUrl || c.logoUrl || DEFAULT_CLINIC_COVER;
-                const tagline = c.categories.length ? c.categories.slice(0, 2).join(' · ') + (c.categories.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 30);
+                const catNames = (c.categories || []).map(cat => typeof cat === 'string' ? cat : cat.name);
+                const tagline = catNames.length ? catNames.slice(0, 2).join(' · ') + (catNames.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 30);
                 return (
                   <TouchableOpacity
                     key={c.id}
@@ -404,7 +466,7 @@ const HomeScreen = () => {
                     <View style={styles.clinicCardInfo}>
                       <Text style={[styles.clinicCardName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="middle">{c.clinicDisplayName}</Text>
                       {tagline ? <Text style={[styles.clinicCardTagline, { color: colors.textTertiary }]} numberOfLines={1} ellipsizeMode="middle">{tagline}</Text> : null}
-                      
+
                     </View>
                   </TouchableOpacity>
                 );
@@ -451,7 +513,7 @@ const HomeScreen = () => {
                       </Text>
                     </View>
                   </View>
-                    <View style={styles.serviceCardInfo}>
+                  <View style={styles.serviceCardInfo}>
                     <Text style={[styles.serviceCardName, { color: colors.text }]} numberOfLines={2} ellipsizeMode="middle">{s.title}</Text>
                     <Text style={[styles.serviceCardPrice, { color: colors.primaryLight }]} numberOfLines={1} ellipsizeMode="middle">{formatPrice(s.price)}</Text>
                     {/* <Text style={[styles.serviceCardMeta, { color: colors.textTertiary }]}>{s.durationMin} {t.minutes}</Text> */}
@@ -517,20 +579,23 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginLeft: 4,
   },
-  fixedHeaderAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-  },
-  fixedHeaderOnlineIndicator: {
+  fixedHeaderAvatar: { width: '100%', height: '100%', borderRadius: 18, borderWidth: 1.5 },
+  fixedHeaderOnlineIndicator: { position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
+  notificationBadge: {
     position: 'absolute',
-    bottom: 1,
-    right: 1,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    borderWidth: 2,
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
   },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
@@ -628,6 +693,28 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
   cardSubtitle: { fontSize: 12 },
+
+  categoriesSection: { marginTop: 30, paddingBottom: 10 },
+  categoriesScrollContent: { paddingHorizontal: 20, gap: 10 },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  categoryChipSkeleton: {
+    width: 80,
+    height: 38,
+    borderRadius: 14,
+    opacity: 0.3,
+  },
 
   clinicsSection: { marginTop: 32, paddingHorizontal: 20 },
   clinicsSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },

@@ -6,7 +6,8 @@ import { Platform } from 'react-native';
 function getApiBase(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
   // Fallback to production backend if .env is not set
-  return 'https://api.shifoyol.uz';
+  // return 'https://api.shifoyol.uz';
+  return 'http://192.168.58.151:8080'
 }
 const API_BASE = getApiBase();
 
@@ -263,7 +264,7 @@ export interface ClinicListItem {
   coverUrl: string | null;
   servicesCount: number;
   branchesCount: number;
-  categories: string[];
+  categories: Array<{ _id: string; name: string } | string>;
   descriptionShort: string | null;
   rating: { avg: number; count: number };
   branches: Array<{ id: string; name: string; address: { city: string; street: string; geo: { lat: number; lng: number } } }>;

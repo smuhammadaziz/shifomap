@@ -379,6 +379,7 @@ export interface ClinicDocPublicListProjection {
   branding: { logoUrl: string | null; coverUrl: string | null }
   stats: { servicesCount: number; branchesCount: number }
   category: string[]
+  categories?: ClinicCategory[]
   description: { short: string | null; full: string | null }
   rating: { avg: number; count: number }
   branches?: Array<{ _id: import('mongodb').ObjectId; name: string; address: { city: string; street: string; geo: { lat: number; lng: number } }; isActive: boolean }>
@@ -402,6 +403,7 @@ export async function findActiveClinicsForPublic(limit: number = 100): Promise<C
           "stats.servicesCount": 1,
           "stats.branchesCount": 1,
           category: 1,
+          categories: 1,
           "description.short": 1,
           "description.full": 1,
           "rating.avg": 1,

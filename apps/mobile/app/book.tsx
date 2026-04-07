@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail, getServiceById, createBooking, getBookedSlots, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicBranchPublic, type ClinicServicePublic } from '../lib/api';
 import { useAuthStore } from '../store/auth-store';
 import { useThemeStore } from '../store/theme-store';
+import { useNotificationStore } from '../store/notification-store';
 import { getTranslations } from '../lib/translations';
 import { getColors } from '../lib/theme';
 
@@ -117,6 +118,7 @@ export default function BookScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const { addNotification } = useNotificationStore();
   const [clinic, setClinic] = useState<ClinicDetailPublic | null>(null);
   const [service, setService] = useState<ClinicServicePublic | null>(null);
   const [loading, setLoading] = useState(true);
@@ -261,6 +263,14 @@ export default function BookScreen() {
         doctorId: selectedDoctorId ?? undefined,
         scheduledDate: selectedDate!,
         scheduledTime: selectedTime!,
+      });
+      addNotification({
+        type: 'reminder',
+        title: t.bookingConfirmed || 'Booking Confirmed',
+        message: `${t.bookingConfirmed}: ${clinic?.clinicDisplayName || ''} - ${selectedDate!.split('-').reverse().join('/')} ${selectedTime}`,
+        icon: 'calendar-check-outline',
+        iconLib: 'MaterialCommunityIcons',
+        iconColor: colors.primaryLight,
       });
       showSuccessAnimation();
       setTimeout(() => {
