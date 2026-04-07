@@ -12,6 +12,8 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +23,10 @@ import { authPhonePassword, getConnectionErrorMessage, getApiErrorMessage } from
 import { getTranslations } from '../../lib/translations';
 import { getColors } from '../../lib/theme';
 
+const { width } = Dimensions.get('window');
 const PHONE_REGEX = /^\+?998\d{9}$/;
+const LOGO_IMG = require('../../assets/play_store_512-Photoroom.png');
+import Illustration from '../../assets/undraw_medicine_hqqg.svg';
 
 function normalizePhone(raw: string): string {
   const s = raw.replace(/^%2B/, '+').replace(/\s/g, '');
@@ -115,8 +120,8 @@ export default function PasswordScreen() {
 
   if (!showScreen) {
     return (
-      <View style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.loadingRoot, { backgroundColor: '#000155' }]}>
+        <ActivityIndicator size="large" color="#fff" />
       </View>
     );
   }
@@ -125,7 +130,7 @@ export default function PasswordScreen() {
   const phoneDisplay = PHONE_REGEX.test(phone) ? '+998 ' + formatPhoneForDisplay(phone) : phone;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: '#000155' }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboard}
@@ -135,76 +140,80 @@ export default function PasswordScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-
-          <View style={styles.topBlock}>
-            <Text style={[styles.title, { color: colors.text }]}>{t.passwordTitle}</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t.passwordSubtitle}</Text>
-          </View>
-
-          <View style={styles.phoneRow}>
-            <Ionicons name="call-outline" size={16} color={colors.textTertiary} />
-            <Text style={[styles.phoneText, { color: colors.textSecondary }]}>{phoneDisplay}</Text>
-          </View>
-
-          <View style={styles.formBlock}>
-            <View
-              style={[
-                styles.inputRow,
-                { borderBottomColor: focused ? colors.primary : colors.border },
-                focused && styles.inputRowFocused,
-              ]}
-            >
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder={t.passwordPlaceholder}
-                placeholderTextColor={colors.textPlaceholder}
-                value={password}
-                onChangeText={setPassword}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                secureTextEntry={secure}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
-              <TouchableOpacity
-                onPress={() => setSecure((s) => !s)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <Ionicons name={secure ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textTertiary} />
-              </TouchableOpacity>
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="chevron-back" size={28} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.brandRow}>
+              <Image source={LOGO_IMG} style={styles.headerLogo} resizeMode="contain" />
+              <Text style={styles.brandText}>ShifoYo'l</Text>
             </View>
-            {password.length > 0 && password.length < 8 && (
-              <Text style={[styles.minHint, { color: colors.error }]}>{t.passwordError}</Text>
-            )}
+            <View style={{ width: 40 }} />
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.btn,
-              { backgroundColor: colors.primary },
-              (!isValid || loading) && styles.btnDisabled,
-            ]}
-            onPress={onSubmit}
-            disabled={!isValid || loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Text style={styles.btnText}>{t.passwordContinue}</Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
-              </>
-            )}
-          </TouchableOpacity>
+          {/* Illustration Section */}
+          <View style={styles.illustrationContainer}>
+            <Illustration width={width * 0.7} height={150} />
+          </View>
+
+          {/* Welcome Text */}
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeTitle}>{t.passwordTitle}</Text>
+            <Text style={styles.welcomeSubtitle}>{t.passwordSubtitle}</Text>
+          </View>
+
+          {/* Form Card */}
+          <View style={styles.card}>
+            <View style={styles.phoneBadge}>
+              <Ionicons name="call" size={16} color="#000155" />
+              <Text style={styles.phoneBadgeText}>{phoneDisplay}</Text>
+            </View>
+
+            <View style={styles.formBlock}>
+              <View style={[styles.inputBox, {
+                backgroundColor: '#f3f4f6',
+                borderColor: focused ? '#000155' : '#e5e7eb',
+                borderWidth: focused ? 1.5 : 1
+              }]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t.passwordPlaceholder}
+                  placeholderTextColor="#9ca3af"
+                  value={password}
+                  onChangeText={setPassword}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  secureTextEntry={secure}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+                <TouchableOpacity onPress={() => setSecure((s) => !s)}>
+                  <Ionicons name={secure ? 'eye-off' : 'eye'} size={22} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+              {password.length > 0 && password.length < 8 && (
+                <Text style={styles.errorText}>{t.passwordError}</Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.primaryBtn,
+                (!isValid || loading) && styles.btnDisabled,
+              ]}
+              onPress={onSubmit}
+              disabled={!isValid || loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.primaryBtnText}>{t.passwordContinue}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -240,72 +249,132 @@ export default function PasswordScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  loadingRoot: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  loadingRoot: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   keyboard: { flex: 1 },
-  scrollContent: { paddingHorizontal: 28, paddingTop: 56, paddingBottom: 48 },
+  scrollContent: { paddingBottom: 40 },
+
+  headerRow: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
   backBtn: {
-    marginBottom: 24,
+    position: 'absolute',
+    left: 20,
+    top: Platform.OS === 'ios' ? 60 : 40,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
   },
-  topBlock: { marginBottom: 28 },
-  logo: {
-    fontSize: 26,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  title: {
+  headerLogo: {
+    width: 32,
+    height: 32,
+  },
+  brandText: {
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 6,
+    color: '#fff',
   },
-  subtitle: {
+
+  illustrationContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    height: 200,
+  },
+
+  welcomeContainer: {
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  welcomeSubtitle: {
     fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginTop: 8,
     lineHeight: 20,
-    maxWidth: 300,
   },
-  phoneRow: {
+
+  card: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 30,
+    paddingBottom: 50,
+    flex: 1,
+    minHeight: Dimensions.get('window').height * 0.6,
+  },
+  phoneBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignSelf: 'center',
+    marginBottom: 30,
     gap: 8,
-    marginBottom: 28,
   },
-  phoneText: { fontSize: 15, fontWeight: '500' },
-  formBlock: { marginBottom: 36 },
-  inputLabel: {
-    fontSize: 13,
+  phoneBadgeText: {
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    color: '#374151',
   },
-  inputRow: {
+
+  formBlock: { marginBottom: 30 },
+  inputBox: {
+    height: 58,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 2,
-    paddingVertical: 14,
-    paddingHorizontal: 0,
+    paddingHorizontal: 16,
   },
-  inputRowFocused: { borderBottomWidth: 3 },
   input: {
     flex: 1,
-    fontSize: 17,
-    paddingVertical: 0,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
   },
-  minHint: { fontSize: 12, marginTop: 10 },
-  btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 8,
+    marginLeft: 4,
+  },
+
+  primaryBtn: {
+    backgroundColor: '#000155',
+    height: 58,
+    borderRadius: 14,
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000155',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  primaryBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  btnDisabled: { opacity: 0.6 },
+
   popoverOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

@@ -228,7 +228,13 @@
     "system": "Tizim",
     "yesterday": "Kecha",
     "viewDetail": "Batafsil",
-    "dismiss": "Yopish"
+    "dismiss": "Yopish",
+    "loginWelcome": "ShifoYo'lga xush kelibsiz",
+    "loginPhoneLabel": "Telefon raqami",
+    "sendOtp": "SMS orqali OTP yuborish",
+    "register": "Ro'yxatdan o'tish",
+    "forgotPassword": "Parolni unutdingizmi?",
+    "continueAsGuest": "Mehmon sifatida davom etish"
   },
   "ru": {
     "tabHome": "Главная",
@@ -459,6 +465,12 @@
     "system": "Система",
     "yesterday": "Вчера",
     "viewDetail": "Подробнее",
-    "dismiss": "Скрыть"
+    "dismiss": "Скрыть",
+    "loginWelcome": "Добро пожаловать в ShifoYo'l",
+    "loginPhoneLabel": "Номер телефона",
+    "sendOtp": "Отправить OTP через SMS",
+    "register": "Регистрация",
+    "forgotPassword": "Забыли пароль?",
+    "continueAsGuest": "Продолжить как гость"
   }
 }
