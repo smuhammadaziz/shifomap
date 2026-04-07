@@ -202,8 +202,13 @@ export interface ServiceDetailResponse {
   clinic: { _id: string; clinicDisplayName: string; clinicUniqueName: string };
 }
 
-export async function searchServicesSuggest(q: string, limit = 15): Promise<ServiceSearchResult> {
-  const { data } = await api.get<{ success: boolean; data: ServiceSearchResult }>(
+export interface UnifiedSearchResult {
+  services: PublicServiceItem[];
+  clinics: ClinicListItem[];
+}
+
+export async function searchServicesSuggest(q: string, limit = 15): Promise<UnifiedSearchResult> {
+  const { data } = await api.get<{ success: boolean; data: UnifiedSearchResult }>(
     '/clinics/public/services/search',
     { params: { q: q.trim(), limit } }
   );
@@ -546,4 +551,37 @@ export async function submitReview(body: {
   const { data } = await api.post<{ success: boolean; data: ReviewItem }>('/reviews', body);
   if (!data.success) throw new Error('Failed to submit review');
   return data.data;
+}
+
+// --- Custom Reminders ---
+
+export interface CustomReminder {
+  id: string;
+  pillName: string;
+  time: string;
+  notes: string | null;
+  timesPerDay: number;
+  isActive: boolean;
+}
+
+export async function getCustomReminders(): Promise<CustomReminder[]> {
+  const { data } = await api.get<{ success: boolean; data: CustomReminder[] }>('/prescriptions/me/custom-reminders');
+  if (!data.success) throw new Error('Failed to load custom reminders');
+  return data.data;
+}
+
+export async function addCustomReminder(body: {
+  pillName: string;
+  time: string;
+  notes?: string | null;
+  timesPerDay: number;
+}): Promise<CustomReminder> {
+  const { data } = await api.post<{ success: boolean; data: CustomReminder }>('/prescriptions/me/custom-reminders', body);
+  if (!data.success) throw new Error('Failed to add reminder');
+  return data.data;
+}
+
+export async function deleteCustomReminder(id: string): Promise<boolean> {
+  const { data } = await api.delete<{ success: boolean; data: { success: boolean } }>(`/prescriptions/me/custom-reminders/${id}`);
+  return data.success;
 }

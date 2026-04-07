@@ -51,6 +51,7 @@ import {
   deleteService,
   runPlanLimitsMigration,
   publicSearchServices,
+  publicUnifiedSearch,
   publicGetServiceFilters,
   publicGetServiceById,
   publicGetClinicServices,
@@ -125,7 +126,7 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
     try {
       const q = (query.q as string)?.trim() ?? ""
       const limit = Math.min(parseInt((query.limit as string) || "15", 10) || 15, 30)
-      const result = await publicSearchServices({ q: q || undefined }, 1, limit)
+      const result = await publicUnifiedSearch(q, limit)
       set.status = 200
       return { success: true, data: result }
     } catch (error: any) {

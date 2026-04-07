@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb"
 import { getDb, CLINICS_COLLECTION, REVIEWS_COLLECTION } from "@/db/mongo"
 import type { ClinicDoc, ClinicOwner, ClinicBranch, ClinicDoctor, ClinicCategory, ClinicService } from "./clinics.model"
 import { toObjectId } from "@/common/utils/id"
+import { getDualLangSearchPattern } from "@/common/utils/transliterate"
 
 export interface InsertClinicInput {
   clinicDisplayName: string
@@ -413,6 +414,47 @@ export async function findActiveClinicsForPublic(limit: number = 100): Promise<C
       }
     )
     .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray() as Promise<ClinicDocPublicListProjection[]>
+}
+
+/**
+ * Search active clinics for public (no auth)
+ */
+export async function searchClinicsPublic(q: string, limit: number = 10): Promise<ClinicDocPublicListProjection[]> {
+  const db = getDb()
+  const searchPattern = getDualLangSearchPattern(q)
+
+  return db
+    .collection<ClinicDoc>(CLINICS_COLLECTION)
+    .find(
+      {
+        status: "active",
+        deletedAt: null,
+        $or: [
+          { clinicDisplayName: { $regex: searchPattern, $options: "i" } },
+          { clinicUniqueName: { $regex: searchPattern, $options: "i" } },
+        ],
+      },
+      {
+        projection: {
+          _id: 1,
+          clinicDisplayName: 1,
+          "branding.logoUrl": 1,
+          "branding.coverUrl": 1,
+          "stats.servicesCount": 1,
+          "stats.branchesCount": 1,
+          category: 1,
+          categories: 1,
+          "description.short": 1,
+          "description.full": 1,
+          "rating.avg": 1,
+          "rating.count": 1,
+          branches: 1,
+        },
+      }
+    )
+    .sort({ "rating.avg": -1, clinicDisplayName: 1 })
     .limit(limit)
     .toArray() as Promise<ClinicDocPublicListProjection[]>
 }
@@ -1169,34 +1211,47 @@ export async function searchServicesPublic(
     }
   }
 
-  const matchService: Record<string, unknown> = { "services.isActive": true }
+  const matchService: any = { "services.isActive": true }
+  const andFilters: any[] = []
+
   if (filters.q && filters.q.trim()) {
-    matchService["services.title"] = { $regex: filters.q.trim(), $options: "i" }
+    const searchPattern = getDualLangSearchPattern(filters.q)
+    andFilters.push({ "services.title": { $regex: searchPattern, $options: "i" } })
   }
+
   if (filters.categoryId) {
     try {
-      matchService["services.categoryId"] = toObjectId(filters.categoryId)
+      const catId = toObjectId(filters.categoryId)
+      andFilters.push({ "services.categoryId": catId })
     } catch {
-      // invalid id, no match
+      // invalid id
     }
   }
+
   if (filters.durationMin != null && filters.durationMin > 0) {
-    matchService["services.durationMin"] = { $lte: filters.durationMin }
+    andFilters.push({ "services.durationMin": { $lte: filters.durationMin } })
   }
+
   if (filters.minPrice != null && filters.minPrice >= 0) {
-    matchService["$or"] = [
-      { "services.price.amount": { $gte: filters.minPrice } },
-      { "services.price.maxAmount": { $gte: filters.minPrice } },
-    ]
+    andFilters.push({
+      $or: [
+        { "services.price.amount": { $gte: filters.minPrice } },
+        { "services.price.maxAmount": { $gte: filters.minPrice } },
+      ],
+    })
   }
+
   if (filters.maxPrice != null && filters.maxPrice >= 0) {
-    matchService["$and"] = matchService["$and"] ?? []
-      ; (matchService["$and"] as object[]).push({
-        $or: [
-          { "services.price.amount": { $lte: filters.maxPrice } },
-          { "services.price.minAmount": { $lte: filters.maxPrice } },
-        ],
-      })
+    andFilters.push({
+      $or: [
+        { "services.price.amount": { $lte: filters.maxPrice } },
+        { "services.price.minAmount": { $lte: filters.maxPrice } },
+      ],
+    })
+  }
+
+  if (andFilters.length > 0) {
+    matchService["$and"] = andFilters
   }
 
   const facetPipeline: object[] = [

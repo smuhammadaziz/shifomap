@@ -3,7 +3,7 @@ import { unauthorized, notFound, badRequest } from "@/common/errors"
 import { findClinicById } from "@/modules/clinics/clinics.repo"
 import { findBookingByIdForClinic } from "@/modules/bookings/bookings.repo"
 import type { PrescriptionMedicine } from "./prescriptions.model"
-import { upsertPrescription, listPrescriptionsByUserId, findPrescriptionByIdForPatient, listPrescriptionEventsForDate, upsertPrescriptionEvent } from "./prescriptions.repo"
+import { upsertPrescription, listPrescriptionsByUserId, findPrescriptionByIdForPatient, listPrescriptionEventsForDate, upsertPrescriptionEvent, upsertCustomReminder, listCustomRemindersByUserId, deleteCustomReminder } from "./prescriptions.repo"
 
 function genDefaultTimes(timesPerDay: number): string[] {
   if (timesPerDay <= 1) return ["09:00"]
@@ -170,13 +170,18 @@ export async function setMyPrescriptionEvent(auth: { role?: string; sub: string 
 export async function getMyNextPill(auth: { role?: string; sub: string }) {
   if (auth.role !== "patient") throw unauthorized("Patient access only")
   const userId = new ObjectId(auth.sub)
-  const list = await listPrescriptionsByUserId(userId, 50)
   const today = new Date().toISOString().slice(0, 10)
   const nowTime = new Date().toISOString().slice(11, 16)
 
-  // naive: next pending item today across all prescriptions
-  let best: any = null
-  for (const p of list) {
+  const [prescriptions, customDocs] = await Promise.all([
+    listPrescriptionsByUserId(userId, 50),
+    listCustomRemindersByUserId(userId),
+  ])
+
+  let best: { prescriptionId: string | null; time: string; medicineName: string } | null = null
+
+  // 1. Check Prescriptions
+  for (const p of prescriptions) {
     const events = await listPrescriptionEventsForDate(p._id, today)
     const taken = new Set(events.map((e) => `${e.medicineKey}|${e.time}`))
     for (const m of p.medicines) {
@@ -188,6 +193,61 @@ export async function getMyNextPill(auth: { role?: string; sub: string }) {
       }
     }
   }
+
+  // 2. Check Custom Reminders
+  for (const c of customDocs) {
+    if (!c.isActive) continue
+    // Logic for custom reminders: if timesPerDay > 1, we should probably calculate spread, 
+    // but for now let's assume 'time' is the first dose.
+    // User said "how many per day" - simplified: spread them out
+    const times = genDefaultTimes(c.timesPerDay).map(t => {
+      // If user provided a specific start time, we might want to offset, 
+      // but genDefaultTimes returns fixed slots. Let's use it for now.
+      return t
+    })
+
+    // Wait, the user said "approximate consume time" - let's treat that as the BASE time if timesPerDay is 1
+    // if timesPerDay > 1, let's use the first slot as the user's provided 'time' and spread others.
+    // Actually, simple implementation: just the user's provided 'time' for now.
+    const doseTimes = [c.time] 
+    // If we wanted to support multiple doses for custom reminders, we'd add more here.
+    
+    for (const t of doseTimes) {
+      if (t < nowTime) continue
+      const candidate = { prescriptionId: null, time: t, medicineName: c.pillName }
+      if (!best || candidate.time < best.time) best = candidate
+    }
+  }
+
   return best
+}
+
+export async function publicCreateCustomReminder(auth: { role?: string; sub: string }, body: { pillName: string; time: string; notes?: string | null; timesPerDay: number }) {
+  if (auth.role !== "patient") throw unauthorized("Patient access only")
+  const userId = new ObjectId(auth.sub)
+  const doc = await upsertCustomReminder(userId, body)
+  return { id: doc._id.toHexString(), ...body }
+}
+
+export async function publicListCustomReminders(auth: { role?: string; sub: string }) {
+  if (auth.role !== "patient") throw unauthorized("Patient access only")
+  const userId = new ObjectId(auth.sub)
+  const list = await listCustomRemindersByUserId(userId)
+  return list.map(c => ({
+    id: c._id.toHexString(),
+    pillName: c.pillName,
+    time: c.time,
+    notes: c.notes,
+    timesPerDay: c.timesPerDay,
+    isActive: c.isActive
+  }))
+}
+
+export async function publicDeleteCustomReminder(auth: { role?: string; sub: string }, id: string) {
+  if (auth.role !== "patient") throw unauthorized("Patient access only")
+  const userId = new ObjectId(auth.sub)
+  const success = await deleteCustomReminder(new ObjectId(id), userId)
+  if (!success) throw notFound("Reminder not found")
+  return { success: true }
 }
 

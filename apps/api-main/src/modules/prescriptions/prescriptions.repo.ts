@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb"
-import { getDb, PRESCRIPTIONS_COLLECTION, PRESCRIPTION_EVENTS_COLLECTION } from "@/db/mongo"
-import type { PrescriptionDoc, PrescriptionEventDoc, PrescriptionEventAction, PrescriptionMedicine } from "./prescriptions.model"
+import { getDb, PRESCRIPTIONS_COLLECTION, PRESCRIPTION_EVENTS_COLLECTION, CUSTOM_REMINDERS_COLLECTION } from "@/db/mongo"
+import type { PrescriptionDoc, PrescriptionEventDoc, PrescriptionEventAction, PrescriptionMedicine, CustomReminderDoc } from "./prescriptions.model"
 
 export async function findPrescriptionByBookingId(bookingId: ObjectId): Promise<PrescriptionDoc | null> {
   const db = getDb()
@@ -84,5 +84,39 @@ export async function listPrescriptionEventsForDate(prescriptionId: ObjectId, da
     .collection<PrescriptionEventDoc>(PRESCRIPTION_EVENTS_COLLECTION)
     .find({ prescriptionId, date, deletedAt: null })
     .toArray()
+}
+
+export async function upsertCustomReminder(userId: ObjectId, input: { pillName: string; time: string; notes?: string | null; timesPerDay: number }): Promise<CustomReminderDoc> {
+  const db = getDb()
+  const now = new Date()
+  const doc: Omit<CustomReminderDoc, "_id"> = {
+    userId,
+    pillName: input.pillName,
+    time: input.time,
+    notes: input.notes ?? null,
+    timesPerDay: input.timesPerDay,
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  }
+  const inserted = await db.collection<CustomReminderDoc>(CUSTOM_REMINDERS_COLLECTION).insertOne(doc as CustomReminderDoc)
+  const created = await db.collection<CustomReminderDoc>(CUSTOM_REMINDERS_COLLECTION).findOne({ _id: inserted.insertedId })
+  if (!created) throw new Error("Insert custom reminder failed")
+  return created
+}
+
+export async function listCustomRemindersByUserId(userId: ObjectId): Promise<CustomReminderDoc[]> {
+  const db = getDb()
+  return db.collection<CustomReminderDoc>(CUSTOM_REMINDERS_COLLECTION).find({ userId, deletedAt: null }).sort({ time: 1 }).toArray()
+}
+
+export async function deleteCustomReminder(id: ObjectId, userId: ObjectId): Promise<boolean> {
+  const db = getDb()
+  const result = await db.collection<CustomReminderDoc>(CUSTOM_REMINDERS_COLLECTION).updateOne(
+    { _id: id, userId },
+    { $set: { deletedAt: new Date() } }
+  )
+  return result.modifiedCount > 0
 }
 

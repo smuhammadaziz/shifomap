@@ -47,11 +47,11 @@ export default function AppointmentDetailScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
-  
+
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [sheetVisible, setSheetVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
@@ -180,7 +180,7 @@ export default function AppointmentDetailScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+
         {/* Card: Time & Date (Large floating presentation) */}
         <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
           <View style={styles.dateTimeHeader}>
@@ -199,23 +199,42 @@ export default function AppointmentDetailScreen() {
           </View>
         </View>
 
-        {/* Card: Doctor & Service */}
+        {/* Card: Doctor Info */}
         <View style={[styles.glassCard, styles.doctorCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
           <Image source={{ uri: DEFAULT_AVATAR }} style={[styles.doctorAvatar, { backgroundColor: colors.border }]} />
           <View style={styles.doctorInfo}>
-            <Text style={[styles.doctorName, { color: colors.text }]} numberOfLines={1}>{booking.doctorName ?? '—'}</Text>
-            <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]} numberOfLines={2}>{booking.serviceTitle ?? '—'}</Text>
+            <Text style={[styles.doctorName, { color: colors.text }]} numberOfLines={1}>{booking.doctorName || (language === 'ru' ? 'Врач' : 'Shifokor')}</Text>
+            <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]} numberOfLines={2}>{(t as any).doctor || (language === 'ru' ? 'Врач' : 'Shifokor')}</Text>
+          </View>
+        </View>
+
+        {/* Card: Clinic & Details */}
+        <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{language === 'ru' ? 'Детали клиники' : 'Klinika tafsilotlari'}</Text>
+          <View style={styles.rows}>
+            <Row label={language === 'ru' ? 'Клиника' : 'Klinika'} value={booking.clinicDisplayName || '—'} colors={colors} />
+            <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+            <Row label={language === 'ru' ? 'Филиал' : 'Filial'} value={booking.branchName || '—'} colors={colors} />
+            <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+            <Row label={language === 'ru' ? 'Услуга' : 'Xizmat'} value={booking.serviceTitle || '—'} colors={colors} />
           </View>
         </View>
 
         {/* Card: Progress Timeline */}
         <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t.progress}</Text>
-          
+
           {booking.status === 'cancelled' ? (
             <View style={[styles.cancelledAlert, { backgroundColor: colors.errorBg }]}>
-              <Ionicons name="alert-circle" size={24} color={colors.error} />
-              <Text style={[styles.cancelledAlertText, { color: colors.error }]}>{t.cancelled}</Text>
+              <View style={styles.cancelledRow}>
+                <Ionicons name="alert-circle" size={24} color={colors.error} />
+                <Text style={[styles.cancelledAlertText, { color: colors.error }]}>{t.cancelled}</Text>
+              </View>
+              {booking.cancel?.reason && (
+                <Text style={[styles.cancelReasonLabel, { color: colors.textTertiary }]}>
+                  {language === 'ru' ? 'Причина:' : 'Sabab:'} <Text style={{ color: colors.textSecondary }}>{booking.cancel?.reason}</Text>
+                </Text>
+              )}
             </View>
           ) : (
             <View style={styles.timelineContainer}>
@@ -229,22 +248,22 @@ export default function AppointmentDetailScreen() {
                   <View key={s.key} style={styles.timelineStep}>
                     {/* Circle and Line */}
                     <View style={styles.timelineGraphic}>
-                      <View style={[styles.timelineCircle, 
-                        { 
-                          backgroundColor: done ? colors.primary : colors.backgroundCard,
-                          borderColor: done ? colors.primary : colors.border,
-                          borderWidth: done ? 0 : 2
-                        }]}>
+                      <View style={[styles.timelineCircle,
+                      {
+                        backgroundColor: done ? colors.primary : colors.backgroundCard,
+                        borderColor: done ? colors.primary : colors.border,
+                        borderWidth: done ? 0 : 2
+                      }]}>
                         {done && <Ionicons name={s.icon as any} size={14} color="#fff" />}
                       </View>
                       {!last && (
                         <View style={[styles.timelineLine, { backgroundColor: done ? colors.primary : colors.border }]} />
                       )}
                     </View>
-                    
+
                     {/* Text */}
                     <View style={styles.timelineContent}>
-                      <Text style={[styles.timelineText, { 
+                      <Text style={[styles.timelineText, {
                         color: done ? colors.text : colors.textTertiary,
                         fontWeight: done ? '700' : '500'
                       }]}>
@@ -259,17 +278,22 @@ export default function AppointmentDetailScreen() {
         </View>
 
         {/* Card: Patient Information */}
-        <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t.bookingFor}</Text>
-          <View style={styles.rows}>
-            <Row label={t.completeFullName} value="—" colors={colors} />
-            <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
-            <Row label={t.completeAge} value="—" colors={colors} />
-            <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
-            <Row label={t.completeGender} value="—" colors={colors} />
-          </View>
-        </View>
-
+        {(() => {
+          const p = useAuthStore.getState().patient;
+          if (!p) return null;
+          return (
+            <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t.bookingFor}</Text>
+              <View style={styles.rows}>
+                <Row label={t.completeFullName} value={p.fullName || '—'} colors={colors} />
+                <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+                <Row label={t.completeAge} value={p.age ? `${p.age}` : '—'} colors={colors} />
+                <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+                <Row label={t.completeGender} value={p.gender === 'male' ? (language === 'ru' ? 'Мужчина' : 'Erkak') : (language === 'ru' ? 'Женщина' : 'Ayol')} colors={colors} />
+              </View>
+            </View>
+          );
+        })()}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -294,7 +318,7 @@ export default function AppointmentDetailScreen() {
             <Animated.View style={[styles.sheet, { backgroundColor: colors.backgroundCard, borderColor: colors.border, transform: [{ translateY: slideAnim }] }]}>
               <View style={[styles.sheetHandle, { backgroundColor: colors.textTertiary }]} />
               <Text style={[styles.sheetTitle, { color: colors.text }]}>{t.whyCancel}</Text>
-            
+
               <ScrollView keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={false}>
                 <TextInput
                   style={[styles.sheetInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
@@ -305,7 +329,7 @@ export default function AppointmentDetailScreen() {
                   multiline
                   numberOfLines={4}
                 />
-            
+
                 <TouchableOpacity
                   style={[styles.sheetConfirmBtn, { backgroundColor: colors.error }, cancelling && styles.sheetConfirmBtnDisabled]}
                   onPress={handleCancelConfirm}
@@ -318,7 +342,7 @@ export default function AppointmentDetailScreen() {
                     <Text style={styles.sheetConfirmBtnText}>{t.cancelAppointment}</Text>
                   )}
                 </TouchableOpacity>
-            
+
                 <TouchableOpacity style={styles.sheetDismiss} onPress={() => setSheetVisible(false)} activeOpacity={0.8}>
                   <Text style={[styles.sheetDismissText, { color: colors.textSecondary }]}>{t.back}</Text>
                 </TouchableOpacity>
@@ -354,7 +378,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '700' },
   backBtn: { padding: 4 },
-  
+
   // Empty states
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
   emptyIconCircle: {
@@ -380,7 +404,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
   },
-  
+
   // Date Time Big Card
   dateTimeHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
   iconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
@@ -400,8 +424,10 @@ const styles = StyleSheet.create({
 
   // Timeline
   sectionTitle: { fontSize: 17, fontWeight: '700', marginBottom: 20 },
-  cancelledAlert: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16 },
+  cancelledAlert: { padding: 16, borderRadius: 16, gap: 8 },
   cancelledAlertText: { fontSize: 16, fontWeight: '600' },
+  cancelledRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cancelReasonLabel: { fontSize: 14, fontWeight: '500', marginTop: 4 },
   timelineContainer: { paddingLeft: 8 },
   timelineStep: { flexDirection: 'row', minHeight: 48 },
   timelineGraphic: { width: 32, alignItems: 'center' },

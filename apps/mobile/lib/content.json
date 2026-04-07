@@ -138,6 +138,7 @@
     "verified": "Tasdiqlangan",
     "ourDoctors": "Shifokorlarimiz",
     "seeMoreDoctors": "Barcha shifokorlar",
+    "doctor": "Shifokor",
     "seeLessDoctors": "Yig'ish",
     "seeMoreServices": "Barcha xizmatlar",
     "seeLessServices": "Yig'ish",
@@ -234,7 +235,8 @@
     "sendOtp": "SMS orqali OTP yuborish",
     "register": "Ro'yxatdan o'tish",
     "forgotPassword": "Parolni unutdingizmi?",
-    "continueAsGuest": "Mehmon sifatida davom etish"
+    "continueAsGuest": "Mehmon sifatida davom etish",
+    "aiAssistant": "AI yordamchi"
   },
   "ru": {
     "tabHome": "Главная",
@@ -375,6 +377,7 @@
     "verified": "Проверено",
     "ourDoctors": "Наши врачи",
     "seeMoreDoctors": "Все врачи",
+    "doctor": "Врач",
     "seeLessDoctors": "Свернуть",
     "seeMoreServices": "Все услуги",
     "seeLessServices": "Свернуть",
@@ -471,6 +474,7 @@
     "sendOtp": "Отправить OTP через SMS",
     "register": "Регистрация",
     "forgotPassword": "Забыли пароль?",
-    "continueAsGuest": "Продолжить как гость"
+    "continueAsGuest": "Продолжить как гость",
+    "aiAssistant": "ИИ-помощник"
   }
 }

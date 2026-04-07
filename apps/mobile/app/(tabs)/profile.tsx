@@ -181,8 +181,8 @@ const ProfileDashboard = () => {
 
         <View style={[styles.settingsGroup, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
           <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}>
-            <Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Telegram Bot</Text>
+            <FontAwesome5 name="telegram" size={22} color="#0088cc" style={styles.settingIcon} />
+            <Text style={[styles.settingLabel, { color: colors.text }]}>{t.aiAssistant}</Text>
             <Ionicons name="link-outline" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />

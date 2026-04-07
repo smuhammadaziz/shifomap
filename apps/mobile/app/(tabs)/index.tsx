@@ -65,11 +65,14 @@ const HomeScreen = () => {
   const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<PublicServiceItem[]>([]);
+  const [serviceSuggestions, setServiceSuggestions] = useState<PublicServiceItem[]>([]);
+  const [clinicSuggestions, setClinicSuggestions] = useState<ClinicListItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
-  const [nextPill, setNextPill] = useState<{ prescriptionId: string; time: string; medicineName: string } | null>(null);
+  const [nextPill, setNextPill] = useState<{ prescriptionId: string | null; time: string; medicineName: string } | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [dismissedPill, setDismissedPill] = useState<string | null>(null);
   const [clinics, setClinics] = useState<ClinicListItem[]>([]);
   const [clinicsLoading, setClinicsLoading] = useState(true);
   const [featuredServices, setFeaturedServices] = useState<PublicServiceItem[]>([]);
@@ -105,6 +108,13 @@ const HomeScreen = () => {
       hydrateNotifications();
     }
   }, [notificationsHydrated, hydrateNotifications]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000 * 60);
+    return () => clearInterval(timer);
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -161,16 +171,19 @@ const HomeScreen = () => {
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) {
-      setSuggestions([]);
+      setServiceSuggestions([]);
+      setClinicSuggestions([]);
       setSearchLoading(false);
       return;
     }
     setSearchLoading(true);
     try {
       const result = await searchServicesSuggest(trimmed, 15);
-      setSuggestions(result.services);
+      setServiceSuggestions(result.services);
+      setClinicSuggestions(result.clinics);
     } catch {
-      setSuggestions([]);
+      setServiceSuggestions([]);
+      setClinicSuggestions([]);
     } finally {
       setSearchLoading(false);
     }
@@ -178,7 +191,8 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setSuggestions([]);
+      setServiceSuggestions([]);
+      setClinicSuggestions([]);
       setShowSuggestions(false);
       return;
     }
@@ -194,7 +208,6 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Fixed header: logo + app name + actions — home screen only */}
       <View style={[styles.fixedHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={styles.fixedHeaderBrand}>
           <Image source={APP_LOGO} style={styles.fixedHeaderLogo} resizeMode="contain" />
@@ -231,15 +244,6 @@ const HomeScreen = () => {
           />
         }
       >
-        {/* <View style={styles.header}>
-          <View style={styles.headerTextContainer}>
-            <View style={styles.greetingRow}>
-              <Text style={[styles.greeting, { color: colors.text }]}>{t.greeting}</Text>
-              <Text style={styles.waveEmoji}> 👋</Text>
-            </View>
-          </View>
-        </View> */}
-
         <View style={styles.searchSection}>
           <View style={[
             styles.searchContainer,
@@ -259,14 +263,6 @@ const HomeScreen = () => {
               <ActivityIndicator size="small" color={colors.primary} style={styles.searchLoader} />
             )}
           </View>
-          {/* Filters button - commented out for now
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setFilterModalVisible(true)}
-          >
-            <Ionicons name="options-outline" size={24} color="#ffffff" />
-          </TouchableOpacity>
-          */}
         </View>
 
         {showSuggestions && searchQuery.trim() && (
@@ -283,7 +279,7 @@ const HomeScreen = () => {
                   </View>
                 ))}
               </View>
-            ) : suggestions.length === 0 ? (
+            ) : (serviceSuggestions.length === 0 && clinicSuggestions.length === 0) ? (
               <Text style={[styles.noResultsText, { color: colors.textTertiary }]}>{t.noResultsFound}</Text>
             ) : (
               <ScrollView
@@ -291,29 +287,79 @@ const HomeScreen = () => {
                 keyboardShouldPersistTaps="handled"
                 nestedScrollEnabled
               >
-                {suggestions.map((item) => (
-                  <TouchableOpacity
-                    key={item._id}
-                    style={[styles.suggestionRow, { borderBottomColor: colors.border }]}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      hideSuggestions();
-                      setSearchQuery('');
-                      router.push({ pathname: '/service/[id]', params: { id: item._id } });
-                    }}
-                  >
-                    <Image
-                      source={{ uri: item.serviceImage || DEFAULT_IMAGE }}
-                      style={[styles.suggestionImage, { backgroundColor: colors.border }]}
-                    />
-                    <View style={styles.suggestionBody}>
-                      <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
-                      <Text style={[styles.suggestionPrice, { color: colors.primaryLight }]}>{formatPrice(item.price)}</Text>
+                {clinicSuggestions.length > 0 && (
+                  <View style={styles.suggestionSection}>
+                    <View style={[styles.suggestionSectionHeader, { borderBottomColor: colors.border }]}>
+                      <Ionicons name="business" size={14} color={colors.primaryLight} style={{ marginRight: 6 }} />
+                      <Text style={[styles.suggestionSectionTitle, { color: colors.textSecondary }]}>
+                        {language === 'uz' ? 'Klinikalar' : 'Клиники'}
+                      </Text>
                     </View>
-                    <SaveServiceStar service={item} size={20} />
-                    <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-                  </TouchableOpacity>
-                ))}
+                    {clinicSuggestions.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.suggestionRow, { borderBottomColor: colors.border }]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          hideSuggestions();
+                          setSearchQuery('');
+                          router.push({ pathname: '/clinic/[id]', params: { id: item.id } });
+                        }}
+                      >
+                        <Image
+                          source={{ uri: item.logoUrl || DEFAULT_IMAGE }}
+                          style={[styles.suggestionImage, { backgroundColor: colors.border }]}
+                        />
+                        <View style={styles.suggestionBody}>
+                          <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>{item.clinicDisplayName}</Text>
+                          <Text style={[styles.suggestionClinic, { color: colors.textTertiary }]} numberOfLines={1}>
+                            {item.branchesCount} {language === 'uz' ? 'filial' : 'филиалов'}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {serviceSuggestions.length > 0 && (
+                  <View style={styles.suggestionSection}>
+                    <View style={[styles.suggestionSectionHeader, { borderBottomColor: colors.border }]}>
+                      <Ionicons name="medkit" size={14} color={colors.primaryLight} style={{ marginRight: 6 }} />
+                      <Text style={[styles.suggestionSectionTitle, { color: colors.textSecondary }]}>
+                        {language === 'uz' ? 'Xizmatlar' : 'Услуги'}
+                      </Text>
+                    </View>
+                    {serviceSuggestions.map((item) => (
+                      <TouchableOpacity
+                        key={item._id}
+                        style={[styles.suggestionRow, { borderBottomColor: colors.border }]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          hideSuggestions();
+                          setSearchQuery('');
+                          router.push({ pathname: '/service/[id]', params: { id: item._id } });
+                        }}
+                      >
+                        <Image
+                          source={{ uri: item.serviceImage || DEFAULT_IMAGE }}
+                          style={[styles.suggestionImage, { backgroundColor: colors.border }]}
+                        />
+                        <View style={styles.suggestionBody}>
+                          <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
+                          <View style={styles.suggestionFooter}>
+                            <Text style={[styles.suggestionClinic, { color: colors.textTertiary }]} numberOfLines={1}>
+                              {item.clinicDisplayName}
+                            </Text>
+                            <Text style={[styles.suggestionPrice, { color: colors.primaryLight }]}>{formatPrice(item.price)}</Text>
+                          </View>
+                        </View>
+                        <SaveServiceStar service={item} size={20} />
+                        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </ScrollView>
             )}
           </View>
@@ -348,7 +394,46 @@ const HomeScreen = () => {
           </View>
         </TouchableWithoutFeedback>
 
-        {/* Categories / Filters Section */}
+        {(() => {
+          if (!nextPill || dismissedPill === `${nextPill.time}-${nextPill.medicineName}`) return null;
+          
+          const [pH, pM] = nextPill.time.split(':').map(Number);
+          const pillDate = new Date();
+          pillDate.setHours(pH, pM, 0, 0);
+          
+          const diffMs = pillDate.getTime() - currentTime.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          
+          if (diffMins > 10 || diffMins < -10) return null;
+          
+          const isUrgent = diffMins <= 0;
+          
+          return (
+            <View style={[styles.attentionCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border, borderWidth: 1 }]}>
+              <View style={[styles.attentionIconContainer, { backgroundColor: colors.primaryBg }]}>
+                <Ionicons name="medical" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.attentionBody}>
+                <Text style={[styles.attentionTitle, { color: colors.primary }]}>
+                  DIQQAT / ВНИМАНИЕ
+                </Text>
+                <Text style={[styles.attentionMessage, { color: colors.text }]} numberOfLines={2}>
+                  {isUrgent 
+                    ? `${nextPill.medicineName}: Ichish vaqti! / Пора пить!`
+                    : `${nextPill.medicineName}: ${diffMins} min / ${diffMins} мин`
+                  }
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.attentionAction}
+                onPress={() => setDismissedPill(`${nextPill.time}-${nextPill.medicineName}`)}
+              >
+                <Ionicons name="checkmark-done-circle" size={32} color="#34C759" />
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
+
         <View style={styles.categoriesSection}>
           <ScrollView
             horizontal
@@ -516,7 +601,6 @@ const HomeScreen = () => {
                   <View style={styles.serviceCardInfo}>
                     <Text style={[styles.serviceCardName, { color: colors.text }]} numberOfLines={2} ellipsizeMode="middle">{s.title}</Text>
                     <Text style={[styles.serviceCardPrice, { color: colors.primaryLight }]} numberOfLines={1} ellipsizeMode="middle">{formatPrice(s.price)}</Text>
-                    {/* <Text style={[styles.serviceCardMeta, { color: colors.textTertiary }]}>{s.durationMin} {t.minutes}</Text> */}
                   </View>
                 </TouchableOpacity>
               ))}
@@ -524,18 +608,10 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* <Specialties /> */}
         <FeaturedClinics />
 
         <View style={{ height: 120 }} />
       </ScrollView>
-
-      {/* Filter modal - commented out for now
-      <ServiceFiltersModal
-        visible={filterModalVisible}
-        onClose={() => setFilterModalVisible(false)}
-      />
-      */}
     </SafeAreaView>
   );
 };
@@ -575,12 +651,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  fixedHeaderAvatarBtn: {
-    position: 'relative',
-    marginLeft: 4,
-  },
-  fixedHeaderAvatar: { width: '100%', height: '100%', borderRadius: 18, borderWidth: 1.5 },
-  fixedHeaderOnlineIndicator: { position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   notificationBadge: {
     position: 'absolute',
     top: 4,
@@ -599,29 +669,6 @@ const styles = StyleSheet.create({
   },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  headerTextContainer: { flex: 1 },
-  greetingRow: { flexDirection: 'row', alignItems: 'center' },
-  greeting: { fontSize: 28, fontWeight: 'bold' },
-  waveEmoji: { fontSize: 28, fontWeight: 'bold' },
-  avatarContainer: { position: 'relative' },
-  avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2 },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-  },
   searchSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -636,20 +683,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 15,
     height: 56,
-    marginRight: 12,
     borderWidth: 1,
   },
   searchIcon: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 14 },
   searchLoader: { marginLeft: 8 },
-  filterButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
   suggestionsBox: {
     marginHorizontal: 20,
     marginBottom: 12,
@@ -658,10 +696,24 @@ const styles = StyleSheet.create({
     maxHeight: 320,
     overflow: 'hidden',
   },
-  suggestionsLoader: { padding: 24, alignItems: 'center' },
   suggestionsSkeleton: { padding: 12 },
   noResultsText: { fontSize: 13, padding: 20, textAlign: 'center' },
-  suggestionsScroll: { maxHeight: 320 },
+  suggestionsScroll: { maxHeight: 400 },
+  suggestionSection: { marginBottom: 12 },
+  suggestionSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderBottomWidth: 0.5,
+  },
+  suggestionSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   suggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -674,8 +726,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   suggestionBody: { flex: 1, marginLeft: 12 },
-  suggestionTitle: { fontSize: 15, fontWeight: '500' },
-  suggestionPrice: { fontSize: 13, fontWeight: '600', marginTop: 4 },
+  suggestionTitle: { fontSize: 15, fontWeight: '600' },
+  suggestionFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  suggestionClinic: { fontSize: 12, flex: 1, marginRight: 8 },
+  suggestionPrice: { fontSize: 13, fontWeight: '700' },
   dashboardContainer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginTop: 10 },
   dashboardCard: {
     flex: 1,
@@ -692,9 +751,67 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  cardSubtitle: { fontSize: 12 },
-
-  categoriesSection: { marginTop: 30, paddingBottom: 10 },
+  cardSubtitle: { fontSize: 13, fontWeight: '500', marginTop: 4 },
+  attentionCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 20,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  attentionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  clockIllustration: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clockPulse: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#FF9500',
+    opacity: 0.3,
+  },
+  attentionBody: {
+    flex: 1,
+  },
+  attentionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  attentionMessage: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  attentionAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  actionSubText: {
+    color: '#34C759',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  categoriesSection: { marginTop: 24, paddingBottom: 10 },
   categoriesScrollContent: { paddingHorizontal: 20, gap: 10 },
   categoryChip: {
     paddingHorizontal: 16,
@@ -715,7 +832,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     opacity: 0.3,
   },
-
   clinicsSection: { marginTop: 32, paddingHorizontal: 20 },
   clinicsSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   clinicsSectionTitle: { fontSize: 18, fontWeight: '700' },

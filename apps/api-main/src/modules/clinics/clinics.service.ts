@@ -38,6 +38,7 @@ import {
   getServiceFilterOptionsPublic,
   getServiceByIdPublic,
   getClinicServicesPublic,
+  searchClinicsPublic,
 } from "./clinics.repo"
 import type { PublicServiceFilters } from "./clinics.repo"
 import { listReviewsWithPatientDetails, getRatingForTarget } from "@/modules/reviews/reviews.repo"
@@ -824,6 +825,38 @@ export async function publicSearchServices(
     page,
     limit,
     totalPages: Math.ceil(total / limit),
+  }
+}
+
+/** Unified search results (Services + Clinics separately) */
+export async function publicUnifiedSearch(q: string, limit: number = 15) {
+  const [serviceRes, clinicDocs] = await Promise.all([
+    searchServicesPublic({ q }, 0, limit),
+    searchClinicsPublic(q, 10),
+  ])
+
+  const clinics: PublicClinicListItem[] = clinicDocs.map((d) => ({
+    id: d._id.toHexString(),
+    clinicDisplayName: d.clinicDisplayName,
+    logoUrl: d.branding?.logoUrl ?? null,
+    coverUrl: d.branding?.coverUrl ?? null,
+    servicesCount: d.stats?.servicesCount ?? 0,
+    branchesCount: d.stats?.branchesCount ?? 0,
+    categories: (Array.isArray(d.categories) && d.categories.length > 0) ? d.categories : (Array.isArray(d.category) ? d.category : []),
+    descriptionShort: d.description?.short ?? null,
+    rating: d.rating ? { avg: d.rating.avg, count: d.rating.count } : { avg: 0, count: 0 },
+    branches: (d.branches ?? [])
+      .filter((b) => b.isActive)
+      .map((b) => ({
+        id: b._id.toHexString(),
+        name: b.name,
+        address: b.address,
+      })),
+  }))
+
+  return {
+    services: serviceRes.services,
+    clinics,
   }
 }
 

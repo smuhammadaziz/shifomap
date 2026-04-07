@@ -68,3 +68,25 @@ export const prescriptionEventBodySchema = z.object({
 })
 export type PrescriptionEventBody = z.infer<typeof prescriptionEventBodySchema>
 
+export interface CustomReminderDoc {
+  _id: ObjectId
+  userId: ObjectId
+  pillName: string
+  time: string // HH:mm
+  notes: string | null
+  timesPerDay: number
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+  deletedAt: Date | null
+}
+
+export const createCustomReminderSchema = z.object({
+  pillName: z.string().min(1).max(128),
+  time: z.string().regex(/^\d{2}:\d{2}$/),
+  notes: z.string().max(500).nullable().optional(),
+  timesPerDay: z.number().int().min(1).max(10),
+})
+
+export type CreateCustomReminderBody = z.infer<typeof createCustomReminderSchema>
+
