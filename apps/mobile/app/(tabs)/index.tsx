@@ -216,6 +216,15 @@ const HomeScreen = () => {
         <View style={styles.fixedHeaderActions}>
           <TouchableOpacity
             style={styles.fixedHeaderIconBtn}
+            onPress={() => router.push('/ai-chat')}
+            hitSlop={12}
+            accessibilityLabel="AI Chat"
+          >
+            <Ionicons name="chatbubbles-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.fixedHeaderIconBtn}
             onPress={() => router.push('/notifications')}
             hitSlop={12}
             accessibilityLabel={t.notifications}
@@ -415,12 +424,12 @@ const HomeScreen = () => {
               </View>
               <View style={styles.attentionBody}>
                 <Text style={[styles.attentionTitle, { color: colors.primary }]}>
-                  DIQQAT / ВНИМАНИЕ
+                  {language === 'uz' ? 'DIQQAT' : 'ВНИМАНИЕ'}
                 </Text>
                 <Text style={[styles.attentionMessage, { color: colors.text }]} numberOfLines={2}>
                   {isUrgent 
-                    ? `${nextPill.medicineName}: Ichish vaqti! / Пора пить!`
-                    : `${nextPill.medicineName}: ${diffMins} min / ${diffMins} мин`
+                    ? `${nextPill.medicineName}: ${language === 'uz' ? 'Ichish vaqti!' : 'Пора пить!'}`
+                    : `${nextPill.medicineName}: ${diffMins} ${language === 'uz' ? 'min' : 'мин'}`
                   }
                 </Text>
               </View>

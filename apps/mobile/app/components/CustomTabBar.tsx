@@ -14,7 +14,16 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 
     const tabPositionX = useRef(new Animated.Value(0)).current;
 
-    const buttonWidth = dimensions.width / state.routes.length;
+    const arrangedRoutes = [
+        state.routes.find(r => r.name === 'index'),
+        state.routes.find(r => r.name === 'appointments'),
+        { key: 'center-action', name: 'center-action' },
+        { key: 'ai-chat-btn', name: 'ai-chat-btn' },
+        state.routes.find(r => r.name === 'profile'),
+    ].filter(Boolean) as any[];
+
+    const buttonWidth = dimensions.width / arrangedRoutes.length;
+    const visualIndex = arrangedRoutes.findIndex(r => r.name === state.routes[state.index]?.name);
 
     const onTabbarLayout = (e: LayoutChangeEvent) => {
         setDimensions({
@@ -24,15 +33,15 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
     };
 
     useEffect(() => {
-        if (buttonWidth > 0) {
+        if (buttonWidth > 0 && visualIndex >= 0) {
             Animated.spring(tabPositionX, {
-                toValue: state.index * buttonWidth,
+                toValue: visualIndex * buttonWidth,
                 useNativeDriver: true,
                 damping: 20,
                 stiffness: 150,
             }).start();
         }
-    }, [state.index, buttonWidth, tabPositionX]);
+    }, [visualIndex, buttonWidth, tabPositionX]);
 
     return (
         <View style={[styles.tabBarContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -51,9 +60,47 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                     </Animated.View>
                 )}
                 
-                {state.routes.map((route, index) => {
+                {arrangedRoutes.map((route) => {
+                    const isCenterAction = route.name === 'center-action';
+                    const isAiChatBtn = route.name === 'ai-chat-btn';
+                    const isFocused = !isCenterAction && !isAiChatBtn && state.routes[state.index]?.name === route.name;
+
+                    if (isCenterAction) {
+                        return (
+                            <TouchableOpacity
+                                key={route.key}
+                                accessibilityRole="button"
+                                onPress={() => navigation.navigate('pill-reminder')}
+                                style={styles.tabItem}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[styles.floatingActionCircle, { backgroundColor: colors.primary }]}>
+                                    <Ionicons name="add" size={32} color="#ffffff" style={{ paddingLeft: 2 }} />
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    }
+
+                    if (isAiChatBtn) {
+                         return (
+                            <TouchableOpacity
+                                key={route.key}
+                                accessibilityRole="button"
+                                onPress={() => navigation.navigate('ai-chat')}
+                                style={styles.tabItem}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons
+                                    name="chatbubbles-outline"
+                                    size={24}
+                                    color={colors.textTertiary}
+                                    style={{ zIndex: 1 }}
+                                />
+                            </TouchableOpacity>
+                        );
+                    }
+
                     const { options } = descriptors[route.key];
-                    const isFocused = state.index === index;
 
                     const onPress = () => {
                         const event = navigation.emit({
@@ -74,11 +121,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
                         iconName = isFocused ? 'home' : 'home-outline';
                     } else if (route.name === 'appointments') {
                         iconName = isFocused ? 'calendar' : 'calendar-outline';
-                    } else if (route.name === 'pill-reminder') {
-                        IconComponent = MaterialCommunityIcons;
-                        iconName = isFocused ? 'pill' : 'pill';
+                    } else if (route.name === 'ai-chat') {
+                        iconName = isFocused ? 'chatbubbles' : 'chatbubbles-outline';
                     } else if (route.name === 'profile') {
-                        iconName = 'person';
+                        iconName = isFocused ? 'person' : 'person-outline';
                     }
 
                     return (
@@ -109,11 +155,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 const styles = StyleSheet.create({
     tabBarContainer: {
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
+        bottom: 16,
+        left: 20,
+        right: 20,
         backgroundColor: 'transparent',
-        paddingHorizontal: 24,
     },
     tabBar: {
         flexDirection: 'row',
@@ -121,13 +166,11 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.15,
         shadowRadius: 15,
         elevation: 10,
-        overflow: 'hidden',
     },
     activeTabIndicator: {
         position: 'absolute',
@@ -147,5 +190,20 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         height: '100%',
         zIndex: 10,
+    },
+    floatingActionCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: -32, // pop out
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 8,
+        borderWidth: 4,
+        borderColor: '#ffffff', // Or dynamic based on theme, ideally colors.backgroundCard
     },
 });

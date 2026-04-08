@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '../../store/auth-store';
-import { useThemeStore } from '../../store/theme-store';
-import { getTranslations } from '../../lib/translations';
-import { getColors } from '../../lib/theme';
-import { getMyPrescriptions, getCustomReminders, addCustomReminder, deleteCustomReminder, type PrescriptionCard, type CustomReminder } from '../../lib/api';
+import { useAuthStore } from '../store/auth-store';
+import { useThemeStore } from '../store/theme-store';
+import { getTranslations } from '../lib/translations';
+import { getColors } from '../lib/theme';
+import { getMyPrescriptions, getCustomReminders, addCustomReminder, deleteCustomReminder, type PrescriptionCard, type CustomReminder } from '../lib/api';
 import { useRouter } from 'expo-router';
 
 const PillReminderScreen = () => {
@@ -103,26 +103,19 @@ const PillReminderScreen = () => {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+            <View style={[styles.header, { borderBottomColor: colors.border }]}>
+                <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} hitSlop={15}>
+                    <Ionicons name="chevron-back" size={28} color={colors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>{t.pillReminders}</Text>
+                <View style={{ width: 28 }} />
+            </View>
+
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />}
             >
-                <View style={styles.header}>
-                    <View style={[styles.iconWrap, { backgroundColor: colors.primaryBg }]}>
-                        <Ionicons name="medical-outline" size={22} color={colors.primary} />
-                    </View>
-                    <View style={styles.headerText}>
-                        <Text style={[styles.title, { color: colors.text }]}>{t.pillReminders}</Text>
-                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t.myPrescriptions}</Text>
-                    </View>
-                    <TouchableOpacity 
-                        style={[styles.addButton, { backgroundColor: colors.primary }]}
-                        onPress={() => setModalVisible(true)}
-                    >
-                        <Ionicons name="add" size={24} color="#FFF" />
-                    </TouchableOpacity>
-                </View>
 
                 {loading ? (
                     <View style={styles.centered}>
@@ -202,6 +195,14 @@ const PillReminderScreen = () => {
 
                 <View style={{ height: 100 }} />
             </ScrollView>
+
+            <TouchableOpacity 
+                style={[styles.fab, { backgroundColor: colors.primary }]}
+                onPress={() => setModalVisible(true)}
+                activeOpacity={0.8}
+            >
+                <Ionicons name="add" size={32} color="#FFF" />
+            </TouchableOpacity>
 
             <Modal
                 visible={modalVisible}
@@ -300,29 +301,14 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        marginTop: 6,
-        marginBottom: 18,
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
     },
-    iconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    headerText: {
-        flex: 1,
-        minWidth: 0,
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: '800',
-    },
-    subtitle: {
-        marginTop: 4,
-        fontSize: 13,
-        fontWeight: '500',
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '700',
     },
     sectionTitle: {
         fontSize: 16,
@@ -386,11 +372,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    notesText: {
-        marginTop: 8,
-        fontSize: 13,
-        fontStyle: 'italic',
-        paddingLeft: 40,
+    notesText: { fontSize: 13, marginTop: 12, fontStyle: 'italic', paddingHorizontal: 4 },
+    fab: {
+        position: 'absolute',
+        bottom: 100, // Above the floating tab bar
+        right: 20,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 8,
     },
     modalOverlay: {
         flex: 1,
