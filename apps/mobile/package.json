@@ -1,5 +1,5 @@
 {
-  "name": "mobile",
+  "name": "shifoyol-mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
@@ -9,8 +9,9 @@
     "web": "expo start --web",
     "dev": "expo start",
     "build": "node scripts/build.js",
-    "build:android": "npx eas build --platform android --profile preview",
-    "build:ios": "npx eas build --platform ios --profile production"
+    "build:android": "pnpm exec eas build --platform android --profile preview",
+    "build:production": "pnpm exec eas build --platform android --profile production",
+    "build:ios": "pnpm exec eas build --platform ios --profile production"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
+    "eas-cli": "^18.5.0",
     "typescript": "~5.9.2"
   },
   "private": true

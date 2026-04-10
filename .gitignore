@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+# pnpm monorepo — root lockfile makes EAS run `npm ci` and skip workspace installs
+package-lock.json
 
 # Environment variables - never commit
 .env

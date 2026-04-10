@@ -1,15 +1,41 @@
 {
+  "cli": {
+    "version": ">= 18.5.0",
+    "appVersionSource": "remote"
+  },
   "build": {
+    "monorepo": {
+      "pnpm": "8.6.10",
+      "cache": {
+        "key": "turbo",
+        "paths": ["../../node_modules/.cache/turbo"]
+      },
+      "env": {
+        "EXPO_USE_FAST_RESOLVER": "true"
+      }
+    },
     "development": {
+      "extends": "monorepo",
+      "installCommand": "pnpm install --frozen-lockfile",
       "developmentClient": false,
       "distribution": "internal"
     },
     "preview": {
+      "extends": "monorepo",
+      "installCommand": "pnpm install --frozen-lockfile",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
     },
-    "production": {}
+    "production": {
+      "extends": "monorepo",
+      "installCommand": "pnpm install --frozen-lockfile",
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "autoIncrement": true
+    }
   }
 }

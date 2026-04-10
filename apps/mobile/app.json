@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "ShifoYo'l",
-    "slug": "mobile",
-    "scheme": "mobile",
+    "slug": "shifoyol",
+    "scheme": "shifoyol",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -48,8 +48,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "13912f13-ec0a-4586-b1c5-0ef17cf8613f"
+        "projectId": "cac5457c-8eda-482f-b5be-58b31117ca0b"
       }
-    }
+    },
+    "owner": "rmuhammadaziz"
   }
 }
