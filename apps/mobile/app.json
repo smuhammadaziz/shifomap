@@ -17,13 +17,13 @@
     "ios": {
       "supportsTablet": true,
       "backgroundColor": "#09090b",
-      "bundleIdentifier": "uz.shifoyol.app",
+      "bundleIdentifier": "uz.shifoyol.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "uz.shifoyol.app",
+      "package": "uz.shifoyol.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#09090b"

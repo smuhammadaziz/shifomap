@@ -1,6 +1,5 @@
 {
   "cli": {
-    "version": ">= 18.5.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -16,13 +15,11 @@
     },
     "development": {
       "extends": "monorepo",
-      "installCommand": "pnpm install --frozen-lockfile",
       "developmentClient": false,
       "distribution": "internal"
     },
     "preview": {
       "extends": "monorepo",
-      "installCommand": "pnpm install --frozen-lockfile",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
@@ -30,7 +27,6 @@
     },
     "production": {
       "extends": "monorepo",
-      "installCommand": "pnpm install --frozen-lockfile",
       "distribution": "store",
       "android": {
         "buildType": "app-bundle"
