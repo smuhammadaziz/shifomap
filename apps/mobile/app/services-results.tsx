@@ -16,6 +16,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { searchServicesWithFilters, type PublicServiceItem, type ServiceFilters } from '../lib/api';
@@ -43,6 +44,7 @@ export default function ServicesResultsScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
   const [services, setServices] = useState<PublicServiceItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -210,7 +212,7 @@ export default function ServicesResultsScreen() {
             data={services}
             renderItem={renderItem}
             keyExtractor={(item) => item._id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             onEndReached={onEndReached}
             onEndReachedThreshold={0.3}

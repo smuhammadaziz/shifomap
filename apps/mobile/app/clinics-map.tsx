@@ -11,7 +11,7 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -32,6 +32,7 @@ export default function ClinicsMapScreen() {
   const language = useAuthStore((s) => s.language);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<ViewMode>('map');
   const [clinics, setClinics] = useState<ClinicListItem[]>([]);
@@ -144,7 +145,8 @@ export default function ClinicsMapScreen() {
 
   const renderClinicListItem = ({ item: c }: { item: ClinicListItem }) => {
     const coverUri = c.coverUrl || c.logoUrl || DEFAULT_CLINIC_COVER;
-    const tagline = c.categories.length ? c.categories.slice(0, 2).join(' · ') + (c.categories.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 50);
+    const catNames = (c.categories || []).map(cat => typeof cat === 'string' ? cat : cat.name);
+    const tagline = catNames.length ? catNames.slice(0, 2).join(' · ') + (catNames.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 50);
     
     return (
       <TouchableOpacity
@@ -235,7 +237,7 @@ export default function ClinicsMapScreen() {
           
           {/* Popup over Map */}
           {selectedMarker && mode === 'map' && (
-            <View style={[styles.popupWrap, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
+            <View style={[styles.popupWrap, { backgroundColor: colors.backgroundCard, borderColor: colors.border, bottom: Math.max(insets.bottom, 20) + 4 }]}>
                <View style={styles.popupHeader}>
                   <Image source={{ uri: selectedMarker.coverUrl }} style={styles.popupImage} />
                   <View style={styles.popupInfo}>
@@ -304,7 +306,7 @@ export default function ClinicsMapScreen() {
             data={clinics}
             keyExtractor={(item) => item.id}
             renderItem={renderClinicListItem}
-            contentContainerStyle={styles.listScroll}
+            contentContainerStyle={[styles.listScroll, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}
             showsVerticalScrollIndicator={false}
           />
         )}

@@ -141,6 +141,12 @@ export async function updateMe(updates: Partial<{
   return data.data;
 }
 
+export async function deleteMe(): Promise<{ success: boolean }> {
+  const { data } = await api.delete<{ success: boolean }>('/patients/me');
+  if (!data.success) throw new Error('Failed to delete account');
+  return data;
+}
+
 export async function changePatientPassword(oldPassword: string, newPassword: string): Promise<Patient> {
   const { data } = await api.post<{ success: boolean; data: Patient }>(
     '/patients/me/change-password',

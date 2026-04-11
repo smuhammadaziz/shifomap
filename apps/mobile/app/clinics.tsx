@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getClinicsList, type ClinicListItem } from '../lib/api';
@@ -25,6 +25,7 @@ export default function ClinicsScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
   const [clinics, setClinics] = useState<ClinicListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,10 +69,11 @@ export default function ClinicsScreen() {
           <Text style={[styles.emptySub, { color: colors.textTertiary }]}>{t.noResultsFound}</Text>
         </View>
       ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
           {clinics.map((c) => {
             const coverUri = c.coverUrl || c.logoUrl || DEFAULT_CLINIC_COVER;
-            const tagline = c.categories.length ? c.categories.slice(0, 2).join(' · ') + (c.categories.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 40);
+            const catNames = (c.categories || []).map(cat => typeof cat === 'string' ? cat : cat.name);
+            const tagline = catNames.length ? catNames.slice(0, 2).join(' · ') + (catNames.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 40);
             return (
               <TouchableOpacity
                 key={c.id}

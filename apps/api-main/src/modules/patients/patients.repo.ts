@@ -117,3 +117,9 @@ export async function updatePatientPassword(
   )
   return db.collection<PatientDoc>(PATIENTS_COLLECTION).findOne({ _id: patientId })
 }
+
+export async function deletePatient(patientId: ObjectId): Promise<boolean> {
+  const db = getDb()
+  const result = await db.collection<PatientDoc>(PATIENTS_COLLECTION).deleteOne({ _id: patientId })
+  return result.deletedCount > 0
+}

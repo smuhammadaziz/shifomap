@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getMyBookings, type Booking, type BookingStatus } from '../lib/api';
@@ -29,6 +30,7 @@ export default function AppointmentsScreen() {
   const router = useRouter();
   const language = useAuthStore((s) => s.language);
   const t = getTranslations(language);
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<TabFilter>('upcoming');
   const [list, setList] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +130,7 @@ export default function AppointmentsScreen() {
           data={filtered}
           renderItem={renderItem}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#14228e" />}
         />
       )}

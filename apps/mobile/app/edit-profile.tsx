@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../store/auth-store';
@@ -43,6 +43,7 @@ export default function EditProfileScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
 
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');
@@ -300,7 +301,7 @@ export default function EditProfileScreen() {
             </View>
           )}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: Math.max(insets.bottom, 20) + 20 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

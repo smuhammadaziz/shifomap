@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail, getReviews, type ClinicDoctorPublic, type ReviewItem } from '../../lib/api';
@@ -27,6 +28,7 @@ export default function DoctorDetailScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
   const [doctor, setDoctor] = useState<ClinicDoctorPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -232,7 +234,7 @@ export default function DoctorDetailScreen() {
             </TouchableOpacity>
           )}
         </View>
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom, 20) + 20 }} />
       </ScrollView>
 
       <ReviewBottomSheet

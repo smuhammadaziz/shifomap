@@ -12,6 +12,7 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getClinicDetail, getServiceById, createBooking, getBookedSlots, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicBranchPublic, type ClinicServicePublic } from '../lib/api';
@@ -119,6 +120,7 @@ export default function BookScreen() {
   const t = getTranslations(language);
   const colors = getColors(theme);
   const { addNotification } = useNotificationStore();
+  const insets = useSafeAreaInsets();
   const [clinic, setClinic] = useState<ClinicDetailPublic | null>(null);
   const [service, setService] = useState<ClinicServicePublic | null>(null);
   const [loading, setLoading] = useState(true);
@@ -502,7 +504,7 @@ export default function BookScreen() {
       </ScrollView>
 
       {/* Fixed Bottom Button */}
-      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           style={[styles.confirmBtn, { backgroundColor: colors.primary }, (!canConfirm || submitting) && styles.confirmBtnDisabled]}
           onPress={handleConfirm}
@@ -757,7 +759,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 34,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   confirmBtn: {

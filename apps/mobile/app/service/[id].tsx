@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getServiceById, getReviews, type ServiceDetailResponse, type ReviewItem } from '../../lib/api';
@@ -39,6 +40,7 @@ export default function ServiceDetailScreen() {
   const language = useAuthStore((s) => s.language);
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
+  const insets = useSafeAreaInsets();
   const colors = getColors(theme);
   const [data, setData] = useState<ServiceDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,7 +288,7 @@ export default function ServiceDetailScreen() {
             <Text style={[styles.leaveReviewBtnText, { color: colors.primaryLight }]}>{t.writeReview}</Text>
           </TouchableOpacity>
         </View>
-        <View style={{ height: 100 }} />
+        <View style={{ height: Math.max(insets.bottom, 20) + 80 }} />
       </ScrollView>
 
       <ReviewBottomSheet
@@ -299,7 +301,7 @@ export default function ServiceDetailScreen() {
         entityName={service.title}
       />
 
-      <View style={[styles.stickyFooter, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border }]}>
+      <View style={[styles.stickyFooter, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) }]}>
         <TouchableOpacity
           style={[styles.bookButton, { backgroundColor: colors.primary }]}
           activeOpacity={0.9}
@@ -356,8 +358,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 12,
   },
   category: { fontSize: 13, marginBottom: 6 },
   title: { fontSize: 20, fontWeight: '700', marginBottom: 8 },

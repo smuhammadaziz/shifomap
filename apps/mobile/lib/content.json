@@ -236,7 +236,11 @@
     "register": "Ro'yxatdan o'tish",
     "forgotPassword": "Parolni unutdingizmi?",
     "continueAsGuest": "Mehmon sifatida davom etish",
-    "aiAssistant": "AI yordamchi"
+    "aiAssistant": "AI yordamchi",
+    "deleteAccount": "Akkountni o'chirish",
+    "deleteAccountConfirm": "Siz rostdan ham hisobingizni o'chirmoqchimisiz?",
+    "deleteAccountWarning": "Bu amalni ortga qaytarib bo'lmaydi.",
+    "delete": "O'chirish"
   },
   "ru": {
     "tabHome": "Главная",
@@ -475,6 +479,10 @@
     "register": "Регистрация",
     "forgotPassword": "Забыли пароль?",
     "continueAsGuest": "Продолжить как гость",
-    "aiAssistant": "ИИ-помощник"
+    "aiAssistant": "ИИ-помощник",
+    "deleteAccount": "Удалить аккаунт",
+    "deleteAccountConfirm": "Вы уверены, что хотите удалить свой аккаунт?",
+    "deleteAccountWarning": "Это действие нельзя отменить.",
+    "delete": "Удалить"
   }
 }

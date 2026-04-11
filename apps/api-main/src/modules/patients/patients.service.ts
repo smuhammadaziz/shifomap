@@ -9,6 +9,7 @@ import {
   updatePatientLastLogin,
   updatePatientProfile,
   updatePatientPassword,
+  deletePatient,
 } from "./patients.repo"
 import { logger } from "@/common/logger"
 import type {
@@ -291,4 +292,13 @@ export async function changePatientPassword(
   const updated = await updatePatientPassword(new ObjectId(patientId), passwordHash)
   if (!updated) throw badRequest("Failed to update password")
   return mapDocToPublicPatient(updated)
+}
+
+export async function deleteMe(patientId: string) {
+  if (!ObjectId.isValid(patientId)) throw badRequest("Invalid patient ID")
+  const patient = await findPatientById(new ObjectId(patientId))
+  if (!patient) throw unauthorized("Patient not found")
+  const deleted = await deletePatient(new ObjectId(patientId))
+  if (!deleted) throw badRequest("Failed to delete account")
+  return { success: true }
 }

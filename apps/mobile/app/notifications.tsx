@@ -8,7 +8,7 @@ import {
   FlatList,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../store/auth-store';
@@ -25,6 +25,7 @@ export default function NotificationsScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
 
   const { notifications, clearAll, removeNotification, markAsRead, markAllAsRead, hydrate } = useNotificationStore();
   const [activeCategory, setActiveCategory] = useState<typeof CATEGORIES[number]>('all');
@@ -155,7 +156,7 @@ export default function NotificationsScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]} showsVerticalScrollIndicator={false}>
         {sections.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconContainer, { backgroundColor: colors.backgroundSecondary }]}>

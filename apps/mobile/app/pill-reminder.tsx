@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform, KeyboardAvoidingView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/auth-store';
 import { useThemeStore } from '../store/theme-store';
@@ -15,6 +15,7 @@ const PillReminderScreen = () => {
     const t = getTranslations(language);
     const colors = getColors(theme);
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [list, setList] = useState<PrescriptionCard[]>([]);
@@ -193,11 +194,11 @@ const PillReminderScreen = () => {
                     </>
                 )}
 
-                <View style={{ height: 100 }} />
+                <View style={{ height: Math.max(insets.bottom, 20) + 80 }} />
             </ScrollView>
 
             <TouchableOpacity 
-                style={[styles.fab, { backgroundColor: colors.primary }]}
+                style={[styles.fab, { backgroundColor: colors.primary, bottom: Math.max(insets.bottom, 20) + 16 }]}
                 onPress={() => setModalVisible(true)}
                 activeOpacity={0.8}
             >
@@ -375,7 +376,6 @@ const styles = StyleSheet.create({
     notesText: { fontSize: 13, marginTop: 12, fontStyle: 'italic', paddingHorizontal: 4 },
     fab: {
         position: 'absolute',
-        bottom: 100, // Above the floating tab bar
         right: 20,
         width: 64,
         height: 64,

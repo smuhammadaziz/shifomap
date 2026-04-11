@@ -8,7 +8,7 @@ import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
 import { getColors } from '../../lib/theme';
-import { getNextUpcomingBooking, type Booking } from '../../lib/api';
+import { getNextUpcomingBooking, deleteMe, type Booking } from '../../lib/api';
 
 const DEFAULT_DOCTOR_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
 
@@ -67,6 +67,29 @@ const ProfileDashboard = () => {
           onPress: async () => {
             await logout();
             router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(
+      t.deleteAccount as string,
+      t.deleteAccountConfirm as string + '\n\n' + t.deleteAccountWarning,
+      [
+        { text: language === 'ru' ? 'Отмена' : 'Bekor qilish', style: 'cancel' },
+        {
+          text: t.delete as string,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMe();
+              await logout();
+              router.replace('/(auth)/login');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete account');
+            }
           },
         },
       ]
@@ -209,10 +232,17 @@ const ProfileDashboard = () => {
 
 
 
-        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} style={{ marginRight: 8 }} />
-          <Text style={[styles.logoutText, { color: colors.error }]}>{t.logOut}</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={onLogout}>
+            <Ionicons name="log-out-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
+            <Text style={[styles.actionBtnText, { color: colors.text }]}>{t.logOut}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={onDeleteAccount}>
+            <Ionicons name="trash-outline" size={20} color={colors.error} style={{ marginRight: 8 }} />
+            <Text style={[styles.actionBtnText, { color: colors.error }]}>{t.deleteAccount}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <Modal visible={showPaymentModal} transparent animationType="fade" onRequestClose={() => setShowPaymentModal(false)}>
@@ -346,8 +376,9 @@ const styles = StyleSheet.create({
   settingLabel: { flex: 1, fontSize: 16 },
   divider: { height: 1, marginLeft: 56 },
 
-  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 40 },
-  logoutText: { fontSize: 15, fontWeight: '600' },
+  actionButtons: { marginTop: 30, marginBottom: 40, gap: 12 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 16, borderWidth: 1 },
+  actionBtnText: { fontSize: 16, fontWeight: '600' },
 
   modalOverlay: {
     flex: 1,

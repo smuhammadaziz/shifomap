@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getPrescriptionById, setPrescriptionEvent, type PrescriptionDetail } from '../../lib/api';
@@ -16,6 +16,7 @@ export default function PrescriptionDetailScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -137,7 +138,7 @@ export default function PrescriptionDetailScreen() {
             );
           })}
 
-          <View style={{ height: 28 }} />
+          <View style={{ height: Math.max(insets.bottom, 20) + 8 }} />
         </ScrollView>
       )}
     </SafeAreaView>

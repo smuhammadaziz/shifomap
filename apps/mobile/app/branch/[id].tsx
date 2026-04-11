@@ -9,6 +9,7 @@ import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
 import { getColors } from '../../lib/theme';
 import Skeleton from '../components/Skeleton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function BranchDetailScreen() {
   const { id: branchId, clinicId } = useLocalSearchParams<{ id: string; clinicId?: string }>();
@@ -17,6 +18,7 @@ export default function BranchDetailScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
   const [branch, setBranch] = useState<ClinicBranchPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +142,7 @@ export default function BranchDetailScreen() {
             </View>
           ) : null}
         </View>
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom, 20) + 20 }} />
       </ScrollView>
     </View>
   );

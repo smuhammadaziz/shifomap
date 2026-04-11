@@ -15,6 +15,7 @@ import {
   completeProfile,
   updateMe,
   changePatientPassword,
+  deleteMe,
 } from "./patients.service"
 import { requirePatientAuth } from "@/common/middleware/auth"
 import { logger } from "@/common/logger"
@@ -150,4 +151,10 @@ export const patientsRoutes = new Elysia({ prefix: "/patients" })
     const result = await changePatientPassword(auth.sub, parsed.data)
     set.status = 200
     return { success: true, data: result }
+  })
+  // DELETE /v1/patients/me
+  .delete("/me", async ({ auth, set }) => {
+    const result = await deleteMe(auth.sub)
+    set.status = 200
+    return result
   })
