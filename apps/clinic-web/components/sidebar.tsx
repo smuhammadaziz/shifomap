@@ -4,6 +4,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth-store'
 import { useLanguage } from '@/contexts/language-context'
+import { getApiUrl } from '@/lib/api'
+import Cookies from 'js-cookie'
 import {
   LayoutDashboard,
   Home,
@@ -16,8 +18,9 @@ import {
   Menu,
   X,
   Star,
+  MessageSquare,
 } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from './ui/button'
 
 export default function Sidebar() {
@@ -26,8 +29,36 @@ export default function Sidebar() {
   const { t, language, setLanguage } = useLanguage()
   const { logout, user } = useAuthStore()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [doctorUnreadChats, setDoctorUnreadChats] = useState(0)
+  const apiUrl = getApiUrl()
 
   const isDoctor = (user as { role?: string })?.role === 'doctor'
+
+  useEffect(() => {
+    if (!isDoctor) return
+    const token = Cookies.get('clinic_auth_token')
+    if (!token) return
+
+    const loadUnread = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/v1/chat/doctor/conversations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = await res.json()
+        if (res.ok && json?.success) {
+          const list = Array.isArray(json.data) ? json.data : []
+          const total = list.reduce((acc: number, c: { unread?: number }) => acc + (c.unread ?? 0), 0)
+          setDoctorUnreadChats(total)
+        }
+      } catch {
+        // ignore transient network errors
+      }
+    }
+
+    loadUnread()
+    const timer = setInterval(loadUnread, 7000)
+    return () => clearInterval(timer)
+  }, [isDoctor, apiUrl])
 
   const ownerNavigation = useMemo(
     () => [
@@ -47,9 +78,15 @@ export default function Sidebar() {
       { name: t.sidebar.myServices, href: '/dashboard/my-services', icon: Briefcase },
       { name: t.sidebar.myAppointments, href: '/dashboard/my-appointments', icon: Calendar },
       { name: t.sidebar.myClients, href: '/dashboard/my-clients', icon: Users },
+      {
+        name: language === 'uz' ? 'Xabarlar' : 'Сообщения',
+        href: '/dashboard/messages',
+        icon: MessageSquare,
+        badge: doctorUnreadChats,
+      },
       { name: t.dashboard.settingsTitle, href: '/dashboard/settings', icon: Building2 },
     ],
-    [t.sidebar, t.dashboard.settingsTitle]
+    [t.sidebar, t.dashboard.settingsTitle, language, doctorUnreadChats]
   )
 
   const navigation = isDoctor ? doctorNavigation : ownerNavigation
@@ -115,6 +152,11 @@ export default function Sidebar() {
                 >
                   <item.icon className="h-5 w-5" />
                   <span>{item.name}</span>
+                  {typeof (item as { badge?: number }).badge === 'number' && (item as { badge?: number }).badge! > 0 ? (
+                    <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold">
+                      {(item as { badge?: number }).badge}
+                    </span>
+                  ) : null}
                 </Link>
               )
             })}

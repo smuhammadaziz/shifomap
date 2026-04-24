@@ -11,6 +11,11 @@ import { reviewsRoutes } from "@/modules/reviews/reviews.routes"
 import { landingRoutes } from "@/modules/landing/landing.routes"
 import { prescriptionsRoutes, prescriptionsPatientRoutes } from "@/modules/prescriptions/prescriptions.routes"
 import { prescriptionsManageRoutes } from "@/modules/prescriptions/prescriptions.manage.routes"
+import { filesRoutes } from "@/modules/files/files.routes"
+import { medicalHistoryPatientRoutes, medicalHistoryDoctorRoutes } from "@/modules/medical-history/medical-history.routes"
+import { assessmentsRoutes } from "@/modules/assessments/assessments.routes"
+import { chatPatientRoutes, chatDoctorRoutes } from "@/modules/chat/chat.routes"
+import { postsPublicRoutes, postsPatientRoutes, postsAdminRoutes } from "@/modules/posts/posts.routes"
 import { AppError } from "@/common/errors"
 
 // V1 API routes
@@ -26,6 +31,15 @@ const v1 = new Elysia({ prefix: "/v1" })
 .use(prescriptionsManageRoutes)
 .use(prescriptionsPatientRoutes)
 .use(landingRoutes)
+.use(filesRoutes)
+.use(medicalHistoryPatientRoutes)
+.use(medicalHistoryDoctorRoutes)
+.use(assessmentsRoutes)
+.use(chatPatientRoutes)
+.use(chatDoctorRoutes)
+.use(postsPublicRoutes)
+.use(postsPatientRoutes)
+.use(postsAdminRoutes)
 
 // Main Elysia app
 export const app = new Elysia()

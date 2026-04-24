@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/store/auth-store'
 import { useLanguage } from '@/contexts/language-context'
+import MedicalHistoryPanel from '@/components/medical-history-panel'
 
 export default function DoctorBookingDetailPage() {
   const { t } = useLanguage()
@@ -128,6 +129,8 @@ export default function DoctorBookingDetailPage() {
           <div><span className="text-gray-500">{bk.status ?? 'Holat'}:</span> {statusLabel(booking.status)}</div>
         </CardContent>
       </Card>
+
+      <MedicalHistoryPanel patientId={booking.patientId ?? null} />
 
       <Card>
         <CardHeader>

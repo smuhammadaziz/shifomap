@@ -2,14 +2,12 @@
  * API base URL from env. Used for auth and other API calls.
  */
 export function getApiUrl(): string {
-  if (typeof window !== "undefined") {
-    return (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "") || "https://api.shifoyol.uz"
-    // return (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "") || "http://192.168.58.151:8080"
-
+  const raw = process.env.NEXT_PUBLIC_API_URL?.trim()
+  if (raw) {
+    return raw.replace(/\/+$/, "")
   }
-  return process.env.NEXT_PUBLIC_API_URL ?? "https://api.shifoyol.uz"
-  // return process.env.NEXT_PUBLIC_API_URL ?? "http://192.168.58.151:8080"
-
+  // Dev fallback: use local api-main (pnpm dev in apps/api-main).
+  return "http://localhost:3000"
 }
 
 /**

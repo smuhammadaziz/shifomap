@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useLanguage } from '@/contexts/language-context'
+import MedicalHistoryPanel from '@/components/medical-history-panel'
 
 type Med = {
   key: string
@@ -44,6 +45,19 @@ export default function PrescriptionForBookingPage() {
   const [saving, setSaving] = useState(false)
   const [loadingExisting, setLoadingExisting] = useState(true)
   const [meds, setMeds] = useState<Med[]>([newMed()])
+  const [patientId, setPatientId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!token || !bookingId) return
+    fetch(`${apiUrl}/v1/bookings-manage/${bookingId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.success && j.data?.patientId) setPatientId(j.data.patientId)
+      })
+      .catch(() => {})
+  }, [apiUrl, bookingId, token])
 
   const bk = (t as any).bookings ?? {} as Record<string, string>
 
@@ -124,6 +138,8 @@ export default function PrescriptionForBookingPage() {
         <h1 className="text-3xl font-bold text-gray-900">{bk.prescription ?? 'Retsept'}</h1>
         <p className="text-gray-600 mt-1">{bk.booking ?? 'Bron'}: {bookingId}</p>
       </div>
+
+      <MedicalHistoryPanel patientId={patientId} />
 
       <Card>
         <CardHeader>

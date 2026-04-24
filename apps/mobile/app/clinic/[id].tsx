@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getClinicDetail, getReviews, type ClinicDetailPublic, type ClinicDoctorPublic, type ClinicServicePublic, type ReviewItem } from '../../lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/auth-store';
@@ -24,7 +25,7 @@ import Skeleton from '../components/Skeleton';
 import ReviewBottomSheet from '../components/ReviewBottomSheet';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HERO_HEIGHT = 220;
+const HERO_HEIGHT = 300;
 const DEFAULT_COVER = 'https://www.shutterstock.com/image-photo/medical-coverage-insurance-concept-hands-260nw-1450246616.jpg';
 const DEFAULT_CLINIC_LOGO = 'https://static.vecteezy.com/system/resources/thumbnails/036/372/442/small/hospital-building-with-ambulance-emergency-car-on-cityscape-background-cartoon-illustration-vector.jpg';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
@@ -199,12 +200,11 @@ export default function ClinicDetailScreen() {
         {/* Hero image - separated box */}
         <View style={[styles.heroBox, { backgroundColor: colors.border }]}>
           <Image source={{ uri: coverUri }} style={styles.heroImage} />
-          <View style={styles.heroOverlay}>
+          <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.65)']} style={styles.heroOverlay}>
             <TouchableOpacity style={styles.heroBackBtn} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
-            
-          </View>
+          </LinearGradient>
         </View>
 
         {/* Info card */}
@@ -431,14 +431,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingTop: 56,
-    paddingHorizontal: 16,
+    paddingTop: 58,
+    paddingHorizontal: 18,
   },
   heroBackBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -451,23 +453,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    marginTop: -24,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    marginTop: -32,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 16,
+    paddingTop: 18,
     borderWidth: 1,
     borderBottomWidth: 0,
   },
   clinicHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   clinicLogo: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-    borderRadius: 16,
+    width: 74,
+    height: 74,
+    borderRadius: 20,
   },
   clinicLogoPlaceholder: { justifyContent: 'center', alignItems: 'center' },
   clinicNameWrap: { flex: 1, marginLeft: 14, justifyContent: 'center' },
-  clinicName: { fontSize: 22, fontWeight: '700' },
+  clinicName: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
   verifiedBadge: { marginTop: 4, alignSelf: 'flex-start' },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   metaText: { fontSize: 13 },
@@ -476,25 +478,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 14,
     marginBottom: 20,
+    borderWidth: 1,
   },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ratingValue: { fontSize: 18, fontWeight: '700' },
   ratingReviews: { fontSize: 12, marginTop: 4 },
   topRatedPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
   topRatedText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  aboutSection: { marginBottom: 24 },
+  aboutSection: { marginBottom: 16 },
   sectionTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
   aboutText: { fontSize: 15, lineHeight: 22 },
-  section: { marginBottom: 24 },
+  section: { marginBottom: 14 },
   doctorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
     borderWidth: 1,
   },
   doctorAvatar: { width: 52, height: 52, borderRadius: 26 },
@@ -506,9 +509,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 11,
     marginTop: 4,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
   },
   seeMoreDoctorsText: { fontSize: 15, fontWeight: '600' },
@@ -518,7 +521,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 14,
     padding: 10,
-    marginBottom: 10,
+    marginBottom: 8,
     borderWidth: 1,
   },
   serviceThumb: { width: 48, height: 48, borderRadius: 12 },
@@ -546,9 +549,9 @@ const styles = StyleSheet.create({
   bookIcon: { marginRight: 4 },
   bookButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   reviewRow: {
-    padding: 12,
+    padding: 11,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 7,
     borderWidth: 1,
   },
   reviewStarsRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 6 },
@@ -567,11 +570,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 16,
-    paddingVertical: 14,
+    marginTop: 12,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 16,
-    borderWidth: 2,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
   leaveReviewBtnText: { fontSize: 16, fontWeight: '700' },
 });

@@ -1,66 +1,50 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert, Modal, Pressable, Linking } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Linking,
+  Image,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore, DEFAULT_AVATAR } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
-import { getColors } from '../../lib/theme';
+import { getTokens } from '../../lib/design';
 import { getNextUpcomingBooking, deleteMe, type Booking } from '../../lib/api';
+import { Avatar, Card, Button } from '../../components/ui';
 
-const DEFAULT_DOCTOR_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
-
-function formatUpcomingDate(dateStr: string, lang: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  const today = new Date();
-  const isToday = date.toDateString() === today.toDateString();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const isTomorrow = date.toDateString() === tomorrow.toDateString();
-  if (isToday) return lang === 'ru' ? 'Сегодня' : 'Bugun';
-  if (isTomorrow) return lang === 'ru' ? 'Завтра' : 'Ertaga';
-  return `${d.toString().padStart(2, '0')}/${m.toString().padStart(2, '0')}/${y}`;
-}
-
-const ProfileDashboard = () => {
+export default function ProfileScreen() {
   const router = useRouter();
-  const language = useAuthStore((s) => s.language);
+  const language = useAuthStore((s) => s.language) ?? 'uz';
   const patient = useAuthStore((s) => s.patient);
   const logout = useAuthStore((s) => s.logout);
   const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const t = getTranslations(language);
-  const colors = getColors(theme);
+  const tokens = getTokens(theme);
 
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
-  const [nextBookingLoading, setNextBookingLoading] = useState(true);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-
-  const fetchNextBooking = useCallback(() => {
-    setNextBookingLoading(true);
-    getNextUpcomingBooking()
-      .then(setNextBooking)
-      .catch(() => setNextBooking(null))
-      .finally(() => setNextBookingLoading(false));
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      fetchNextBooking();
-    }, [fetchNextBooking])
+      getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null));
+    }, []),
   );
-
-  const displayName = patient?.fullName?.trim() || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi');
-  const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
 
   const onLogout = () => {
     Alert.alert(
       language === 'ru' ? 'Выйти?' : 'Chiqish?',
       language === 'ru' ? 'Вы уверены?' : 'Ishonchingiz komilmi?',
       [
-        { text: language === 'ru' ? 'Отмена' : 'Bekor qilish', style: 'cancel' },
+        { text: language === 'ru' ? 'Отмена' : 'Bekor', style: 'cancel' },
         {
           text: language === 'ru' ? 'Выйти' : 'Chiqish',
           style: 'destructive',
@@ -69,16 +53,16 @@ const ProfileDashboard = () => {
             router.replace('/(auth)/login');
           },
         },
-      ]
+      ],
     );
   };
 
-  const onDeleteAccount = () => {
+  const onDelete = () => {
     Alert.alert(
       t.deleteAccount as string,
-      t.deleteAccountConfirm as string + '\n\n' + t.deleteAccountWarning,
+      (t.deleteAccountConfirm as string) + '\n\n' + (t.deleteAccountWarning as string),
       [
-        { text: language === 'ru' ? 'Отмена' : 'Bekor qilish', style: 'cancel' },
+        { text: language === 'ru' ? 'Отмена' : 'Bekor', style: 'cancel' },
         {
           text: t.delete as string,
           style: 'destructive',
@@ -87,326 +71,242 @@ const ProfileDashboard = () => {
               await deleteMe();
               await logout();
               router.replace('/(auth)/login');
-            } catch (error) {
+            } catch {
               Alert.alert('Error', 'Failed to delete account');
             }
           },
         },
-      ]
+      ],
     );
   };
 
+  const name = patient?.fullName?.trim() || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi');
+  const avatarUri = patient?.avatarUrl || DEFAULT_AVATAR;
+
+  const menu: Array<{
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    bg: string;
+    title: string;
+    subtitle?: string;
+    onPress: () => void;
+  }> = [
+    {
+      icon: 'pulse',
+      color: tokens.brand.rose,
+      bg: '#fce7f3',
+      title: language === 'uz' ? 'Kasalliklar tarixi' : 'История заболеваний',
+      subtitle: language === 'uz' ? 'Tashxislar va davolanishlar' : 'Диагнозы и лечение',
+      onPress: () => router.push('/medical-history'),
+    },
+    {
+      icon: 'calendar',
+      color: tokens.brand.iris,
+      bg: '#e0e7ff',
+      title: t.visitHistory,
+      subtitle: t.visitHistorySubtitle,
+      onPress: () => router.push('/(tabs)/appointments'),
+    },
+    {
+      icon: 'receipt',
+      color: tokens.brand.mint,
+      bg: '#d1fae5',
+      title: language === 'uz' ? 'Retseptlar' : 'Рецепты',
+      onPress: () => router.push('/pill-reminder'),
+    },
+    {
+      icon: 'chatbubbles',
+      color: tokens.brand.sky,
+      bg: '#dbeafe',
+      title: language === 'uz' ? 'Shifokor chatlari' : 'Чаты с врачами',
+      onPress: () => router.push('/chat'),
+    },
+    {
+      icon: 'bookmark',
+      color: tokens.brand.amber,
+      bg: '#fef3c7',
+      title: language === 'uz' ? 'Saqlangan xizmatlar' : 'Сохранённые услуги',
+      onPress: () => router.push('/services-results?saved=1' as never),
+    },
+  ];
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t.profileDashboard}</Text>
-        <View style={{ width: 32 }} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        <View style={styles.userSection}>
-          <View style={styles.avatarContainer}>
-            <Image source={{ uri: avatarUri }} style={[styles.avatar, { borderColor: colors.border }]} />
-            <View style={[styles.onlineBadge, { backgroundColor: colors.onlineIndicator, borderColor: colors.background }]} />
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={[styles.userName, { color: colors.text }]}>{displayName}</Text>
-
-          </View>
-        </View>
-
-        <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.upNext}</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/appointments')} hitSlop={12}>
-            <Text style={[styles.seeAll, { color: colors.primary }]}>{t.seeAll}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {nextBookingLoading ? (
-          <View style={[styles.upNextCard, styles.upNextCardEmpty, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.emptySubtext, { color: colors.textTertiary }]}>{t.seeAll}</Text>
-          </View>
-        ) : nextBooking && (nextBooking.status === 'pending' || nextBooking.status === 'confirmed') ? (
-          <TouchableOpacity
-            style={[styles.upNextCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
-            activeOpacity={0.9}
-            onPress={() => router.push({ pathname: '/appointment/[id]', params: { id: nextBooking._id } })}
-          >
-            <View style={styles.upNextHeader}>
-              <View style={[styles.consultationTag, { backgroundColor: colors.primaryBg }]}>
-                <Text style={[styles.consultationText, { color: colors.primaryLight }]}>{t.consultation}</Text>
-              </View>
+    <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.background }]} edges={['top']}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+        {/* Hero with avatar */}
+        <LinearGradient
+          colors={tokens.gradients.soft as [string, string, ...string[]]}
+          style={styles.hero}
+        >
+          <View style={styles.heroRow}>
+            <Avatar uri={avatarUri} name={name} size={72} ring />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]} numberOfLines={1}>
+                {name}
+              </Text>
+              <Text style={{ color: tokens.colors.textSecondary, fontSize: 13, marginTop: 2 }} numberOfLines={1}>
+                {patient?.contacts?.phone ?? ''}
+              </Text>
               <TouchableOpacity
-                style={[styles.videoButton, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}
-                onPress={(e) => { e.stopPropagation(); }}
+                style={styles.editBtn}
+                onPress={() => router.push('/edit-profile')}
+                activeOpacity={0.8}
               >
-                <Ionicons name="people" size={20} color={colors.text} />
+                <Ionicons name="create-outline" size={13} color={tokens.brand.iris} />
+                <Text style={{ color: tokens.brand.iris, fontSize: 12, fontWeight: '700' }}>
+                  {t.editProfile}
+                </Text>
               </TouchableOpacity>
             </View>
-            <Text style={[styles.timeText, { color: colors.text }]}>{nextBooking.scheduledTime}</Text>
-            <Text style={[styles.dateText, { color: colors.textSecondary }]}>
-              {formatUpcomingDate(nextBooking.scheduledDate, language ?? 'uz')}
-            </Text>
-            <View style={styles.doctorRow}>
-              <Image source={{ uri: DEFAULT_DOCTOR_AVATAR }} style={styles.doctorAvatar} />
-              <View style={styles.doctorInfo}>
-                <Text style={[styles.doctorName, { color: colors.text }]} numberOfLines={1}>
-                  {nextBooking.doctorName ?? '—'}
-                </Text>
-                <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {nextBooking.serviceTitle ?? '—'}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <View style={[styles.upNextCard, styles.upNextCardEmpty, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-            <View style={[styles.emptyIconWrap, { backgroundColor: colors.primaryBg }]}>
-              <Ionicons name="calendar-outline" size={32} color={colors.primaryLight} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>{t.noUpcomingTitle}</Text>
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>{t.noUpcomingSubtitle}</Text>
+          </View>
+
+          {nextBooking && (nextBooking.status === 'pending' || nextBooking.status === 'confirmed') ? (
             <TouchableOpacity
-              style={[styles.emptyCta, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/(tabs)')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.emptyCtaText}>{t.noUpcomingPromo}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={[styles.historyCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
-          onPress={() => router.push('/(tabs)/appointments')}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.historyIconBox, { backgroundColor: colors.border }]}>
-            <Ionicons name="time-outline" size={24} color={colors.text} />
-          </View>
-          <View style={styles.historyInfo}>
-            <Text style={[styles.historyTitle, { color: colors.text }]}>{t.visitHistory}</Text>
-            <Text style={[styles.historySubtitle, { color: colors.textSecondary }]}>{t.visitHistorySubtitle}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        {/* <Text style={[styles.sectionTitle, { color: colors.textSecondary, marginTop: 24, marginBottom: 16 }]}>{t.dailyMeds}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.medsScroll}>
-          <MedCard name="Vitamin D" schedule={`8:00 AM • ${t.taken}`} icon="capsules" color="#22c55e" bgColor="rgba(34, 197, 94, 0.1)" colors={colors} />
-          <MedCard name="Amoxicillin" schedule={`2:00 PM • ${t.upcoming}`} icon="pills" color="#f97316" bgColor="rgba(249, 115, 22, 0.1)" colors={colors} />
-          <MedCard name="Iron Supp" schedule={`8:00 PM • ${t.upcoming}`} icon="glass-whiskey" color="#3b82f6" bgColor="rgba(59, 130, 246, 0.1)" colors={colors} />
-        </ScrollView> */}
-
-        <View style={[styles.settingsGroup, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}>
-            <FontAwesome5 name="telegram" size={22} color="#0088cc" style={styles.settingIcon} />
-            <Text style={[styles.settingLabel, { color: colors.text }]}>{t.aiAssistant}</Text>
-            <Ionicons name="link-outline" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://shifoyol.uz')}>
-            <Ionicons name="globe-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
-            <Text style={[styles.settingLabel, { color: colors.text }]}>shifoyol.uz</Text>
-            <Ionicons name="link-outline" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.settingsGroup, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/settings')}>
-            <Ionicons name="settings-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
-            <Text style={[styles.settingLabel, { color: colors.text }]}>{t.settings}</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <TouchableOpacity style={styles.settingRow} onPress={() => setShowPaymentModal(true)}>
-            <Ionicons name="card-outline" size={22} color={colors.textSecondary} style={styles.settingIcon} />
-            <Text style={[styles.settingLabel, { color: colors.text }]}>{t.paymentMethods}</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
-
-
-
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={onLogout}>
-            <Ionicons name="log-out-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
-            <Text style={[styles.actionBtnText, { color: colors.text }]}>{t.logOut}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={onDeleteAccount}>
-            <Ionicons name="trash-outline" size={20} color={colors.error} style={{ marginRight: 8 }} />
-            <Text style={[styles.actionBtnText, { color: colors.error }]}>{t.deleteAccount}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      <Modal visible={showPaymentModal} transparent animationType="fade" onRequestClose={() => setShowPaymentModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowPaymentModal(false)}>
-          <Pressable
-            style={[styles.comingSoonCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={[styles.comingSoonIconWrap, { backgroundColor: colors.primaryBg }]}>
-              <Ionicons name="card-outline" size={32} color={colors.primary} />
-            </View>
-            <Text style={[styles.comingSoonTitle, { color: colors.text }]}>{t.comingSoonTitle}</Text>
-            <Text style={[styles.comingSoonMessage, { color: colors.textSecondary }]}>{t.comingSoonMessage}</Text>
-            <TouchableOpacity
-              style={[styles.comingSoonBtn, { backgroundColor: colors.primary }]}
-              onPress={() => setShowPaymentModal(false)}
+              style={[styles.upNext, { backgroundColor: tokens.colors.backgroundCard }]}
+              onPress={() => router.push({ pathname: '/appointment/[id]', params: { id: nextBooking._id } })}
               activeOpacity={0.85}
             >
-              <Text style={styles.comingSoonBtnText}>{t.errorDismiss}</Text>
+              <View style={[styles.upNextIcon, { backgroundColor: tokens.brand.iris }]}>
+                <Ionicons name="medkit" size={18} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 }}>
+                  {language === 'uz' ? 'KEYINGI TASHRIF' : 'СЛЕДУЮЩИЙ ПРИЁМ'}
+                </Text>
+                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14, marginTop: 2 }} numberOfLines={1}>
+                  {nextBooking.scheduledDate.split('-').reverse().join('/')} · {nextBooking.scheduledTime}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={tokens.colors.textTertiary} />
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          ) : null}
+        </LinearGradient>
+
+        {/* Menu */}
+        <View style={{ paddingHorizontal: 20, marginTop: 18 }}>
+          <Card padding={0} elevated={false}>
+            {menu.map((item, i) => (
+              <TouchableOpacity
+                key={item.title}
+                style={[
+                  styles.menuRow,
+                  i < menu.length - 1 ? { borderBottomColor: tokens.colors.borderLight, borderBottomWidth: StyleSheet.hairlineWidth } : null,
+                ]}
+                onPress={item.onPress}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
+                  <Ionicons name={item.icon} size={18} color={item.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>{item.title}</Text>
+                  {item.subtitle ? (
+                    <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, marginTop: 2 }}>{item.subtitle}</Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={tokens.colors.textTertiary} />
+              </TouchableOpacity>
+            ))}
+          </Card>
+        </View>
+
+        {/* Settings group */}
+        <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+          <Card padding={0} elevated={false}>
+            <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/settings')} activeOpacity={0.75}>
+              <View style={[styles.menuIcon, { backgroundColor: tokens.colors.backgroundSecondary }]}>
+                <Ionicons name="settings-outline" size={18} color={tokens.colors.textSecondary} />
+              </View>
+              <Text style={{ flex: 1, color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>
+                {t.settings}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={tokens.colors.textTertiary} />
+            </TouchableOpacity>
+            <View style={[styles.rowDivider, { backgroundColor: tokens.colors.borderLight }]} />
+            {/* <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: tokens.colors.backgroundSecondary }]}>
+                <Ionicons name={theme === 'light' ? 'moon-outline' : 'sunny-outline'} size={18} color={tokens.colors.textSecondary} />
+              </View>
+              <Text style={{ flex: 1, color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>
+                {theme === 'light' ? (language === 'uz' ? 'Qorong‘i rejim' : 'Тёмная тема') : (language === 'uz' ? 'Yorug‘ rejim' : 'Светлая тема')}
+              </Text>
+            </TouchableOpacity> */}
+            <View style={[styles.rowDivider, { backgroundColor: tokens.colors.borderLight }]} />
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: '#dbeafe' }]}>
+                <Ionicons name="chatbox-ellipses-outline" size={18} color="#0088cc" />
+              </View>
+              <Text style={{ flex: 1, color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>
+                {t.contactUs}
+              </Text>
+              <Ionicons name="open-outline" size={16} color={tokens.colors.textTertiary} />
+            </TouchableOpacity>
+          </Card>
+        </View>
+
+        <View style={{ padding: 20, gap: 10 }}>
+          <Button title={t.logOut} variant="outline" leftIcon="log-out-outline" onPress={onLogout} />
+          <Button title={t.deleteAccount} variant="danger" leftIcon="trash-outline" onPress={onDelete} />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
-};
-
-const MedCard = ({ name, schedule, icon, color, bgColor, colors }: any) => (
-  <View style={[styles.medCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-    <View style={[styles.medIconBox, { backgroundColor: bgColor }]}>
-      <FontAwesome5 name={icon} size={18} color={color} />
-    </View>
-    <Text style={[styles.medName, { color: colors.text }]}>{name}</Text>
-    <Text style={[styles.medSchedule, { color: color }]}>{schedule}</Text>
-  </View>
-);
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1, padding: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 20, paddingVertical: 15 },
-  backButton: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '600' },
-  headerRight: { fontSize: 14 },
-
-  userSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
-  avatarContainer: { position: 'relative' },
-  avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2 },
-  onlineBadge: { position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
-  userInfo: { marginLeft: 16 },
-  userName: { fontSize: 22, fontWeight: 'bold' },
-  premiumTag: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  premiumText: { fontSize: 14, fontWeight: '600' },
-
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
-  seeAll: { fontSize: 14 },
-
-  upNextCard: {
-    borderRadius: 24,
+  root: { flex: 1 },
+  hero: {
     padding: 20,
-    borderWidth: 1,
-    marginBottom: 16,
+    paddingTop: 14,
+    marginHorizontal: 0,
   },
-  upNextCardEmpty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 28,
-  },
-  emptyIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6, textAlign: 'center' },
-  emptySubtext: { fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
-  emptyCta: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-  },
-  emptyCtaText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  upNextHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  consultationTag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  consultationText: { fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
-  videoButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-  timeText: { fontSize: 32, fontWeight: 'bold', letterSpacing: -1 },
-  dateText: { fontSize: 14, marginBottom: 20 },
-  doctorRow: { flexDirection: 'row', alignItems: 'center' },
-  doctorAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 12 },
-  doctorInfo: { justifyContent: 'center' },
-  doctorName: { fontSize: 14, fontWeight: '600' },
-  doctorSpecialty: { fontSize: 12 },
-
-  historyCard: {
-    borderRadius: 20,
-    padding: 16,
+  heroRow: { flexDirection: 'row', alignItems: 'center' },
+  editBtn: {
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  historyIconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  historyInfo: { flex: 1 },
-  historyTitle: { fontSize: 16, fontWeight: '600' },
-  historySubtitle: { fontSize: 12, marginTop: 2 },
-
-  medsScroll: { paddingRight: 20 },
-  medCard: {
-    width: 130,
-    padding: 16,
-    borderRadius: 20,
+  upNext: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 18,
+    gap: 12,
+    shadowColor: '#0f1a4a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  upNextIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  menuIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
-    borderWidth: 1,
   },
-  medIconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  medName: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  medSchedule: { fontSize: 10, fontWeight: '500' },
-
-  settingsGroup: {
-    marginTop: 30,
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: 'hidden'
-  },
-  settingRow: { flexDirection: 'row', alignItems: 'center', padding: 18 },
-  settingIcon: { marginRight: 16 },
-  settingLabel: { flex: 1, fontSize: 16 },
-  divider: { height: 1, marginLeft: 56 },
-
-  actionButtons: { marginTop: 30, marginBottom: 40, gap: 12 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 16, borderWidth: 1 },
-  actionBtnText: { fontSize: 16, fontWeight: '600' },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  comingSoonCard: {
-    width: '100%',
-    maxWidth: 320,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 24,
-    alignItems: 'center',
-  },
-  comingSoonIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  comingSoonTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  comingSoonMessage: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
-  comingSoonBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, minWidth: 120, alignItems: 'center' },
-  comingSoonBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 62 },
 });
-
-export default ProfileDashboard;

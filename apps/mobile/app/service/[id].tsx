@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getServiceById, getReviews, type ServiceDetailResponse, type ReviewItem } from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
@@ -22,7 +23,7 @@ import Skeleton from '../components/Skeleton';
 import ReviewBottomSheet from '../components/ReviewBottomSheet';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HERO_HEIGHT = 220;
+const HERO_HEIGHT = 300;
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=400&h=300&fit=crop';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&h=100&fit=crop';
 
@@ -153,14 +154,14 @@ export default function ServiceDetailScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={[styles.heroBox, { backgroundColor: colors.border }]}>
           <Image source={{ uri: service.serviceImage || DEFAULT_IMAGE }} style={styles.heroImage} />
-          <View style={styles.heroOverlay}>
+          <LinearGradient colors={['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.62)']} style={styles.heroOverlay}>
             <TouchableOpacity style={styles.heroBackBtn} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
             <View style={styles.heroStarWrap}>
               <SaveServiceStar service={service} size={22} />
             </View>
-          </View>
+          </LinearGradient>
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.backgroundCard }]}>
@@ -334,46 +335,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingTop: 56,
-    paddingHorizontal: 16,
+    paddingTop: 58,
+    paddingHorizontal: 18,
   },
   heroBackBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   heroStarWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   card: {
-    marginTop: -20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    marginTop: -30,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
-  category: { fontSize: 13, marginBottom: 6 },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
-  price: { fontSize: 28, fontWeight: '800', marginBottom: 12 },
+  category: { fontSize: 13, marginBottom: 8, fontWeight: '600' },
+  title: { fontSize: 30, fontWeight: '800', marginBottom: 8, letterSpacing: -0.5 },
+  price: { fontSize: 37, fontWeight: '800', marginBottom: 12, letterSpacing: -0.8 },
   metaLine: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   metaText: { fontSize: 14 },
   metaDot: { fontSize: 14 },
   description: { fontSize: 14, lineHeight: 21, marginBottom: 20 },
-  section: { marginBottom: 18 },
+  section: { marginBottom: 14 },
   sectionLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   rowLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
   },
@@ -388,7 +393,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 0,
     marginBottom: 6,
   },
@@ -399,33 +404,34 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
   },
   bookButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: 15,
+    borderRadius: 12,
     gap: 10,
   },
   bookIcon: { marginRight: 4 },
   bookButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   ratingBox: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 18,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
   },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ratingValue: { fontSize: 18, fontWeight: '700' },
   ratingReviews: { fontSize: 12, marginTop: 4 },
   reviewRow: {
-    padding: 12,
+    padding: 11,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 7,
     borderWidth: 1,
   },
   reviewStarsRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 6 },
@@ -444,11 +450,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 20,
-    paddingVertical: 14,
+    marginTop: 12,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 16,
-    borderWidth: 2,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
   leaveReviewBtnText: { fontSize: 16, fontWeight: '700' },
 });

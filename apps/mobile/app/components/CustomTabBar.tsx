@@ -1,209 +1,160 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, LayoutChangeEvent, Animated } from 'react-native';
+import React from 'react';
+import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../../store/theme-store';
-import { getColors } from '../../lib/theme';
+import { useAuthStore } from '../../store/auth-store';
+import { getTokens } from '../../lib/design';
+import { t, type TranslationKey } from '../../lib/translations';
 
-export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-    const insets = useSafeAreaInsets();
-    const theme = useThemeStore((s) => s.theme);
-    const colors = getColors(theme);
-    const [dimensions, setDimensions] = useState({ height: 20, width: 100 });
+/**
+ * Full-width docked tab bar (edge-to-edge, flush with bottom).
+ * Lumora-style: active tab = dark pill + white icon/label; inactive = outline icons only.
+ * Labels: Uzbek / Russian only (via content.json + `t()`).
+ *
+ * Order: Home · Feed · Visits · Profile
+ */
+export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const theme = useThemeStore((s) => s.theme);
+  const language = useAuthStore((s) => s.language);
+  const tokens = getTokens(theme);
+  const isDark = theme === 'dark';
 
-    const tabPositionX = useRef(new Animated.Value(0)).current;
+  const activePillBg = isDark ? '#e2e8f0' : '#0f172a';
+  const activePillFg = isDark ? '#0f172a' : '#ffffff';
+  const barBg = isDark ? '#09090b' : '#ffffff';
+  const barBorder = tokens.colors.border;
+  const inactiveIcon = tokens.colors.textTertiary;
 
-    const arrangedRoutes = [
-        state.routes.find(r => r.name === 'index'),
-        state.routes.find(r => r.name === 'appointments'),
-        { key: 'center-action', name: 'center-action' },
-        { key: 'ai-chat-btn', name: 'ai-chat-btn' },
-        state.routes.find(r => r.name === 'profile'),
-    ].filter(Boolean) as any[];
+  const tabs: {
+    key: string;
+    route: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    iconActive: keyof typeof Ionicons.glyphMap;
+    labelKey: TranslationKey;
+  }[] = [
+    { key: 'index', route: 'index', icon: 'home-outline', iconActive: 'home', labelKey: 'tabHome' },
+    { key: 'feed', route: 'feed', icon: 'play-circle-outline', iconActive: 'play-circle', labelKey: 'tabFeed' },
+    {
+      key: 'appointments',
+      route: 'appointments',
+      icon: 'calendar-outline',
+      iconActive: 'calendar',
+      labelKey: 'tabVisits',
+    },
+    { key: 'profile', route: 'profile', icon: 'person-outline', iconActive: 'person', labelKey: 'tabProfile' },
+  ];
 
-    const buttonWidth = dimensions.width / arrangedRoutes.length;
-    const visualIndex = arrangedRoutes.findIndex(r => r.name === state.routes[state.index]?.name);
+  const activeRouteName = state.routes[state.index]?.name;
 
-    const onTabbarLayout = (e: LayoutChangeEvent) => {
-        setDimensions({
-            height: e.nativeEvent.layout.height,
-            width: e.nativeEvent.layout.width,
-        });
-    };
+  const handlePress = (routeName: string) => {
+    const route = state.routes.find((r) => r.name === routeName);
+    if (!route) return;
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: route.key,
+      canPreventDefault: true,
+    });
+    if (!event.defaultPrevented) navigation.navigate(route.name);
+  };
 
-    useEffect(() => {
-        if (buttonWidth > 0 && visualIndex >= 0) {
-            Animated.spring(tabPositionX, {
-                toValue: visualIndex * buttonWidth,
-                useNativeDriver: true,
-                damping: 20,
-                stiffness: 150,
-            }).start();
-        }
-    }, [visualIndex, buttonWidth, tabPositionX]);
-
-    return (
-        <View style={[styles.tabBarContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-            <View style={[styles.tabBar, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]} onLayout={onTabbarLayout}>
-                {dimensions.width > 100 && (
-                    <Animated.View
-                        style={[
-                            styles.activeTabIndicator,
-                            {
-                                width: buttonWidth,
-                                transform: [{ translateX: tabPositionX }]
-                            },
-                        ]}
-                    >
-                        <View style={[styles.activeTabCircle, { backgroundColor: colors.primary }]} />
-                    </Animated.View>
-                )}
-                
-                {arrangedRoutes.map((route) => {
-                    const isCenterAction = route.name === 'center-action';
-                    const isAiChatBtn = route.name === 'ai-chat-btn';
-                    const isFocused = !isCenterAction && !isAiChatBtn && state.routes[state.index]?.name === route.name;
-
-                    if (isCenterAction) {
-                        return (
-                            <TouchableOpacity
-                                key={route.key}
-                                accessibilityRole="button"
-                                onPress={() => navigation.navigate('pill-reminder')}
-                                style={styles.tabItem}
-                                activeOpacity={0.8}
-                            >
-                                <View style={[styles.floatingActionCircle, { backgroundColor: colors.primary }]}>
-                                    <Ionicons name="add" size={32} color="#ffffff" style={{ paddingLeft: 2 }} />
-                                </View>
-                            </TouchableOpacity>
-                        );
-                    }
-
-                    if (isAiChatBtn) {
-                         return (
-                            <TouchableOpacity
-                                key={route.key}
-                                accessibilityRole="button"
-                                onPress={() => navigation.navigate('ai-chat')}
-                                style={styles.tabItem}
-                                activeOpacity={0.8}
-                            >
-                                <Ionicons
-                                    name="chatbubbles-outline"
-                                    size={24}
-                                    color={colors.textTertiary}
-                                    style={{ zIndex: 1 }}
-                                />
-                            </TouchableOpacity>
-                        );
-                    }
-
-                    const { options } = descriptors[route.key];
-
-                    const onPress = () => {
-                        const event = navigation.emit({
-                            type: 'tabPress',
-                            target: route.key,
-                            canPreventDefault: true,
-                        });
-
-                        if (!isFocused && !event.defaultPrevented) {
-                            navigation.navigate(route.name, route.params);
-                        }
-                    };
-
-                    let IconComponent: any = Ionicons;
-                    let iconName: any = 'home';
-
-                    if (route.name === 'index') {
-                        iconName = isFocused ? 'home' : 'home-outline';
-                    } else if (route.name === 'appointments') {
-                        iconName = isFocused ? 'calendar' : 'calendar-outline';
-                    } else if (route.name === 'ai-chat') {
-                        iconName = isFocused ? 'chatbubbles' : 'chatbubbles-outline';
-                    } else if (route.name === 'profile') {
-                        iconName = isFocused ? 'person' : 'person-outline';
-                    }
-
-                    return (
-                        <TouchableOpacity
-                            key={route.key}
-                            accessibilityRole="button"
-                            accessibilityState={isFocused ? { selected: true } : {}}
-                            accessibilityLabel={options.tabBarAccessibilityLabel}
-                            testID={(options as any).tabBarTestID}
-                            onPress={onPress}
-                            style={styles.tabItem}
-                            activeOpacity={0.8}
-                        >
-                            <IconComponent
-                                name={iconName}
-                                size={24}
-                                color={isFocused ? '#ffffff' : colors.textTertiary}
-                                style={{ zIndex: 1 }}
-                            />
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-        </View>
-    );
+  return (
+    <View
+      style={[
+        styles.dock,
+        {
+          backgroundColor: barBg,
+          borderTopColor: barBorder,
+          paddingBottom: insets.bottom,
+        },
+      ]}
+      pointerEvents="box-none"
+    >
+      <View style={styles.row}>
+        {tabs.map((tab) => {
+          const focused = tab.route === activeRouteName;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: focused }}
+              onPress={() => handlePress(tab.route)}
+              style={styles.slot}
+              activeOpacity={0.85}
+            >
+              {focused ? (
+                <View style={[styles.activePill, { backgroundColor: activePillBg }]}>
+                  <Ionicons
+                    name={tab.iconActive as keyof typeof Ionicons.glyphMap}
+                    size={20}
+                    color={activePillFg}
+                  />
+                  <Text style={[styles.activeLabel, { color: activePillFg }]} numberOfLines={1}>
+                    {t(language, tab.labelKey)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.inactiveWrap}>
+                  <Ionicons name={tab.icon as keyof typeof Ionicons.glyphMap} size={24} color={inactiveIcon} />
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
+const BAR_ROW_HEIGHT = 56;
+
 const styles = StyleSheet.create({
-    tabBarContainer: {
-        position: 'absolute',
-        bottom: 16,
-        left: 20,
-        right: 20,
-        backgroundColor: 'transparent',
-    },
-    tabBar: {
-        flexDirection: 'row',
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
+  dock: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 15,
-        elevation: 10,
-    },
-    activeTabIndicator: {
-        position: 'absolute',
-        height: '100%',
-        left: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    activeTabCircle: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-    },
-    tabItem: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        zIndex: 10,
-    },
-    floatingActionCircle: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: -32, // pop out
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 8,
-        borderWidth: 4,
-        borderColor: '#ffffff', // Or dynamic based on theme, ideally colors.backgroundCard
-    },
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+      },
+      android: { elevation: 16 },
+    }),
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: BAR_ROW_HEIGHT,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
+  slot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: BAR_ROW_HEIGHT,
+  },
+  inactiveWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    minWidth: 44,
+  },
+  activePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    maxWidth: '100%',
+  },
+  activeLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginLeft: 6,
+  },
 });

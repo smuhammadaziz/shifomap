@@ -1,5 +1,12 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  Image,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
@@ -7,60 +14,60 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
-import { getColors } from '../../lib/theme';
+import { getTokens } from '../../lib/design';
+import { Button } from '../../components/ui';
 
-import UndrawMedicine from '../../assets/undraw_medicine_hqqg.svg';
-import UndrawMedicalResearch from '../../assets/undraw_medical-research_pze7.svg';
-import UndrawNewsfeed from '../../assets/undraw_newsfeed_8ms9.svg';
+// Healthcare-themed hero imagery (public unsplash CDN) — safe, license-free
+const HERO_IMAGES = [
+  'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1000&q=80',
+  'https://images.unsplash.com/photo-1551601651-2a8555f1a136?w=1000&q=80',
+  'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1000&q=80',
+];
 
-const ILLUSTRATIONS = [
-  UndrawMedicine,
-  UndrawMedicalResearch,
-  UndrawNewsfeed,
-] as const;
-
-const springConfig = { damping: 18, stiffness: 120 };
-
-const HORIZONTAL_PADDING = 32;
+const springConfig = { damping: 20, stiffness: 160 };
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
-  const contentWidth = screenWidth - HORIZONTAL_PADDING * 2;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const language = useAuthStore((s) => s.language) ?? 'uz';
   const theme = useThemeStore((s) => s.theme);
   const setOnboardingSeen = useAuthStore((s) => s.setOnboardingSeen);
   const t = getTranslations(language);
-  const colors = getColors(theme);
+  const tokens = getTokens(theme);
 
-  const [index, setIndex] = React.useState(0);
-  const illustrationScale = useSharedValue(1);
-  const illustrationOpacity = useSharedValue(1);
-  const textOpacity = useSharedValue(1);
+  const [index, setIndex] = useState(0);
+  const fade = useSharedValue(1);
+  const scale = useSharedValue(1);
 
-  const steps = [
-    {
-      title: t.onboardingStep1Title,
-      subtitle: t.onboardingStep1Subtitle,
-      Illustration: ILLUSTRATIONS[0],
-    },
-    {
-      title: t.onboardingStep2Title,
-      subtitle: t.onboardingStep2Subtitle,
-      Illustration: ILLUSTRATIONS[1],
-    },
-    {
-      title: t.onboardingStep3Title,
-      subtitle: t.onboardingStep3Subtitle,
-      Illustration: ILLUSTRATIONS[2],
-    },
-  ];
+  const steps = useMemo(
+    () => [
+      {
+        eyebrow: language === 'uz' ? 'SHIFOYOL' : 'ШИФОЙОЛ',
+        title: t.onboardingStep1Title,
+        subtitle: t.onboardingStep1Subtitle,
+        image: HERO_IMAGES[0],
+      },
+      {
+        eyebrow: language === 'uz' ? 'AI YORDAMI' : 'ПОМОЩЬ AI',
+        title: t.onboardingStep2Title,
+        subtitle: t.onboardingStep2Subtitle,
+        image: HERO_IMAGES[1],
+      },
+      {
+        eyebrow: language === 'uz' ? 'TAYYORMISIZ?' : 'ГОТОВЫ?',
+        title: t.onboardingStep3Title,
+        subtitle: t.onboardingStep3Subtitle,
+        image: HERO_IMAGES[2],
+      },
+    ],
+    [language, t],
+  );
 
   const finishOnboarding = useCallback(async () => {
     await setOnboardingSeen();
@@ -68,208 +75,161 @@ export default function OnboardingScreen() {
   }, [setOnboardingSeen, router]);
 
   const goNext = useCallback(() => {
-    if (index < steps.length - 1) {
-      illustrationOpacity.value = withTiming(0, { duration: 150 });
-      textOpacity.value = withTiming(0, { duration: 150 });
-      setTimeout(() => {
-        const next = index + 1;
-        setIndex(next);
-        illustrationOpacity.value = withTiming(1, { duration: 250 });
-        textOpacity.value = withTiming(1, { duration: 250 });
-        illustrationScale.value = withSpring(1.08, springConfig, () => {
-          illustrationScale.value = withSpring(1, springConfig);
-        });
-      }, 150);
-    } else {
+    if (index >= steps.length - 1) {
       finishOnboarding();
+      return;
     }
-  }, [index, steps.length, finishOnboarding, illustrationOpacity, textOpacity, illustrationScale]);
+    fade.value = withTiming(0, { duration: 160 });
+    setTimeout(() => {
+      setIndex((i) => i + 1);
+      fade.value = withTiming(1, { duration: 240 });
+      scale.value = withSpring(1.04, springConfig, () => {
+        scale.value = withSpring(1, springConfig);
+      });
+    }, 160);
+  }, [index, steps.length, finishOnboarding, fade, scale]);
 
-  const goBack = useCallback(() => {
-    if (index > 0) {
-      illustrationOpacity.value = withTiming(0, { duration: 150 });
-      textOpacity.value = withTiming(0, { duration: 150 });
-      setTimeout(() => {
-        const prev = index - 1;
-        setIndex(prev);
-        illustrationOpacity.value = withTiming(1, { duration: 250 });
-        textOpacity.value = withTiming(1, { duration: 250 });
-        illustrationScale.value = withSpring(1.08, springConfig, () => {
-          illustrationScale.value = withSpring(1, springConfig);
-        });
-      }, 150);
-    }
-  }, [index, illustrationOpacity, textOpacity, illustrationScale]);
-
-  const illustrationAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: illustrationOpacity.value,
-    transform: [{ scale: illustrationScale.value }],
+  const imgAnim = useAnimatedStyle(() => ({
+    opacity: fade.value,
+    transform: [{ scale: scale.value }],
   }));
+  const textAnim = useAnimatedStyle(() => ({ opacity: fade.value }));
 
-  const textAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-  }));
+  const step = steps[index];
+  const imgSize = Math.min(screenWidth * 0.82, screenHeight * 0.45);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom, width: screenWidth, alignSelf: 'stretch' }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        {index > 0 ? (
-          <TouchableOpacity
-            onPress={goBack}
-            style={[styles.backBtn, { backgroundColor: colors.backgroundSecondary }]}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.backBtn} />
-        )}
-        <TouchableOpacity onPress={finishOnboarding} style={styles.skipBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={[styles.skipText, { color: colors.primary }]}>{t.onboardingSkip}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        <View style={styles.slide}>
-          <Animated.View style={[styles.illustrationWrap, illustrationAnimatedStyle]}>
-            {(() => {
-              const step = steps[index];
-              const Illo = step.Illustration;
-              return (
-                <Illo
-                  width={contentWidth * 0.9}
-                  height={contentWidth * 0.65}
-                  style={styles.illustration}
-                />
-              );
-            })()}
-          </Animated.View>
-          <Animated.View style={[styles.textWrap, textAnimatedStyle]}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {steps[index].title}
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {steps[index].subtitle}
-            </Text>
-          </Animated.View>
-        </View>
-
-        {/* Progress dots */}
+    <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.background }]} edges={['top', 'bottom']}>
+      <View style={styles.headerRow}>
+        <View style={{ width: 44 }} />
         <View style={styles.dots}>
           {steps.map((_, i) => (
             <View
               key={i}
               style={[
                 styles.dot,
-                { backgroundColor: i === index ? colors.primary : colors.border },
-                i === index && styles.dotActive,
+                {
+                  backgroundColor: i === index ? tokens.brand.iris : tokens.colors.border,
+                  width: i === index ? 22 : 6,
+                },
               ]}
             />
           ))}
         </View>
-
-        {/* Next button */}
-        <TouchableOpacity
-          onPress={goNext}
-          style={[styles.nextBtn, { backgroundColor: colors.primary }]}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="arrow-forward" size={28} color="#fff" />
+        <TouchableOpacity onPress={finishOnboarding} hitSlop={12}>
+          <Text style={{ color: tokens.colors.textSecondary, fontWeight: '600', fontSize: 15 }}>
+            {t.onboardingSkip}
+          </Text>
         </TouchableOpacity>
       </View>
-    </View>
+
+      <View style={styles.content}>
+        <Animated.View style={[styles.imgWrap, imgAnim]}>
+          <LinearGradient
+            colors={tokens.gradients.soft as [string, string, ...string[]]}
+            style={[styles.imgBubble, { width: imgSize, height: imgSize, borderRadius: imgSize / 2 }]}
+          >
+            <Image source={{ uri: step.image }} style={[styles.img, { width: imgSize * 0.86, height: imgSize * 0.86, borderRadius: (imgSize * 0.86) / 2 }]} />
+          </LinearGradient>
+
+          <View style={[styles.floatCard, styles.floatTopLeft, { backgroundColor: tokens.colors.backgroundCard }]}>
+            <View style={[styles.floatIcon, { backgroundColor: tokens.brand.iris }]}>
+              <Ionicons name="heart" size={14} color="#fff" />
+            </View>
+            <View>
+              <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 12 }}>98 BPM</Text>
+              <Text style={{ color: tokens.colors.textTertiary, fontSize: 10 }}>Pulse</Text>
+            </View>
+          </View>
+
+          <View style={[styles.floatCard, styles.floatBottomRight, { backgroundColor: tokens.colors.backgroundCard }]}>
+            <View style={[styles.floatIcon, { backgroundColor: tokens.brand.mint }]}>
+              <Ionicons name="shield-checkmark" size={14} color="#fff" />
+            </View>
+            <View>
+              <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 12 }}>Trusted</Text>
+              <Text style={{ color: tokens.colors.textTertiary, fontSize: 10 }}>Doctors</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.textWrap, textAnim]}>
+          <Text style={[tokens.type.overline, { color: tokens.brand.iris, marginBottom: 8 }]}>
+            {step.eyebrow}
+          </Text>
+          <Text style={[tokens.type.display, { color: tokens.colors.text, textAlign: 'center' }]}>
+            {step.title}
+          </Text>
+          <Text
+            style={{
+              color: tokens.colors.textSecondary,
+              fontSize: 15,
+              lineHeight: 22,
+              textAlign: 'center',
+              marginTop: 12,
+              paddingHorizontal: 8,
+            }}
+          >
+            {step.subtitle}
+          </Text>
+        </Animated.View>
+      </View>
+
+      <View style={styles.footer}>
+        <Button
+          title={
+            index === steps.length - 1
+              ? (language === 'uz' ? 'Boshlash' : 'Начать')
+              : t.onboardingNext
+          }
+          onPress={goNext}
+          variant="gradient"
+          size="lg"
+          rightIcon="arrow-forward"
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignSelf: 'stretch',
-  },
-  header: {
+  root: { flex: 1 },
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
     paddingVertical: 12,
   },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skipBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  skipText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: HORIZONTAL_PADDING,
-    width: '100%',
-  },
-  slide: {
-    flex: 1,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  illustrationWrap: {
-    flex: 1,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxHeight: 280,
-  },
-  illustration: {
-    maxWidth: '100%',
-  },
-  textWrap: {
-    width: '100%',
-    alignSelf: 'stretch',
-    marginBottom: 40,
-    paddingHorizontal: 4,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 30,
-  },
-  subtitle: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  dots: {
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { height: 6, borderRadius: 3 },
+  content: { flex: 1, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
+  imgWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  imgBubble: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  img: {},
+  floatCard: {
+    position: 'absolute',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 16,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 24,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dotActive: {
-    width: 24,
-  },
-  nextBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  floatTopLeft: { top: 10, left: -10 },
+  floatBottomRight: { bottom: 20, right: -10 },
+  floatIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'flex-end',
   },
+  textWrap: { marginTop: 36, alignItems: 'center' },
+  footer: { paddingHorizontal: 24, paddingBottom: 12 },
 });

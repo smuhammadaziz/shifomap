@@ -5,25 +5,24 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
   ScrollView,
   Image,
-  Dimensions,
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
-import { getColors } from '../../lib/theme';
+import { getTokens } from '../../lib/design';
+import { Button } from '../../components/ui';
 
-const { width } = Dimensions.get('window');
 const PHONE_PREFIX = '+998';
-import Illustration from '../../assets/undraw_medicine_hqqg.svg';
 const LOGO_IMG = require('../../assets/play_store_512-Photoroom.png');
 
 export default function Login() {
@@ -35,81 +34,97 @@ export default function Login() {
   const [focused, setFocused] = useState(false);
 
   const t = getTranslations(language);
-  const colors = getColors(theme);
+  const tokens = getTokens(theme);
   const setPendingPhone = useAuthStore((s) => s.setPendingPhone);
 
+  const isValid = digits.length === 9;
+
   const onPhoneNext = () => {
-    if (digits.length !== 9) {
+    if (!isValid) {
       Alert.alert('', t.loginError);
       return;
     }
     const fullPhone = PHONE_PREFIX + digits;
     setPendingPhone(fullPhone);
     setNavigating(true);
-    const href = `/(auth)/password?phone=${encodeURIComponent(fullPhone)}`;
     requestAnimationFrame(() => {
       setTimeout(() => {
-        router.push(href);
+        router.push(`/(auth)/password?phone=${encodeURIComponent(fullPhone)}`);
         setNavigating(false);
       }, 0);
     });
   };
 
-  const onPhoneChange = (text: string) => {
-    setDigits(text.replace(/\D/g, '').slice(0, 9));
-  };
-
-  const isValid = digits.length === 9;
-
   return (
-    <View style={[styles.container, { backgroundColor: '#000155' }]}>
+    <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.background }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboard}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Top Logo Section */}
-          <View style={styles.headerRow}>
-            <View style={styles.brandRow}>
-              <Image source={LOGO_IMG} style={styles.headerLogo} resizeMode="contain" />
-              <Text style={styles.brandText}>ShifoYo'l</Text>
-            </View>
-          </View>
-
-          {/* Illustration Section */}
-          <View style={styles.illustrationContainer}>
-            <Illustration width={width * 0.8} height={180} />
-          </View>
-
-          {/* Welcome Text */}
-          <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeTitle}>{t.loginWelcome}</Text>
-            <Text style={styles.welcomeSubtitle}>{t.homeSubtitle}</Text>
-          </View>
-
-          {/* Form Card */}
-          <View style={styles.card}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>{t.loginPhoneLabel}</Text>
-
-            <View style={styles.phoneInputContainer}>
-              <View style={[styles.prefixBox, { backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' }]}>
-                <Text style={styles.prefixText}>{PHONE_PREFIX}</Text>
+          <LinearGradient
+            colors={tokens.gradients.soft as [string, string, ...string[]]}
+            style={styles.heroGradient}
+          >
+            <View style={styles.heroContent}>
+              <View style={styles.brandRow}>
+                <View style={styles.logoWrap}>
+                  <Image source={LOGO_IMG} style={styles.logo} resizeMode="contain" />
+                </View>
+                <Text style={[tokens.type.title, { color: tokens.colors.text }]}>ShifoYo'l</Text>
               </View>
-              <View style={[styles.inputBox, {
-                backgroundColor: '#f3f4f6',
-                borderColor: focused ? '#000155' : '#e5e7eb',
-                borderWidth: focused ? 1.5 : 1
-              }]}>
+
+              <View style={styles.heroBody}>
+                <Text style={[tokens.type.display, { color: tokens.colors.text }]}>
+                  {t.loginWelcome}
+                </Text>
+                <Text style={{ color: tokens.colors.textSecondary, fontSize: 15, lineHeight: 22, marginTop: 10 }}>
+                  {t.homeSubtitle}
+                </Text>
+              </View>
+
+              <View style={[styles.pillStat, { backgroundColor: tokens.colors.backgroundCard }]}>
+                <View style={[styles.pillDot, { backgroundColor: tokens.brand.mint }]} />
+                <Text style={{ color: tokens.colors.textSecondary, fontSize: 12, fontWeight: '600' }}>
+                  {language === 'uz' ? '1000+ shifokor onlayn' : '1000+ врачей онлайн'}
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+
+          <View style={styles.form}>
+            <Text style={[tokens.type.caption, { color: tokens.colors.textSecondary, marginBottom: 10, marginLeft: 4 }]}>
+              {t.loginPhoneLabel}
+            </Text>
+
+            <View style={styles.phoneRow}>
+              <View
+                style={[
+                  styles.prefix,
+                  { backgroundColor: tokens.colors.backgroundInput, borderColor: tokens.colors.border },
+                ]}
+              >
+                <Text style={{ color: tokens.colors.text, fontWeight: '700' }}>{PHONE_PREFIX}</Text>
+              </View>
+              <View
+                style={[
+                  styles.inputBox,
+                  {
+                    backgroundColor: tokens.colors.backgroundInput,
+                    borderColor: focused ? tokens.brand.iris : tokens.colors.border,
+                  },
+                ]}
+              >
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: tokens.colors.text }]}
                   placeholder="90 123 45 67"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={tokens.colors.textPlaceholder}
                   value={digits}
-                  onChangeText={onPhoneChange}
+                  onChangeText={(v) => setDigits(v.replace(/\D/g, '').slice(0, 9))}
                   onFocus={() => setFocused(true)}
                   onBlur={() => setFocused(false)}
                   keyboardType="phone-pad"
@@ -119,174 +134,134 @@ export default function Login() {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.primaryBtn,
-                (!isValid || navigating) && styles.btnDisabled,
-              ]}
+            <View style={{ height: 22 }} />
+            <Button
+              title={t.loginNext}
+              variant="gradient"
+              size="lg"
+              rightIcon="arrow-forward"
+              loading={navigating}
+              disabled={!isValid}
               onPress={onPhoneNext}
-              disabled={!isValid || navigating}
+            />
+
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: tokens.colors.border }]} />
+              <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, fontWeight: '600' }}>
+                {language === 'uz' ? 'yoki' : 'или'}
+              </Text>
+              <View style={[styles.dividerLine, { backgroundColor: tokens.colors.border }]} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.contactBtn, { borderColor: tokens.colors.border }]}
+              onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}
               activeOpacity={0.85}
             >
-              {navigating ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.primaryBtnText}>{t.loginNext}</Text>
-              )}
+              <Ionicons name="paper-plane-outline" size={18} color={tokens.brand.iris} />
+              <Text style={{ color: tokens.colors.text, fontWeight: '600', fontSize: 14 }}>
+                {t.contactUs}
+              </Text>
             </TouchableOpacity>
 
-
-
-            <View style={styles.guestContainer}>
-              <TouchableOpacity onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}>
-                <Text style={styles.guestText}>{t.contactUs}</Text>
-              </TouchableOpacity>
-            </View>
+            <Text
+              style={{
+                color: tokens.colors.textTertiary,
+                fontSize: 11,
+                textAlign: 'center',
+                marginTop: 22,
+                paddingHorizontal: 20,
+                lineHeight: 16,
+              }}
+            >
+              {language === 'uz'
+                ? "Davom etib, siz Foydalanish shartlari va Maxfiylik siyosatiga rozilik bildirasiz"
+                : 'Продолжая, вы принимаете Условия использования и Политику конфиденциальности'}
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  keyboard: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
-
-  headerRow: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+  root: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingBottom: 30 },
+  heroGradient: {
+    paddingTop: 10,
     paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingBottom: 30,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    overflow: 'hidden',
   },
+  heroContent: { marginBottom: 10 },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    marginBottom: 60,
   },
-  headerLogo: {
-    width: 32,
-    height: 32,
-  },
-  brandText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-  },
-
-  illustrationContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-    height: 220,
-  },
-
-  welcomeContainer: {
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  welcomeTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
-
-  card: {
+  logoWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 30,
-    paddingBottom: 50,
-    minHeight: Dimensions.get('window').height * 0.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  phoneInputContainer: {
+  logo: { width: 26, height: 26 },
+  heroBody: { marginBottom: 26 },
+  pillStat: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  prefixBox: {
+  pillDot: { width: 8, height: 8, borderRadius: 4 },
+  form: { padding: 24, paddingTop: 30 },
+  phoneRow: { flexDirection: 'row', gap: 12 },
+  prefix: {
     paddingHorizontal: 16,
     height: 56,
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: 'center',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
-  },
-  prefixText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#374151',
+    justifyContent: 'center',
   },
   inputBox: {
     flex: 1,
     height: 56,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
     justifyContent: 'center',
   },
-  input: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    letterSpacing: 1,
-  },
-
-  primaryBtn: {
-    backgroundColor: '#000155',
-    height: 58,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000155',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-
-  footerLinks: {
+  input: { fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+  dividerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-  },
-  footerLinkText: {
-    color: '#4b5563',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  guestContainer: {
     alignItems: 'center',
-    marginTop: 40,
+    gap: 12,
+    marginTop: 22,
+    marginBottom: 16,
   },
-  guestText: {
-    color: '#9ca3af',
-    fontSize: 15,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  contactBtn: {
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
 });

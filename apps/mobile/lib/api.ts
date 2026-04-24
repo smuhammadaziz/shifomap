@@ -591,3 +591,240 @@ export async function deleteCustomReminder(id: string): Promise<boolean> {
   const { data } = await api.delete<{ success: boolean; data: { success: boolean } }>(`/prescriptions/me/custom-reminders/${id}`);
   return data.success;
 }
+
+// --- Files (upload + URL helper) ---
+
+export function getFileUrl(id: string | null | undefined): string | null {
+  if (!id) return null;
+  if (id.startsWith('http')) return id;
+  if (id.startsWith('/v1/')) return `${API_BASE}${id}`;
+  return `${API_BASE}/v1/files/${id}`;
+}
+
+export async function uploadFile(uri: string, name?: string, type?: string): Promise<{ _id: string; url: string; originalName: string; mimeType: string; size: number; createdAt: string; }> {
+  const form = new FormData();
+  const mimeType = type ?? 'image/jpeg';
+  const filename = name ?? `upload-${Date.now()}.${mimeType.split('/')[1] ?? 'jpg'}`;
+  // @ts-expect-error React Native form-data accepts { uri, name, type }
+  form.append('file', { uri, name: filename, type: mimeType });
+  const { data } = await api.post<{ success: boolean; data: any }>('/files', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    transformRequest: (d) => d,
+  });
+  if (!data.success) throw new Error('Upload failed');
+  return data.data;
+}
+
+// --- Medical history ---
+
+export interface MedicalHistoryEntry {
+  _id: string;
+  patientId: string;
+  name: string;
+  description: string;
+  durationDays: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listMedicalHistory(): Promise<MedicalHistoryEntry[]> {
+  const { data } = await api.get<{ success: boolean; data: MedicalHistoryEntry[] }>('/patients/me/history');
+  if (!data.success) throw new Error('Failed to load history');
+  return data.data;
+}
+
+export async function addMedicalHistory(body: { name: string; description: string; durationDays: number }): Promise<MedicalHistoryEntry> {
+  const { data } = await api.post<{ success: boolean; data: MedicalHistoryEntry }>('/patients/me/history', body);
+  if (!data.success) throw new Error('Failed to add');
+  return data.data;
+}
+
+export async function updateMedicalHistory(id: string, body: Partial<{ name: string; description: string; durationDays: number }>): Promise<MedicalHistoryEntry> {
+  const { data } = await api.patch<{ success: boolean; data: MedicalHistoryEntry }>(`/patients/me/history/${id}`, body);
+  if (!data.success) throw new Error('Failed to update');
+  return data.data;
+}
+
+export async function deleteMedicalHistory(id: string): Promise<void> {
+  const { data } = await api.delete<{ success: boolean }>(`/patients/me/history/${id}`);
+  if (!data.success) throw new Error('Failed to delete');
+}
+
+// --- Assessments (8-question health test) ---
+
+export interface AssessmentEntry {
+  _id: string;
+  patientId: string;
+  answers: Array<{ question: string; answer: string }>;
+  condition: string | null;
+  advice: string | null;
+  severity: 'low' | 'medium' | 'high' | null;
+  aiSummary: string | null;
+  createdAt: string;
+}
+
+export async function saveAssessment(body: {
+  answers: Array<{ question: string; answer: string }>;
+  condition?: string | null;
+  advice?: string | null;
+  severity?: 'low' | 'medium' | 'high' | null;
+  aiSummary?: string | null;
+}): Promise<AssessmentEntry> {
+  const { data } = await api.post<{ success: boolean; data: AssessmentEntry }>('/assessments', body);
+  if (!data.success) throw new Error('Failed to save');
+  return data.data;
+}
+
+export async function listMyAssessments(): Promise<AssessmentEntry[]> {
+  const { data } = await api.get<{ success: boolean; data: AssessmentEntry[] }>('/assessments/me');
+  if (!data.success) throw new Error('Failed to load');
+  return data.data;
+}
+
+// --- Chat ---
+
+export interface ChatConversation {
+  _id: string;
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  unread: number;
+  patientName: string | null;
+  patientAvatar: string | null;
+  doctorName: string | null;
+  doctorAvatar: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessage {
+  _id: string;
+  conversationId: string;
+  senderRole: 'patient' | 'doctor';
+  senderId: string;
+  text: string;
+  attachments: string[];
+  readAt: string | null;
+  createdAt: string;
+}
+
+export async function openConversationWithDoctor(clinicId: string, doctorId: string): Promise<ChatConversation> {
+  const { data } = await api.post<{ success: boolean; data: ChatConversation }>('/chat/patient/open', { clinicId, doctorId });
+  if (!data.success) throw new Error('Failed to open chat');
+  return data.data;
+}
+
+export async function listPatientConversations(): Promise<ChatConversation[]> {
+  const { data } = await api.get<{ success: boolean; data: ChatConversation[] }>('/chat/patient/conversations');
+  if (!data.success) throw new Error('Failed to load');
+  return data.data;
+}
+
+export async function listConversationMessages(id: string): Promise<{ conversation: ChatConversation; messages: ChatMessage[] }> {
+  const { data } = await api.get<{ success: boolean; data: { conversation: ChatConversation; messages: ChatMessage[] } }>(
+    `/chat/patient/conversations/${id}/messages`
+  );
+  if (!data.success) throw new Error('Failed to load');
+  return data.data;
+}
+
+export async function sendChatMessage(id: string, text: string, attachments: string[] = []): Promise<ChatMessage> {
+  const { data } = await api.post<{ success: boolean; data: ChatMessage }>(
+    `/chat/patient/conversations/${id}/messages`,
+    { text, attachments }
+  );
+  if (!data.success) throw new Error('Failed to send');
+  return data.data;
+}
+
+// --- Posts (Instagram-style feed) ---
+
+export interface FeedPost {
+  _id: string;
+  imageUrl: string;
+  caption: string;
+  tags: string[];
+  likesCount: number;
+  commentsCount: number;
+  likedByMe: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedResponse {
+  items: FeedPost[];
+  nextCursor: string | null;
+}
+
+export interface PostComment {
+  _id: string;
+  postId: string;
+  patientId: string;
+  patientName: string | null;
+  patientAvatar: string | null;
+  text: string;
+  createdAt: string;
+}
+
+export async function listPosts(cursor?: string, limit = 15): Promise<FeedResponse> {
+  const { data } = await api.get<{ success: boolean; data: FeedResponse }>('/posts', {
+    params: { ...(cursor ? { cursor } : {}), limit },
+  });
+  if (!data.success) throw new Error('Failed to load feed');
+  return data.data;
+}
+
+export async function getPostById(id: string): Promise<FeedPost> {
+  const { data } = await api.get<{ success: boolean; data: FeedPost }>(`/posts/${id}`);
+  if (!data.success) throw new Error('Not found');
+  return data.data;
+}
+
+export async function togglePostLike(id: string, like: boolean): Promise<void> {
+  if (like) {
+    await api.post(`/posts/${id}/like`);
+  } else {
+    await api.delete(`/posts/${id}/like`);
+  }
+}
+
+export async function listPostComments(id: string, limit = 30): Promise<PostComment[]> {
+  const { data } = await api.get<{ success: boolean; data: PostComment[] }>(`/posts/${id}/comments`, {
+    params: { limit },
+  });
+  if (!data.success) throw new Error('Failed to load');
+  return data.data;
+}
+
+export async function addPostComment(id: string, text: string): Promise<PostComment> {
+  const { data } = await api.post<{ success: boolean; data: PostComment }>(`/posts/${id}/comments`, { text });
+  if (!data.success) throw new Error('Failed to comment');
+  return data.data;
+}
+
+// --- Doctor-first booking ---
+
+export interface DoctorSlotsResponse {
+  schedule: {
+    timezone: string;
+    weekly: Array<{ day: number; from: string; to: string; lunchFrom?: string; lunchTo?: string }>;
+  };
+  bookedTimes: string[];
+  services: Array<{
+    _id: string;
+    title: string;
+    durationMin: number;
+    price: { amount?: number; minAmount?: number; maxAmount?: number; currency: string };
+    serviceImage: string | null;
+  }>;
+}
+
+export async function getDoctorSlots(clinicId: string, doctorId: string, date: string): Promise<DoctorSlotsResponse> {
+  const { data } = await api.get<{ success: boolean; data: DoctorSlotsResponse }>('/bookings/doctor-slots', {
+    params: { clinicId, doctorId, date },
+  });
+  if (!data.success) throw new Error('Failed to load');
+  return data.data;
+}

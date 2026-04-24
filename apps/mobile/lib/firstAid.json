@@ -1,0 +1,360 @@
+{
+  "guides": [
+    {
+      "slug": "cuts-wounds",
+      "icon": "bandage",
+      "color": "#ef4444",
+      "title": {
+        "uz": "Kesilgan va jarohatlar",
+        "ru": "Порезы и раны",
+        "en": "Cuts and wounds"
+      },
+      "summary": {
+        "uz": "Qon ketishi va yaralarni to‘g‘ri davolash",
+        "ru": "Правильная обработка порезов и остановка кровотечения",
+        "en": "How to clean wounds and stop bleeding"
+      },
+      "steps": {
+        "uz": [
+          "Qo‘lingizni sovunli suv bilan yuving.",
+          "Yarani oqar suv ostida yuving, begona jismlarni olib tashlang.",
+          "Qonni to‘xtatish uchun toza mato bilan 5-10 daqiqa bosib turing.",
+          "Antiseptik bilan zararsizlantiring (xlorgeksidin, betadin).",
+          "Plastir yoki bint bilan yoping, kuniga 1 marta almashtiring.",
+          "Agar 10 daqiqadan keyin qon to‘xtamasa yoki yara chuqur bo‘lsa, zudlik bilan shifokorga murojaat qiling."
+        ],
+        "ru": [
+          "Вымойте руки с мылом.",
+          "Промойте рану под проточной водой, удалите инородные предметы.",
+          "Остановите кровь, прижав чистой тканью на 5-10 минут.",
+          "Обработайте антисептиком (хлоргексидин, бетадин).",
+          "Наложите пластырь или бинт, меняйте раз в сутки.",
+          "Если кровь не останавливается 10 минут или рана глубокая — к врачу немедленно."
+        ],
+        "en": [
+          "Wash your hands with soap.",
+          "Rinse the wound under running water, remove any debris.",
+          "Apply firm pressure with a clean cloth for 5-10 minutes to stop bleeding.",
+          "Disinfect with an antiseptic (chlorhexidine, betadine).",
+          "Cover with a plaster or bandage and change once a day.",
+          "If bleeding doesn't stop in 10 minutes or the wound is deep, see a doctor immediately."
+        ]
+      },
+      "warning": {
+        "uz": "Chuqur yara, o‘q yoki kiyik tishlagan yaralarda shoshilinch yordam chaqiring.",
+        "ru": "При глубоких ранах, укусах животных — срочно вызовите скорую.",
+        "en": "Deep wounds or animal bites require urgent medical care."
+      }
+    },
+    {
+      "slug": "burns",
+      "icon": "flame",
+      "color": "#f97316",
+      "title": {
+        "uz": "Kuyish",
+        "ru": "Ожоги",
+        "en": "Burns"
+      },
+      "summary": {
+        "uz": "Yengil va o‘rta kuyishlarda birinchi yordam",
+        "ru": "Первая помощь при ожогах 1-2 степени",
+        "en": "First aid for minor and moderate burns"
+      },
+      "steps": {
+        "uz": [
+          "Kuyishni 15-20 daqiqa salqin (muzdek emas!) suv ostida sovuting.",
+          "Kiyim yoki taqinchoqlarni ehtiyotkorlik bilan oling.",
+          "Quyonchoqlarni yorib yubormang.",
+          "Steril bint yoki toza mato bilan yoping.",
+          "Og‘riq uchun parasetamol yoki ibuprofen ichsa bo‘ladi.",
+          "Moy, yog‘, diş pastasi surtish MAN ETILADI."
+        ],
+        "ru": [
+          "Охладите ожог проточной прохладной (не ледяной!) водой 15-20 минут.",
+          "Аккуратно снимите одежду и украшения, если они не прилипли.",
+          "Не вскрывайте пузыри.",
+          "Накройте стерильной повязкой или чистой тканью.",
+          "При боли можно парацетамол или ибупрофен.",
+          "НЕ наносите масло, жир, зубную пасту."
+        ],
+        "en": [
+          "Cool the burn under cool (not icy) running water for 15-20 minutes.",
+          "Remove clothing and jewelry carefully if not stuck.",
+          "Do not pop blisters.",
+          "Cover with a sterile dressing or clean cloth.",
+          "Paracetamol or ibuprofen can help with pain.",
+          "Do NOT apply oil, butter or toothpaste."
+        ]
+      },
+      "warning": {
+        "uz": "Yuz, qo‘l, bo‘g‘im yoki kenglik > 10% bo‘lgan kuyishlarda shoshilinch yordam chaqiring.",
+        "ru": "При ожогах лица, рук, суставов или площади > 10% — вызывайте скорую.",
+        "en": "Burns on face, hands, joints, or >10% body surface need urgent care."
+      }
+    },
+    {
+      "slug": "fever",
+      "icon": "thermometer",
+      "color": "#ef4444",
+      "title": {
+        "uz": "Yuqori harorat",
+        "ru": "Высокая температура",
+        "en": "High fever"
+      },
+      "summary": {
+        "uz": "Isitmada nima qilish kerak",
+        "ru": "Что делать при высокой температуре",
+        "en": "What to do when fever is high"
+      },
+      "steps": {
+        "uz": [
+          "Ko‘p suyuqlik iching (iliq suv, choy).",
+          "Engil kiyimda bo‘ling, xonani shamollating.",
+          "38.5°C dan yuqori bo‘lsa parasetamol yoki ibuprofen ichishingiz mumkin.",
+          "Peshona va ko‘lmagingizga iliq nam mato qo‘ying.",
+          "39.5°C dan yuqori, qo‘shimcha simptomlar (hushsizlik, tiqilish, qon) bo‘lsa — shoshilinch yordam chaqiring."
+        ],
+        "ru": [
+          "Пейте много тёплой жидкости (вода, чай).",
+          "Наденьте лёгкую одежду, проветрите комнату.",
+          "При 38.5°C+ можно парацетамол или ибупрофен.",
+          "Прикладывайте тёплую влажную ткань ко лбу.",
+          "При 39.5°C+ с другими тревожными симптомами — скорая."
+        ],
+        "en": [
+          "Drink plenty of warm fluids (water, tea).",
+          "Wear light clothes, ventilate the room.",
+          "Paracetamol or ibuprofen for fever over 38.5°C.",
+          "Place a warm damp cloth on the forehead.",
+          "Call emergency if over 39.5°C with confusion, seizures, or rash."
+        ]
+      },
+      "warning": {
+        "uz": "Yosh bolalarda 38°C dan yuqori isitmada darhol shifokorga murojaat qiling.",
+        "ru": "У маленьких детей любая температура выше 38°C — к врачу.",
+        "en": "In infants fever over 38°C needs medical attention immediately."
+      }
+    },
+    {
+      "slug": "fainting",
+      "icon": "body",
+      "color": "#6366f1",
+      "title": {
+        "uz": "Hushdan ketish",
+        "ru": "Обморок",
+        "en": "Fainting"
+      },
+      "summary": {
+        "uz": "Odam hushidan ketganida nima qilish kerak",
+        "ru": "Если человек потерял сознание",
+        "en": "If someone loses consciousness"
+      },
+      "steps": {
+        "uz": [
+          "Xavfsizlikka amin bo‘ling, jabrlangandan uzoq joyga olib boring.",
+          "Yon tomonga yotqizing, bo‘shashtiruvchi liboslarni yeching.",
+          "Oyoqlarini biroz ko‘taring.",
+          "Xona shamollashiga ruxsat bering.",
+          "Nafas olmayotgan bo‘lsa, darhol 103 raqamiga qo‘ng‘iroq qiling va CPRni boshlang.",
+          "1-2 daqiqa ichida hushiga kelmasa — shoshilinch yordam."
+        ],
+        "ru": [
+          "Обеспечьте безопасность, уберите острые предметы.",
+          "Положите набок, расстегните воротник.",
+          "Слегка приподнимите ноги.",
+          "Обеспечьте доступ воздуха.",
+          "Если не дышит — звоните 103 и начинайте СЛР.",
+          "Если не приходит в себя 1-2 минуты — скорая."
+        ],
+        "en": [
+          "Ensure the area is safe.",
+          "Lay the person on their side, loosen tight clothing.",
+          "Slightly raise the legs.",
+          "Provide fresh air.",
+          "If not breathing, call emergency immediately and start CPR.",
+          "If unconscious longer than 1-2 minutes, call emergency."
+        ]
+      },
+      "warning": {
+        "uz": "Bosh jarohati bo‘lishi mumkinligini esda tuting — bo‘yinni qimirlatmang.",
+        "ru": "Возможна травма шеи — не двигайте голову резко.",
+        "en": "Suspect neck injury — do not move the head sharply."
+      }
+    },
+    {
+      "slug": "choking",
+      "icon": "alert-circle",
+      "color": "#dc2626",
+      "title": {
+        "uz": "Bo‘g‘ilish",
+        "ru": "Удушье (подавился)",
+        "en": "Choking"
+      },
+      "summary": {
+        "uz": "Heymlich manevri",
+        "ru": "Приём Геймлиха",
+        "en": "Heimlich maneuver"
+      },
+      "steps": {
+        "uz": [
+          "Odam yo‘tallay olayaptimi? — Ha bo‘lsa, yo‘talishni to‘xtatmang.",
+          "Yo‘talolmasa orqasiga 5 ta qattiq zarba bering (kuragi orasiga).",
+          "So‘ng Heymlich manevri: orqadan qo‘l tashlab, kindikdan yuqorida yuqoriga va ichkariga itaring.",
+          "Jism chiqmaguncha yoki odam hushidan ketguncha takrorlang.",
+          "Hushidan ketsa yerga yotqizing va darhol 103ga qo‘ng‘iroq qiling, CPR boshlang."
+        ],
+        "ru": [
+          "Спросите: он может кашлять? Если да — пусть кашляет.",
+          "Если нет — 5 резких ударов между лопатками.",
+          "Приём Геймлиха: обхватите сзади, надавите резко под грудиной вверх-внутрь.",
+          "Повторяйте до выхода предмета.",
+          "Если потерял сознание — положите на пол, вызовите скорую, начинайте СЛР."
+        ],
+        "en": [
+          "Ask: can they cough? If yes, let them cough.",
+          "If no, deliver 5 firm back blows between the shoulder blades.",
+          "Heimlich: from behind, press sharply inward and upward above the navel.",
+          "Repeat until the object is expelled.",
+          "If they become unconscious, lay them down, call emergency, begin CPR."
+        ]
+      },
+      "warning": {
+        "uz": "Bolalarga past energiyali zarbalar bering; chaqaloqlarda texnika farq qiladi.",
+        "ru": "Детям — удары мягче, у младенцев другая техника.",
+        "en": "For children apply softer blows; infants need a different technique."
+      }
+    },
+    {
+      "slug": "allergy",
+      "icon": "warning",
+      "color": "#f59e0b",
+      "title": {
+        "uz": "Allergik reaksiya",
+        "ru": "Аллергическая реакция",
+        "en": "Allergic reaction"
+      },
+      "summary": {
+        "uz": "Anafilaksiya va yengil allergiyada harakatlar",
+        "ru": "Действия при аллергии и анафилаксии",
+        "en": "Managing anaphylaxis and mild allergies"
+      },
+      "steps": {
+        "uz": [
+          "Allergen bilan aloqani uzing.",
+          "Yengil holatda antigistamin preparat (loratadin, suprastin) ichishi mumkin.",
+          "Nafas olish qiyinlashsa, lablar, til shishsa — darhol 103ga qo‘ng‘iroq qiling.",
+          "Agar odamda epinefrin (EpiPen) bo‘lsa — yelkaga in’ektsiya qiling.",
+          "Tinch yotqizing, oyoqlarini ko‘taring."
+        ],
+        "ru": [
+          "Прервите контакт с аллергеном.",
+          "При лёгкой реакции — антигистаминное (лоратадин, супрастин).",
+          "При отёке губ, языка, удушье — скорая немедленно.",
+          "Если есть эпинефрин (EpiPen) — введите в мышцу бедра.",
+          "Уложите, приподнимите ноги."
+        ],
+        "en": [
+          "Remove exposure to the allergen.",
+          "For mild reactions, antihistamines (loratadine, cetirizine) help.",
+          "If breathing is hard, tongue or lips swell — call emergency.",
+          "Use epinephrine auto-injector (EpiPen) if available, thigh muscle.",
+          "Lay the person flat and raise the legs."
+        ]
+      },
+      "warning": {
+        "uz": "Anafilaksiya — hayotga xavfli, har doim 103 chaqiring.",
+        "ru": "Анафилаксия опасна для жизни — всегда вызывайте 103.",
+        "en": "Anaphylaxis is life-threatening — always call emergency services."
+      }
+    },
+    {
+      "slug": "nosebleed",
+      "icon": "water",
+      "color": "#0ea5e9",
+      "title": {
+        "uz": "Burundan qon ketishi",
+        "ru": "Кровь из носа",
+        "en": "Nosebleed"
+      },
+      "summary": {
+        "uz": "Burun qon ketishini to‘xtatish",
+        "ru": "Как остановить носовое кровотечение",
+        "en": "Stopping a nosebleed"
+      },
+      "steps": {
+        "uz": [
+          "Boshingizni biroz oldinga egib o‘tiring.",
+          "Burun yumshoq qismini 10-15 daqiqa qattiq siqib turing.",
+          "Peshona va burun atrofiga sovuq kompress qo‘ying.",
+          "Og‘iz bilan nafas oling.",
+          "Ovqat yoki issiq suyuqlik 1 soat ichmang.",
+          "30 daqiqadan ortiq qon ketsa — shifokorga."
+        ],
+        "ru": [
+          "Сядьте, слегка наклонив голову вперёд.",
+          "Зажмите мягкую часть носа на 10-15 минут.",
+          "Приложите холод ко лбу.",
+          "Дышите ртом.",
+          "Не пейте горячее 1 час.",
+          "Если кровь идёт > 30 минут — к врачу."
+        ],
+        "en": [
+          "Sit upright and lean slightly forward.",
+          "Pinch the soft part of the nose for 10-15 minutes.",
+          "Apply a cold compress to the forehead.",
+          "Breathe through your mouth.",
+          "Avoid hot drinks for an hour.",
+          "If bleeding persists over 30 minutes, see a doctor."
+        ]
+      },
+      "warning": {
+        "uz": "Bosh jarohatidan keyingi burun qon ketishi — zudlik bilan shifokor.",
+        "ru": "После травмы головы — к врачу немедленно.",
+        "en": "Nosebleed after head trauma — see a doctor immediately."
+      }
+    },
+    {
+      "slug": "cpr",
+      "icon": "heart",
+      "color": "#dc2626",
+      "title": {
+        "uz": "Yurak-o‘pka reanimatsiyasi (CPR)",
+        "ru": "Сердечно-лёгочная реанимация",
+        "en": "CPR basics"
+      },
+      "summary": {
+        "uz": "Kattalar uchun CPR ketma-ketligi",
+        "ru": "Как делать СЛР взрослому",
+        "en": "How to perform CPR on an adult"
+      },
+      "steps": {
+        "uz": [
+          "Xavfsizlikni tekshiring, nafas va pulsni 10 soniya kuzating.",
+          "103ga qo‘ng‘iroq qiling (yoki birov qilsin).",
+          "Ko‘krakning markaziga chuqur 5-6 sm bosim bering, daqiqada 100-120.",
+          "Har 30 ta bosimdan keyin 2 ta nafas (agar maxorat bo‘lsa).",
+          "Tez yordam yetib kelguncha yoki odam harakat qilguncha davom eting."
+        ],
+        "ru": [
+          "Убедитесь в безопасности, проверьте дыхание и пульс 10 секунд.",
+          "Вызовите 103 или попросите это сделать.",
+          "Сдавливайте грудную клетку на 5-6 см, ритм 100-120 в минуту.",
+          "После 30 нажатий — 2 вдоха (если умеете).",
+          "Продолжайте до приезда скорой или признаков жизни."
+        ],
+        "en": [
+          "Check safety, check breathing and pulse for 10 seconds.",
+          "Call emergency services or ask someone to call.",
+          "Compress the center of the chest 5-6 cm deep, 100-120/min.",
+          "After 30 compressions, give 2 breaths if trained.",
+          "Continue until help arrives or the person recovers."
+        ]
+      },
+      "warning": {
+        "uz": "Bolalarda va chaqaloqlarda CPR texnikasi farq qiladi.",
+        "ru": "Техника СЛР для детей и младенцев отличается.",
+        "en": "CPR technique for children and infants differs."
+      }
+    }
+  ]
+}

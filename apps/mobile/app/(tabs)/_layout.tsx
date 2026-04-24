@@ -1,29 +1,23 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import CustomTabBar from '../components/CustomTabBar';
-import { useAuthStore } from '../../store/auth-store';
-import { getTranslations } from '../../lib/translations';
-
-const tabTitleKey: Record<string, 'tabHome' | 'tabSchedule' | 'tabProfile'> = {
-  index: 'tabHome',
-  appointments: 'tabSchedule',
-  profile: 'tabProfile',
-};
+import { useThemeStore } from '../../store/theme-store';
+import { getTokens } from '../../lib/design';
 
 export default function TabLayout() {
-  const language = useAuthStore((s) => s.language);
-  const t = getTranslations(language);
+  const theme = useThemeStore((s) => s.theme);
+  const tokens = getTokens(theme);
 
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        title: t[tabTitleKey[route.name] ?? 'tabHome'],
-        contentStyle: { backgroundColor: '#09090b' },
-      })}
+        sceneStyle: { backgroundColor: tokens.colors.background },
+      }}
     >
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="feed" />
       <Tabs.Screen name="appointments" />
       <Tabs.Screen name="profile" />
     </Tabs>

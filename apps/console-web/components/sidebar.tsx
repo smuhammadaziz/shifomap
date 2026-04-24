@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Shield,
+  Image as ImageIcon,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "./ui/button"
@@ -22,6 +23,7 @@ const nav = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Users", href: "/dashboard/users", icon: Users },
   { name: "Clinics", href: "/dashboard/clinics", icon: Building2 },
+  { name: "Posts", href: "/dashboard/posts", icon: ImageIcon },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

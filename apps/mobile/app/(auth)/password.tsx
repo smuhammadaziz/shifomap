@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,21 +12,23 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  Image,
-  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
-import { authPhonePassword, getConnectionErrorMessage, getApiErrorMessage } from '../../lib/api';
+import {
+  authPhonePassword,
+  getConnectionErrorMessage,
+  getApiErrorMessage,
+} from '../../lib/api';
 import { getTranslations } from '../../lib/translations';
-import { getColors } from '../../lib/theme';
+import { getTokens } from '../../lib/design';
+import { Button } from '../../components/ui';
 
-const { width } = Dimensions.get('window');
 const PHONE_REGEX = /^\+?998\d{9}$/;
-const LOGO_IMG = require('../../assets/play_store_512-Photoroom.png');
-import Illustration from '../../assets/undraw_medicine_hqqg.svg';
 
 function normalizePhone(raw: string): string {
   const s = raw.replace(/^%2B/, '+').replace(/\s/g, '');
@@ -52,7 +54,7 @@ export default function PasswordScreen() {
   const theme = useThemeStore((s) => s.theme);
   const setToken = useAuthStore((s) => s.setToken);
   const setPatient = useAuthStore((s) => s.setPatient);
-  const colors = getColors(theme);
+  const tokens = getTokens(theme);
 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -105,12 +107,16 @@ export default function PasswordScreen() {
       }
     } catch (e) {
       const apiMsg = getApiErrorMessage(e);
-      const isNetwork = !apiMsg && (getConnectionErrorMessage(e).includes('Cannot reach server') || (e as { code?: string })?.code === 'ERR_NETWORK');
+      const isNetwork =
+        !apiMsg &&
+        (getConnectionErrorMessage(e).includes('Cannot reach server') ||
+          (e as { code?: string })?.code === 'ERR_NETWORK');
       if (isNetwork) {
         Alert.alert('Error', getConnectionErrorMessage(e));
       } else {
         const title = t.passwordWrongTitle;
-        const message = (apiMsg && apiMsg !== 'Invalid password') ? apiMsg : t.passwordWrongMessage;
+        const message =
+          apiMsg && apiMsg !== 'Invalid password' ? apiMsg : t.passwordWrongMessage;
         setErrorPopover({ title, message });
       }
     } finally {
@@ -120,8 +126,8 @@ export default function PasswordScreen() {
 
   if (!showScreen) {
     return (
-      <View style={[styles.loadingRoot, { backgroundColor: '#000155' }]}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={[styles.loadingRoot, { backgroundColor: tokens.colors.background }]}>
+        <ActivityIndicator size="large" color={tokens.brand.iris} />
       </View>
     );
   }
@@ -130,276 +136,200 @@ export default function PasswordScreen() {
   const phoneDisplay = PHONE_REGEX.test(phone) ? '+998 ' + formatPhoneForDisplay(phone) : phone;
 
   return (
-    <View style={[styles.container, { backgroundColor: '#000155' }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboard}
-      >
+    <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.background }]} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="chevron-back" size={28} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.brandRow}>
-              <Image source={LOGO_IMG} style={styles.headerLogo} resizeMode="contain" />
-              <Text style={styles.brandText}>ShifoYo'l</Text>
-            </View>
-            <View style={{ width: 40 }} />
-          </View>
-
-          {/* Illustration Section */}
-          <View style={styles.illustrationContainer}>
-            <Illustration width={width * 0.7} height={150} />
-          </View>
-
-          {/* Welcome Text */}
-          <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeTitle}>{t.passwordTitle}</Text>
-            <Text style={styles.welcomeSubtitle}>{t.passwordSubtitle}</Text>
-          </View>
-
-          {/* Form Card */}
-          <View style={styles.card}>
-            <View style={styles.phoneBadge}>
-              <Ionicons name="call" size={16} color="#000155" />
-              <Text style={styles.phoneBadgeText}>{phoneDisplay}</Text>
-            </View>
-
-            <View style={styles.formBlock}>
-              <View style={[styles.inputBox, {
-                backgroundColor: '#f3f4f6',
-                borderColor: focused ? '#000155' : '#e5e7eb',
-                borderWidth: focused ? 1.5 : 1
-              }]}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t.passwordPlaceholder}
-                  placeholderTextColor="#9ca3af"
-                  value={password}
-                  onChangeText={setPassword}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                  secureTextEntry={secure}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-                <TouchableOpacity onPress={() => setSecure((s) => !s)}>
-                  <Ionicons name={secure ? 'eye-off' : 'eye'} size={22} color="#6b7280" />
-                </TouchableOpacity>
-              </View>
-              {password.length > 0 && password.length < 8 && (
-                <Text style={styles.errorText}>{t.passwordError}</Text>
-              )}
-            </View>
-
+          <View style={styles.topRow}>
             <TouchableOpacity
-              style={[
-                styles.primaryBtn,
-                (!isValid || loading) && styles.btnDisabled,
-              ]}
-              onPress={onSubmit}
-              disabled={!isValid || loading}
-              activeOpacity={0.85}
+              onPress={() => router.back()}
+              style={[styles.backBtn, { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border }]}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.primaryBtnText}>{t.passwordContinue}</Text>
-              )}
+              <Ionicons name="chevron-back" size={22} color={tokens.colors.text} />
             </TouchableOpacity>
+          </View>
+
+          <LinearGradient
+            colors={tokens.gradients.cool as [string, string, ...string[]]}
+            style={[styles.lockBubble]}
+          >
+            <View style={[styles.lockInner, { backgroundColor: tokens.colors.backgroundCard }]}>
+              <Ionicons name="lock-closed" size={32} color={tokens.brand.iris} />
+            </View>
+          </LinearGradient>
+
+          <View style={{ paddingHorizontal: 24, alignItems: 'center', marginTop: 24 }}>
+            <Text style={[tokens.type.display, { color: tokens.colors.text, textAlign: 'center' }]}>
+              {t.passwordTitle}
+            </Text>
+            <Text
+              style={{
+                color: tokens.colors.textSecondary,
+                fontSize: 14,
+                textAlign: 'center',
+                marginTop: 8,
+                lineHeight: 20,
+                paddingHorizontal: 20,
+              }}
+            >
+              {t.passwordSubtitle}
+            </Text>
+            <View style={[styles.phoneChip, { backgroundColor: tokens.colors.backgroundSecondary, borderColor: tokens.colors.border }]}>
+              <Ionicons name="call" size={14} color={tokens.brand.iris} />
+              <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 13 }}>
+                {phoneDisplay}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.form}>
+            <Text style={[tokens.type.caption, { color: tokens.colors.textSecondary, marginBottom: 10, marginLeft: 4 }]}>
+              {t.passwordTitle}
+            </Text>
+            <View
+              style={[
+                styles.inputBox,
+                {
+                  backgroundColor: tokens.colors.backgroundInput,
+                  borderColor: focused ? tokens.brand.iris : tokens.colors.border,
+                },
+              ]}
+            >
+              <Ionicons name="key-outline" size={18} color={tokens.colors.textTertiary} />
+              <TextInput
+                style={[styles.input, { color: tokens.colors.text }]}
+                placeholder={t.passwordPlaceholder}
+                placeholderTextColor={tokens.colors.textPlaceholder}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                secureTextEntry={secure}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+              />
+              <TouchableOpacity onPress={() => setSecure((s) => !s)} hitSlop={10}>
+                <Ionicons name={secure ? 'eye-off' : 'eye'} size={20} color={tokens.colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            {password.length > 0 && password.length < 8 ? (
+              <Text style={{ color: tokens.colors.error, fontSize: 12, marginTop: 8, marginLeft: 4 }}>
+                {t.passwordError}
+              </Text>
+            ) : null}
+
+            <View style={{ height: 24 }} />
+            <Button
+              title={t.passwordContinue}
+              variant="gradient"
+              size="lg"
+              rightIcon="arrow-forward"
+              loading={loading}
+              disabled={!isValid}
+              onPress={onSubmit}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={!!errorPopover}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setErrorPopover(null)}
-      >
+      <Modal visible={!!errorPopover} transparent animationType="fade" onRequestClose={() => setErrorPopover(null)}>
         <Pressable style={styles.popoverOverlay} onPress={() => setErrorPopover(null)}>
           <Pressable
-            style={[styles.popoverCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+            style={[styles.popoverCard, { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border }]}
             onPress={(ev) => ev.stopPropagation()}
           >
-            <View style={[styles.popoverIconWrap, { backgroundColor: colors.errorBg }]}>
-              <Ionicons name="lock-closed" size={28} color={colors.error} />
+            <View style={[styles.popoverIconWrap, { backgroundColor: tokens.colors.errorBg }]}>
+              <Ionicons name="alert-circle" size={28} color={tokens.colors.error} />
             </View>
-            <Text style={[styles.popoverTitle, { color: colors.text }]}>{errorPopover?.title ?? ''}</Text>
-            <Text style={[styles.popoverMessage, { color: colors.textSecondary }]}>{errorPopover?.message ?? ''}</Text>
-            <TouchableOpacity
-              style={[styles.popoverBtn, { backgroundColor: colors.primary }]}
-              onPress={() => setErrorPopover(null)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.popoverBtnText}>{t.errorDismiss}</Text>
-            </TouchableOpacity>
+            <Text style={[tokens.type.title, { color: tokens.colors.text, marginBottom: 8, textAlign: 'center' }]}>
+              {errorPopover?.title ?? ''}
+            </Text>
+            <Text style={{ color: tokens.colors.textSecondary, fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 18 }}>
+              {errorPopover?.message ?? ''}
+            </Text>
+            <Button title={t.errorDismiss} onPress={() => setErrorPopover(null)} />
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  loadingRoot: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  keyboard: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
-
-  headerRow: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
+  root: { flex: 1 },
+  loadingRoot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  scrollContent: { flexGrow: 1, paddingBottom: 40 },
+  topRow: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
   },
-  backBtn: {
-    position: 'absolute',
-    left: 20,
-    top: Platform.OS === 'ios' ? 60 : 40,
-    width: 40,
-    height: 40,
+  lockBubble: {
+    alignSelf: 'center',
+    marginTop: 20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  brandRow: {
+  lockInner: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  phoneChip: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  form: { paddingHorizontal: 24, paddingTop: 28 },
+  inputBox: {
+    height: 56,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  headerLogo: {
-    width: 32,
-    height: 32,
-  },
-  brandText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-  },
-
-  illustrationContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-    height: 200,
-  },
-
-  welcomeContainer: {
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
-
-  card: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 30,
-    paddingBottom: 50,
-    flex: 1,
-    minHeight: Dimensions.get('window').height * 0.6,
-  },
-  phoneBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignSelf: 'center',
-    marginBottom: 30,
-    gap: 8,
-  },
-  phoneBadgeText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
-  },
-
-  formBlock: { marginBottom: 30 },
-  inputBox: {
-    height: 58,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 12,
-    marginTop: 8,
-    marginLeft: 4,
-  },
-
-  primaryBtn: {
-    backgroundColor: '#000155',
-    height: 58,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000155',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  btnDisabled: { opacity: 0.6 },
-
+  input: { flex: 1, fontSize: 15, fontWeight: '600' },
   popoverOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
   },
   popoverCard: {
     width: '100%',
-    maxWidth: 320,
-    borderRadius: 20,
-    borderWidth: 1,
+    maxWidth: 340,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: 24,
     alignItems: 'center',
   },
   popoverIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  popoverTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  popoverMessage: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
-  popoverBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, minWidth: 120, alignItems: 'center' },
-  popoverBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

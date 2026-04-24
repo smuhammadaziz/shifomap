@@ -4,63 +4,113 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useLanguage } from '@/contexts/language-context'
 import { useAuthStore } from '@/store/auth-store'
 import Link from 'next/link'
-import { Calendar, Briefcase, Users } from 'lucide-react'
+import { Calendar, Briefcase, Users, MessageSquare, ArrowRight, Stethoscope } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import Cookies from 'js-cookie'
+import { getApiUrl } from '@/lib/api'
 
 export default function DashboardPage() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const user = useAuthStore((s) => s.user)
   const isDoctor = (user as { role?: string })?.role === 'doctor'
 
+  const token = useMemo(() => Cookies.get('clinic_auth_token') || null, [])
+  const apiUrl = getApiUrl()
+  const [stats, setStats] = useState<{ today: number; upcoming: number; total: number; pending: number }>({
+    today: 0,
+    upcoming: 0,
+    total: 0,
+    pending: 0,
+  })
+
+  useEffect(() => {
+    if (!isDoctor || !token) return
+    const load = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/v1/bookings-manage/doctor`, { headers: { Authorization: `Bearer ${token}` } })
+        const json = await res.json()
+        const list: Array<{ scheduledDate: string; status: string }> = res.ok && json?.success ? json.data ?? [] : []
+        const todayStr = new Date().toISOString().slice(0, 10)
+        const today = list.filter((b) => b.scheduledDate === todayStr && b.status !== 'cancelled').length
+        const upcoming = list.filter(
+          (b) => b.scheduledDate > todayStr && b.status !== 'cancelled' && b.status !== 'completed',
+        ).length
+        const pending = list.filter((b) => b.status === 'pending').length
+        setStats({ today, upcoming, total: list.length, pending })
+      } catch {
+        // noop
+      }
+    }
+    load()
+  }, [isDoctor, apiUrl, token])
+
   if (isDoctor) {
-    const displayName = (user as { displayName?: string; fullName?: string })?.displayName ?? (user as { fullName?: string })?.fullName ?? user?.userName ?? ''
+    const displayName =
+      (user as { displayName?: string; fullName?: string })?.displayName ??
+      (user as { fullName?: string })?.fullName ??
+      user?.userName ??
+      ''
+    const greeting = language === 'uz' ? 'Salom' : language === 'ru' ? 'Здравствуйте' : 'Hello'
     return (
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t.sidebar.home}</h1>
-          <p className="text-gray-600 mt-2">
-            {t.dashboard.welcomeDoctor}, {displayName}.
-          </p>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-8 text-white shadow-lg">
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold">
+              <Stethoscope className="h-3.5 w-3.5" />
+              {language === 'uz' ? 'SHIFOKOR PANELI' : language === 'ru' ? 'КАБИНЕТ ВРАЧА' : 'DOCTOR DASHBOARD'}
+            </div>
+            <h1 className="mt-3 text-3xl md:text-4xl font-bold">
+              {greeting}, {displayName}
+            </h1>
+            <p className="mt-2 text-white/90 max-w-lg">
+              {language === 'uz'
+                ? 'Bugungi jadvalingiz va bemorlaringiz. Har bir bemorga g‘amxo‘rlik bilan yondashing.'
+                : language === 'ru'
+                ? 'Ваше расписание на сегодня и пациенты. Уделите каждому пациенту внимание.'
+                : 'Your schedule and patients for today. Care for each patient with attention.'}
+            </p>
+          </div>
+          <div className="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-pink-400/20 blur-3xl" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Link href="/dashboard/my-appointments">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">{t.sidebar.myAppointments}</CardTitle>
-                  <CardDescription>{t.dashboard.appointmentsComingSoon}</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-          <Link href="/dashboard/my-services">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                  <Briefcase className="h-6 w-6 text-emerald-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">{t.sidebar.myServices}</CardTitle>
-                  <CardDescription>{t.dashboard.patientsComingSoon}</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-          <Link href="/dashboard/my-clients">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-amber-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">{t.sidebar.myClients}</CardTitle>
-                  <CardDescription>{t.dashboard.patientsComingSoon}</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label={language === 'uz' ? 'Bugun' : language === 'ru' ? 'Сегодня' : 'Today'}
+            value={stats.today}
+            tone="blue"
+            icon={<Calendar className="h-5 w-5" />}
+          />
+          <StatCard
+            label={language === 'uz' ? 'Keyingi' : language === 'ru' ? 'Предстоящие' : 'Upcoming'}
+            value={stats.upcoming}
+            tone="emerald"
+            icon={<Calendar className="h-5 w-5" />}
+          />
+          <StatCard
+            label={language === 'uz' ? 'Kutilmoqda' : language === 'ru' ? 'В ожидании' : 'Pending'}
+            value={stats.pending}
+            tone="amber"
+            icon={<Calendar className="h-5 w-5" />}
+          />
+          <StatCard
+            label={language === 'uz' ? 'Jami' : language === 'ru' ? 'Всего' : 'Total'}
+            value={stats.total}
+            tone="violet"
+            icon={<Users className="h-5 w-5" />}
+          />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <QuickLink href="/dashboard/my-appointments" icon={<Calendar className="h-6 w-6" />} label={t.sidebar.myAppointments} tone="blue" />
+          <QuickLink href="/dashboard/my-services" icon={<Briefcase className="h-6 w-6" />} label={t.sidebar.myServices} tone="emerald" />
+          <QuickLink href="/dashboard/my-clients" icon={<Users className="h-6 w-6" />} label={t.sidebar.myClients} tone="amber" />
+          <QuickLink
+            href="/dashboard/messages"
+            icon={<MessageSquare className="h-6 w-6" />}
+            label={language === 'uz' ? 'Xabarlar' : 'Сообщения'}
+            tone="violet"
+          />
         </div>
       </div>
     )
@@ -217,3 +267,61 @@ export default function DashboardPage() {
   )
 }
 
+function StatCard({
+  label,
+  value,
+  tone,
+  icon,
+}: {
+  label: string
+  value: number
+  tone: 'blue' | 'emerald' | 'amber' | 'violet'
+  icon: React.ReactNode
+}) {
+  const toneMap: Record<string, string> = {
+    blue: 'bg-blue-50 text-blue-700',
+    emerald: 'bg-emerald-50 text-emerald-700',
+    amber: 'bg-amber-50 text-amber-700',
+    violet: 'bg-violet-50 text-violet-700',
+  }
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${toneMap[tone]}`}>{icon}</div>
+        <p className="text-3xl font-bold text-gray-900">{value}</p>
+      </div>
+      <p className="text-sm text-gray-500 mt-3">{label}</p>
+    </div>
+  )
+}
+
+function QuickLink({
+  href,
+  icon,
+  label,
+  tone,
+}: {
+  href: string
+  icon: React.ReactNode
+  label: string
+  tone: 'blue' | 'emerald' | 'amber' | 'violet'
+}) {
+  const toneMap: Record<string, string> = {
+    blue: 'from-blue-500/10 to-blue-500/5 text-blue-700',
+    emerald: 'from-emerald-500/10 to-emerald-500/5 text-emerald-700',
+    amber: 'from-amber-500/10 to-amber-500/5 text-amber-700',
+    violet: 'from-violet-500/10 to-violet-500/5 text-violet-700',
+  }
+  return (
+    <Link
+      href={href}
+      className={`group rounded-2xl border border-gray-200 bg-gradient-to-br ${toneMap[tone]} p-5 hover:shadow-md transition-all hover:-translate-y-0.5`}
+    >
+      <div className="flex items-center justify-between">
+        {icon}
+        <ArrowRight className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+      <p className="mt-6 font-semibold text-gray-900">{label}</p>
+    </Link>
+  )
+}

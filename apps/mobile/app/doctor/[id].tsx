@@ -11,23 +11,30 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getClinicDetail, getReviews, type ClinicDoctorPublic, type ReviewItem } from '../../lib/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  getClinicDetail,
+  getReviews,
+  type ClinicDoctorPublic,
+  type ReviewItem,
+} from '../../lib/api';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
-import { getColors } from '../../lib/theme';
-import Skeleton from '../components/Skeleton';
+import { getTokens } from '../../lib/design';
+import { Button, Card, SkeletonBlock, IconButton } from '../../components/ui';
 import ReviewBottomSheet from '../components/ReviewBottomSheet';
 
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&q=80';
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function DoctorDetailScreen() {
   const { id: doctorId, clinicId } = useLocalSearchParams<{ id: string; clinicId?: string }>();
   const router = useRouter();
-  const language = useAuthStore((s) => s.language);
+  const language = useAuthStore((s) => s.language) ?? 'uz';
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
-  const colors = getColors(theme);
+  const tokens = getTokens(theme);
   const insets = useSafeAreaInsets();
   const [doctor, setDoctor] = useState<ClinicDoctorPublic | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,17 +46,6 @@ export default function DoctorDetailScreen() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsLoadMore, setReviewsLoadMore] = useState(false);
   const [doctorRating, setDoctorRating] = useState<{ avg: number; count: number } | null>(null);
-  const token = useAuthStore((s) => s.token);
-
-  function DetailRow({ label, value }: { label: string; value: string | undefined }) {
-    if (value == null || value === '') return null;
-    return (
-      <View style={styles.detailRow}>
-        <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>{label}</Text>
-        <Text style={[styles.detailValue, { color: colors.text }]}>{value}</Text>
-      </View>
-    );
-  }
 
   useEffect(() => {
     if (!doctorId || !clinicId) {
@@ -92,10 +88,6 @@ export default function DoctorDetailScreen() {
     loadReviews(0, 3, false);
   }, [clinicId, doctorId]);
 
-  const onLoadMoreReviews = () => {
-    loadReviews(reviewsSkip, 10, true);
-  };
-
   const onReviewSuccess = () => {
     loadReviews(0, 3, false);
     if (doctorRating) {
@@ -105,137 +97,217 @@ export default function DoctorDetailScreen() {
     }
   };
 
+  const openChat = async () => {
+    if (!clinicId || !doctorId) return;
+    try {
+      const { openConversationWithDoctor } = await import('../../lib/api');
+      const conv = await openConversationWithDoctor(clinicId, doctorId);
+      router.push({ pathname: '/chat/[id]', params: { id: conv._id } });
+    } catch {
+      /* noop */
+    }
+  };
+
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Skeleton width={24} height={24} borderRadius={4} />
-          <Skeleton width={120} height={18} style={{ marginLeft: 8, flex: 1 }} />
+      <View style={[styles.root, { backgroundColor: tokens.colors.background }]}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <IconButton icon="chevron-back" onPress={() => router.back()} />
         </View>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.profileCard, { borderBottomColor: colors.border }]}>
-            <Skeleton width={100} height={100} borderRadius={50} />
-            <Skeleton width="70%" height={22} style={{ marginTop: 16, marginBottom: 6 }} />
-            <Skeleton width={140} height={15} />
-          </View>
-          <View style={styles.body}>
-            <Skeleton width={80} height={12} style={{ marginBottom: 4 }} />
-            <Skeleton width="100%" height={16} style={{ marginBottom: 16 }} />
-            <Skeleton width={60} height={12} style={{ marginBottom: 4 }} />
-            <Skeleton width="100%" height={48} style={{ marginBottom: 16 }} />
-            <Skeleton width={80} height={12} style={{ marginBottom: 4 }} />
-            <Skeleton width="100%" height={40} />
-          </View>
-        </ScrollView>
-      </View>
-    );
-  }
-  if (error || !doctor) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.error }]}>{t.noResultsFound}</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtnFull}>
-          <Text style={[styles.backBtnText, { color: colors.primary }]}>← Back</Text>
-        </TouchableOpacity>
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <SkeletonBlock width={140} height={140} radius={70} />
+          <View style={{ height: 20 }} />
+          <SkeletonBlock width={200} height={22} />
+          <View style={{ height: 8 }} />
+          <SkeletonBlock width={140} height={14} />
+        </View>
       </View>
     );
   }
 
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  if (error || !doctor) {
+    return (
+      <View style={[styles.centered, { backgroundColor: tokens.colors.background }]}>
+        <Text style={{ color: tokens.colors.error, marginBottom: 12 }}>{t.noResultsFound}</Text>
+        <Button title={t.back ?? 'Back'} variant="outline" onPress={() => router.back()} />
+      </View>
+    );
+  }
+
   const scheduleText = doctor.schedule?.weekly?.length
-    ? doctor.schedule.weekly
-        .map((w) => `${dayNames[w.day - 1] ?? w.day}: ${w.from}-${w.to}`)
-        .join('\n')
+    ? doctor.schedule.weekly.map((w) => `${DAY_NAMES[w.day - 1] ?? w.day} ${w.from}–${w.to}`).join(' · ')
     : null;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{t.doctorDetail}</Text>
-      </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={[styles.profileCard, { borderBottomColor: colors.border }]}>
-          <Image
-            source={{ uri: doctor.avatarUrl || DEFAULT_AVATAR }}
-            style={[styles.avatar, { backgroundColor: colors.border }]}
-          />
-          <Text style={[styles.doctorName, { color: colors.text }]}>{doctor.fullName}</Text>
-          <Text style={[styles.specialty, { color: colors.primaryLight }]}>{doctor.specialty}</Text>
-        </View>
-        <View style={styles.body}>
-          <DetailRow label={t.specialty} value={doctor.specialty} />
-          <DetailRow label={t.description} value={doctor.bio || undefined} />
-          {scheduleText ? (
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>Schedule</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>{scheduleText}</Text>
-            </View>
-          ) : null}
-
-          {(doctorRating?.count ?? 0) > 0 && (
-            <View style={[styles.ratingBox, { backgroundColor: colors.backgroundSecondary }]}>
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={20} color={colors.warning} />
-                <Text style={[styles.ratingValue, { color: colors.text }]}>{doctorRating!.avg.toFixed(1)} / 5.0</Text>
-              </View>
-              <Text style={[styles.ratingReviews, { color: colors.textTertiary }]}>
-                {(t.basedOnReviews || '{{n}}').replace('{{n}}', String(doctorRating!.count))}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>{t.reviews}</Text>
-            {reviewsLoading && reviews.length === 0 ? (
-              <View style={[styles.reviewRow, { borderColor: colors.border }]}>
-                <ActivityIndicator size="small" color={colors.primaryLight} />
-              </View>
-            ) : (
-              <>
-                {reviews.map((r) => (
-                  <View key={r._id} style={[styles.reviewRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
-                    <View style={styles.reviewStarsRow}>
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Ionicons key={s} name={s <= r.stars ? 'star' : 'star-outline'} size={14} color={colors.warning} />
-                      ))}
-                    </View>
-                    {r.text ? <Text style={[styles.reviewText, { color: colors.textSecondary }]}>{r.text}</Text> : null}
-                    <Text style={[styles.reviewDate, { color: colors.textTertiary }]}>{new Date(r.createdAt).toLocaleDateString()}</Text>
-                  </View>
-                ))}
-                {reviewsTotal > reviews.length && (
-                  <TouchableOpacity
-                    style={[styles.loadMoreReviewsBtn, { borderColor: colors.border }]}
-                    onPress={onLoadMoreReviews}
-                    disabled={reviewsLoadMore}
-                  >
-                    {reviewsLoadMore ? (
-                      <ActivityIndicator size="small" color={colors.primaryLight} />
-                    ) : (
-                      <Text style={[styles.loadMoreReviewsText, { color: colors.primaryLight }]}>{t.loadMoreReviews}</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
+    <View style={[styles.root, { backgroundColor: tokens.colors.background }]}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <LinearGradient
+          colors={tokens.gradients.cool as [string, string, ...string[]]}
+          style={[styles.hero, { paddingTop: insets.top + 12 }]}
+        >
+          <View style={styles.topBar}>
+            <IconButton icon="chevron-back" onPress={() => router.back()} />
+            <IconButton icon="share-social-outline" onPress={() => {}} />
           </View>
 
-          {clinicId && (
+          <View style={styles.profile}>
+            <View style={styles.avatarWrap}>
+              <Image
+                source={{ uri: doctor.avatarUrl || DEFAULT_AVATAR }}
+                style={styles.avatar}
+              />
+              <View style={[styles.onlineDot, { borderColor: '#fff' }]} />
+            </View>
+
+            <Text style={[tokens.type.titleXl, { color: tokens.colors.text, marginTop: 14, textAlign: 'center' }]}>
+              {doctor.fullName}
+            </Text>
+            <View style={styles.specPill}>
+              <Ionicons name="medkit" size={12} color={tokens.brand.iris} />
+              <Text style={{ color: tokens.brand.iris, fontSize: 12, fontWeight: '700' }}>{doctor.specialty}</Text>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statCell}>
+                <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]}>
+                  {doctorRating?.avg?.toFixed(1) ?? '—'}
+                </Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, fontWeight: '600' }}>
+                  {language === 'uz' ? 'Reyting' : 'Рейтинг'}
+                </Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: tokens.colors.border }]} />
+              <View style={styles.statCell}>
+                <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]}>
+                  {doctorRating?.count ?? 0}
+                </Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, fontWeight: '600' }}>
+                  {language === 'uz' ? "Sharhlar" : 'Отзывы'}
+                </Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: tokens.colors.border }]} />
+              <View style={styles.statCell}>
+                <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]}>
+                  {doctor.serviceIds?.length ?? 0}
+                </Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, fontWeight: '600' }}>
+                  {language === 'uz' ? 'Xizmat' : 'Услуг'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </LinearGradient>
+
+        <View style={{ padding: 20, gap: 14 }}>
+          {doctor.bio ? (
+            <Card>
+              <Text style={[tokens.type.caption, { color: tokens.colors.textTertiary, marginBottom: 6 }]}>
+                {language === 'uz' ? "Haqida" : 'О враче'}
+              </Text>
+              <Text style={{ color: tokens.colors.text, fontSize: 14, lineHeight: 22 }}>{doctor.bio}</Text>
+            </Card>
+          ) : null}
+
+          {scheduleText ? (
+            <Card>
+              <Text style={[tokens.type.caption, { color: tokens.colors.textTertiary, marginBottom: 6 }]}>
+                {language === 'uz' ? "Ish jadvali" : 'График'}
+              </Text>
+              <Text style={{ color: tokens.colors.text, fontSize: 13, lineHeight: 20 }}>{scheduleText}</Text>
+            </Card>
+          ) : null}
+
+          <Card>
+            <Text style={[tokens.type.caption, { color: tokens.colors.textTertiary, marginBottom: 10 }]}>
+              {t.reviews}
+            </Text>
+            {reviewsLoading && reviews.length === 0 ? (
+              <ActivityIndicator size="small" color={tokens.brand.iris} />
+            ) : reviews.length === 0 ? (
+              <Text style={{ color: tokens.colors.textTertiary, fontSize: 13 }}>
+                {language === 'uz' ? "Hozircha sharhlar yo'q" : 'Пока нет отзывов'}
+              </Text>
+            ) : (
+              reviews.map((r) => (
+                <View
+                  key={r._id}
+                  style={[styles.reviewRow, { borderBottomColor: tokens.colors.borderLight }]}
+                >
+                  <View style={{ flexDirection: 'row', gap: 2, marginBottom: 4 }}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Ionicons
+                        key={s}
+                        name={s <= r.stars ? 'star' : 'star-outline'}
+                        size={13}
+                        color={tokens.brand.amber}
+                      />
+                    ))}
+                  </View>
+                  {r.text ? (
+                    <Text style={{ color: tokens.colors.text, fontSize: 13, lineHeight: 18 }}>{r.text}</Text>
+                  ) : null}
+                  <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, marginTop: 4 }}>
+                    {new Date(r.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
+              ))
+            )}
+            {reviewsTotal > reviews.length ? (
+              <TouchableOpacity
+                onPress={() => loadReviews(reviewsSkip, 10, true)}
+                disabled={reviewsLoadMore}
+                style={{ alignItems: 'center', marginTop: 10 }}
+              >
+                {reviewsLoadMore ? (
+                  <ActivityIndicator size="small" color={tokens.brand.iris} />
+                ) : (
+                  <Text style={{ color: tokens.brand.iris, fontWeight: '700', fontSize: 13 }}>
+                    {t.loadMoreReviews ?? 'Load more'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
-              style={[styles.leaveReviewBtn, { backgroundColor: colors.primaryBg, borderColor: colors.primaryLight }]}
               onPress={() => setReviewSheetVisible(true)}
-              activeOpacity={0.9}
+              style={[styles.writeReview, { borderColor: tokens.brand.iris }]}
             >
-              <Ionicons name="star-outline" size={22} color={colors.primaryLight} />
-              <Text style={[styles.leaveReviewBtnText, { color: colors.primaryLight }]}>{t.writeReview}</Text>
+              <Ionicons name="star-outline" size={16} color={tokens.brand.iris} />
+              <Text style={{ color: tokens.brand.iris, fontWeight: '700', fontSize: 13 }}>
+                {t.writeReview ?? 'Write review'}
+              </Text>
             </TouchableOpacity>
-          )}
+          </Card>
         </View>
-        <View style={{ height: Math.max(insets.bottom, 20) + 20 }} />
       </ScrollView>
+
+      <View style={[styles.ctaBar, { backgroundColor: tokens.colors.background, borderTopColor: tokens.colors.border, paddingBottom: insets.bottom + 10 }]}>
+        <Button
+          title={language === 'uz' ? 'Yozish' : 'Написать'}
+          variant="outline"
+          leftIcon="chatbubble-ellipses-outline"
+          onPress={openChat}
+          fullWidth={false}
+          style={{ flex: 1 }}
+          size="md"
+        />
+        <Button
+          title={language === 'uz' ? 'Bron qilish' : 'Записаться'}
+          variant="gradient"
+          rightIcon="arrow-forward"
+          onPress={() =>
+            router.push({
+              pathname: '/book-doctor',
+              params: { doctorId: doctorId as string, clinicId: clinicId as string },
+            })
+          }
+          fullWidth={false}
+          style={{ flex: 1.2 }}
+          size="md"
+        />
+      </View>
 
       <ReviewBottomSheet
         visible={reviewSheetVisible}
@@ -251,58 +323,86 @@ export default function DoctorDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { marginBottom: 12 },
-  backBtnFull: { padding: 12 },
-  backBtnText: { fontSize: 16 },
-  header: {
+  root: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  hero: {
+    paddingHorizontal: 20,
+    paddingBottom: 26,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  profile: { alignItems: 'center', marginTop: 6 },
+  avatarWrap: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f1a4a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  avatar: { width: 116, height: 116, borderRadius: 58 },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#34d399',
+    borderWidth: 3,
+  },
+  specPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 56,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    gap: 5,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginTop: 10,
   },
-  backBtn: { padding: 8, marginLeft: -8 },
-  headerTitle: { fontSize: 18, fontWeight: '600', marginLeft: 8, flex: 1 },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 24 },
-  profileCard: {
-    alignItems: 'center',
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginTop: 18,
+    borderRadius: 20,
+    alignSelf: 'stretch',
+    shadowColor: '#0f1a4a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  avatar: { width: 100, height: 100, borderRadius: 50 },
-  doctorName: { fontSize: 22, fontWeight: '700', marginTop: 16 },
-  specialty: { fontSize: 15, marginTop: 6 },
-  body: { padding: 20 },
-  detailRow: { marginBottom: 16 },
-  detailLabel: { fontSize: 12, textTransform: 'uppercase', marginBottom: 4 },
-  detailValue: { fontSize: 16, lineHeight: 24 },
-  ratingBox: { borderRadius: 16, padding: 16, marginBottom: 20 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ratingValue: { fontSize: 18, fontWeight: '700' },
-  ratingReviews: { fontSize: 12, marginTop: 4 },
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  reviewRow: { padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1 },
-  reviewStarsRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 6 },
-  reviewText: { fontSize: 14, marginBottom: 4 },
-  reviewDate: { fontSize: 12 },
-  loadMoreReviewsBtn: { paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center', marginTop: 8 },
-  loadMoreReviewsText: { fontSize: 14, fontWeight: '600' },
-  leaveReviewBtn: {
+  statCell: { flex: 1, alignItems: 'center' },
+  statDivider: { width: StyleSheet.hairlineWidth, height: '60%', alignSelf: 'center' },
+  reviewRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  writeReview: {
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    marginTop: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    borderWidth: 2,
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  leaveReviewBtnText: { fontSize: 16, fontWeight: '700' },
+  ctaBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    paddingTop: 12,
+    flexDirection: 'row',
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 });
