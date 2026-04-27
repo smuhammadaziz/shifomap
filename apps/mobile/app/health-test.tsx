@@ -204,7 +204,7 @@ export default function HealthTestScreen() {
                   styles.option,
                   {
                     borderColor: selected ? tokens.brand.iris : tokens.colors.border,
-                    backgroundColor: selected ? tokens.brand.iris : tokens.colors.surface,
+                    backgroundColor: selected ? tokens.brand.iris : tokens.colors.backgroundCard,
                   },
                 ]}
               >

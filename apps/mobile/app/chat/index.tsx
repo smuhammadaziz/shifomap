@@ -67,7 +67,7 @@ export default function ChatListScreen() {
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
           {items.map((c) => (
-            <Card key={c._id} onPress={() => router.push({ pathname: '/chat/[id]', params: { id: c._id } })} padding="md">
+            <Card key={c._id} onPress={() => router.push({ pathname: '/chat/[id]', params: { id: c._id } })} padding={16}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Avatar uri={c.doctorAvatar} name={c.doctorName ?? ''} size={52} />
                 <View style={{ flex: 1, minWidth: 0 }}>

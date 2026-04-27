@@ -178,7 +178,7 @@ export default function PostDetailScreen() {
           value={text}
           onChangeText={setText}
           editable={!sending}
-          style={[styles.input, { backgroundColor: tokens.colors.surface, color: tokens.colors.text, borderColor: tokens.colors.border }]}
+          style={[styles.input, { backgroundColor: tokens.colors.backgroundInput, color: tokens.colors.text, borderColor: tokens.colors.border }]}
           placeholderTextColor={tokens.colors.textTertiary}
         />
         <TouchableOpacity

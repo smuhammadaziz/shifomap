@@ -95,7 +95,7 @@ export default function ChatThread() {
             styles.bubble,
             mine
               ? { backgroundColor: tokens.brand.iris, borderBottomRightRadius: 4 }
-              : { backgroundColor: tokens.colors.surface, borderBottomLeftRadius: 4, borderColor: tokens.colors.border, borderWidth: StyleSheet.hairlineWidth },
+              : { backgroundColor: tokens.colors.backgroundCard, borderBottomLeftRadius: 4, borderColor: tokens.colors.border, borderWidth: StyleSheet.hairlineWidth },
           ]}
         >
           <Text style={{ color: mine ? '#fff' : tokens.colors.text, fontSize: 14, lineHeight: 20 }}>{item.text}</Text>
@@ -146,7 +146,7 @@ export default function ChatThread() {
           onChangeText={setText}
           placeholder={tr('Xabar yozing...', 'Напишите сообщение...', 'Type a message...')}
           placeholderTextColor={tokens.colors.textTertiary}
-          style={[styles.composerInput, { backgroundColor: tokens.colors.surface, color: tokens.colors.text, borderColor: tokens.colors.border }]}
+          style={[styles.composerInput, { backgroundColor: tokens.colors.backgroundInput, color: tokens.colors.text, borderColor: tokens.colors.border }]}
           multiline
         />
         <TouchableOpacity

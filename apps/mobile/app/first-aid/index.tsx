@@ -42,7 +42,7 @@ export default function FirstAidIndex() {
               key={g.slug}
               activeOpacity={0.85}
               onPress={() => router.push({ pathname: '/first-aid/[slug]', params: { slug: g.slug } })}
-              style={[styles.row, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.border }]}
+              style={[styles.row, { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border }]}
             >
               <View style={[styles.iconWrap, { backgroundColor: g.color + '1a' }]}>
                 <Ionicons name={g.icon as any} size={22} color={g.color} />

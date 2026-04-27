@@ -99,7 +99,7 @@ export default function FeedScreen() {
     return (
       <SafeAreaView style={[{ flex: 1 }, { backgroundColor: tokens.colors.background }]} edges={['top']}>
         <View style={styles.center}>
-          <View style={[styles.emptyIcon, { backgroundColor: tokens.colors.backgroundSecondary ?? tokens.colors.surface }]}>
+          <View style={[styles.emptyIcon, { backgroundColor: tokens.colors.backgroundSecondary }]}>
             <Ionicons name="play-circle-outline" size={40} color={tokens.brand.iris} />
           </View>
           <Text style={[tokens.type.titleLg, { color: tokens.colors.text, textAlign: 'center', marginTop: 14 }]}>
@@ -276,7 +276,7 @@ function CommentsModal({
                 placeholder={language === 'uz' ? 'Fikr yozing...' : 'Написать комментарий...'}
                 value={text}
                 onChangeText={setText}
-                style={[styles.inputField, { backgroundColor: tokens.colors.backgroundInput ?? tokens.colors.surface, color: tokens.colors.text }]}
+                style={[styles.inputField, { backgroundColor: tokens.colors.backgroundInput, color: tokens.colors.text }]}
                 placeholderTextColor={tokens.colors.textPlaceholder ?? tokens.colors.textTertiary}
                 editable={!sending}
               />

@@ -95,7 +95,7 @@ export default function MedicalHistoryEdit() {
           onChangeText={setDescription}
           multiline
           numberOfLines={6}
-          style={{ minHeight: 100, textAlignVertical: 'top' }}
+          containerStyle={{ minHeight: 100 }}
           placeholder={tr(
             'Qisqacha simptomlar, davolash, izohlar...',
             'Кратко симптомы, лечение, заметки...',

@@ -178,7 +178,7 @@ export default function AiAnalyzeScreen() {
             </Text>
           </LinearGradient>
         ) : (
-          <View style={{ borderRadius: 24, overflow: 'hidden', backgroundColor: tokens.colors.surface }}>
+          <View style={{ borderRadius: 24, overflow: 'hidden', backgroundColor: tokens.colors.backgroundCard }}>
             <Image source={{ uri: imageUri }} style={styles.preview} />
           </View>
         )}

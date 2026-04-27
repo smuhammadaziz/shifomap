@@ -191,7 +191,7 @@ export default function BookDoctorScreen() {
                     style={[
                       styles.serviceRow,
                       {
-                        backgroundColor: active ? tokens.brand.iris + '10' : tokens.colors.surface,
+                        backgroundColor: active ? tokens.brand.iris + '10' : tokens.colors.backgroundCard,
                         borderColor: active ? tokens.brand.iris : tokens.colors.border,
                       },
                     ]}
@@ -229,7 +229,7 @@ export default function BookDoctorScreen() {
                     style={[
                       styles.dateChip,
                       {
-                        backgroundColor: active ? tokens.brand.iris : tokens.colors.surface,
+                        backgroundColor: active ? tokens.brand.iris : tokens.colors.backgroundCard,
                         borderColor: active ? tokens.brand.iris : tokens.colors.border,
                       },
                     ]}
@@ -273,7 +273,7 @@ export default function BookDoctorScreen() {
                         ? { backgroundColor: tokens.colors.borderLight, borderColor: tokens.colors.border }
                         : active
                         ? { backgroundColor: tokens.brand.iris, borderColor: tokens.brand.iris }
-                        : { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.border },
+                        : { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
                     ]}
                   >
                     <Text
