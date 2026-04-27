@@ -16,6 +16,7 @@ import { medicalHistoryPatientRoutes, medicalHistoryDoctorRoutes } from "@/modul
 import { assessmentsRoutes } from "@/modules/assessments/assessments.routes"
 import { chatPatientRoutes, chatDoctorRoutes } from "@/modules/chat/chat.routes"
 import { postsPublicRoutes, postsPatientRoutes, postsAdminRoutes } from "@/modules/posts/posts.routes"
+import { aiChatPatientRoutes, aiChatAdminRoutes } from "@/modules/ai-chat/ai-chat.routes"
 import { AppError } from "@/common/errors"
 
 // V1 API routes
@@ -40,6 +41,8 @@ const v1 = new Elysia({ prefix: "/v1" })
 .use(postsPublicRoutes)
 .use(postsPatientRoutes)
 .use(postsAdminRoutes)
+.use(aiChatPatientRoutes)
+.use(aiChatAdminRoutes)
 
 // Main Elysia app
 export const app = new Elysia()

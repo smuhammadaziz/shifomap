@@ -9,6 +9,18 @@ import { getColors } from '../lib/theme';
 import { getMyPrescriptions, getCustomReminders, addCustomReminder, deleteCustomReminder, type PrescriptionCard, type CustomReminder } from '../lib/api';
 import { useRouter } from 'expo-router';
 
+const REMINDER_COLORS = [
+    { bg: '#EEF2FF', iconBg: '#E0E7FF', icon: '#4F46E5', ring: '#C7D2FE' },
+    { bg: '#ECFEFF', iconBg: '#CFFAFE', icon: '#0891B2', ring: '#A5F3FC' },
+    { bg: '#F0FDF4', iconBg: '#DCFCE7', icon: '#16A34A', ring: '#BBF7D0' },
+    { bg: '#FFF7ED', iconBg: '#FFEDD5', icon: '#EA580C', ring: '#FED7AA' },
+    { bg: '#FDF2F8', iconBg: '#FCE7F3', icon: '#DB2777', ring: '#FBCFE8' },
+];
+
+function pickReminderColor(i: number) {
+    return REMINDER_COLORS[i % REMINDER_COLORS.length];
+}
+
 const PillReminderScreen = () => {
     const language = useAuthStore((s) => s.language) ?? 'uz';
     const theme = useThemeStore((s) => s.theme);
@@ -163,34 +175,43 @@ const PillReminderScreen = () => {
                         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>
                             {language === 'uz' ? 'Mening eslatmalarim' : 'Мои напоминания'}
                         </Text>
-                        {customList.map((c) => (
+                        {customList.map((c, idx) => {
+                            const tone = pickReminderColor(idx);
+                            return (
                             <View
                                 key={c.id}
-                                style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+                                style={[
+                                    styles.card,
+                                    {
+                                        backgroundColor: tone.bg,
+                                        borderColor: tone.ring,
+                                        borderWidth: 1.2,
+                                    },
+                                ]}
                             >
                                 <View style={styles.cardRow}>
-                                    <View style={[styles.iconMini, { backgroundColor: colors.primaryBg }]}>
-                                        <Ionicons name="notifications-outline" size={16} color={colors.primary} />
+                                    <View style={[styles.iconMini, { backgroundColor: tone.iconBg }]}>
+                                        <Ionicons name="notifications-outline" size={16} color={tone.icon} />
                                     </View>
                                     <View style={styles.cardBody}>
                                         <Text style={[styles.pillName, { color: colors.text }]} numberOfLines={1}>
                                             {c.pillName}
                                         </Text>
                                         <Text style={[styles.pillMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-                                            {c.time}
+                                            {language === 'uz' ? "Vaqt" : "Время"}: {c.time}
                                         </Text>
                                     </View>
-                                    <TouchableOpacity onPress={() => handleDelete(c.id)}>
-                                        <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
+                                    <TouchableOpacity onPress={() => handleDelete(c.id)} style={styles.deleteWrap}>
+                                        <Ionicons name="trash-outline" size={17} color="#ef4444" />
                                     </TouchableOpacity>
                                 </View>
                                 {c.notes && (
-                                    <Text style={[styles.notesText, { color: colors.textSecondary }]}>
+                                    <Text style={[styles.notesText, { color: colors.textSecondary }]} numberOfLines={2}>
                                         {c.notes}
                                     </Text>
                                 )}
                             </View>
-                        ))}
+                        )})}
                     </>
                 )}
 
@@ -320,8 +341,8 @@ const styles = StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
     emptyText: { marginTop: 12, fontSize: 14 },
     card: {
-        borderRadius: 18,
-        borderWidth: 1,
+        borderRadius: 20,
+        borderWidth: 1.2,
         padding: 14,
         marginBottom: 12,
     },
@@ -374,6 +395,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     notesText: { fontSize: 13, marginTop: 12, fontStyle: 'italic', paddingHorizontal: 4 },
+    deleteWrap: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.62)',
+    },
     fab: {
         position: 'absolute',
         right: 20,

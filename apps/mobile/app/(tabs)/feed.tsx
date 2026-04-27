@@ -161,7 +161,9 @@ function PostCard({
 }) {
   return (
     <View style={[styles.card, { height: SCREEN_H }]}>
-      <Image source={{ uri: resolveImage(post.imageUrl) }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      <View style={styles.mediaWrap}>
+        <Image source={{ uri: resolveImage(post.imageUrl) }} style={styles.mediaImage} resizeMode="contain" />
+      </View>
       <LinearGradient
         colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.85)']}
         locations={[0, 0.55, 1]}
@@ -299,6 +301,16 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   card: { width: '100%', backgroundColor: '#111' },
+  mediaWrap: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaImage: {
+    width: '100%',
+    height: '100%',
+  },
   actions: { position: 'absolute', right: 14, bottom: 160, gap: 22, alignItems: 'center' },
   actionBtn: { alignItems: 'center', gap: 4 },
   actionCount: { color: '#fff', fontSize: 12, fontWeight: '700' },

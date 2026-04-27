@@ -1,6 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Cookies from "js-cookie"
+import { getApiUrl } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -19,40 +21,77 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { MOCK_PATIENTS } from "@/lib/mock-data"
 import { Search } from "lucide-react"
 
+type PatientItem = {
+  _id: string
+  fullName: string | null
+  gender: "male" | "female" | null
+  age: number | null
+  phone: string | null
+  email: string | null
+  telegram: string | null
+  city: string | null
+  status: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
 export default function UsersPage() {
+  const apiUrl = getApiUrl()
+  const token = useMemo(() => Cookies.get("console_auth_token") || null, [])
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [genderFilter, setGenderFilter] = useState<string>("all")
   const [cityFilter, setCityFilter] = useState<string>("all")
+  const [items, setItems] = useState<PatientItem[]>([])
+  const [cities, setCities] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filtered = useMemo(() => {
-    let list = [...MOCK_PATIENTS]
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      list = list.filter(
-        (p) =>
-          p.fullName.toLowerCase().includes(q) ||
-          p.email.toLowerCase().includes(q) ||
-          p.phone.includes(q) ||
-          p.city.toLowerCase().includes(q)
-      )
+  const load = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({
+        search: search.trim(),
+        status: statusFilter,
+        gender: genderFilter,
+        city: cityFilter,
+      })
+      const res = await fetch(`${apiUrl}/v1/users/patients?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (res.ok && json?.success) {
+        setItems(json.data?.items ?? [])
+        setCities(json.data?.cities ?? [])
+      } else {
+        setItems([])
+        setCities([])
+      }
+    } catch {
+      setItems([])
+      setCities([])
+    } finally {
+      setLoading(false)
     }
-    if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter)
-    if (genderFilter !== "all") list = list.filter((p) => p.gender === genderFilter)
-    if (cityFilter !== "all") list = list.filter((p) => p.city === cityFilter)
-    return list
-  }, [search, statusFilter, genderFilter, cityFilter])
+  }, [apiUrl, cityFilter, genderFilter, search, statusFilter, token])
 
-  const cities = useMemo(() => [...new Set(MOCK_PATIENTS.map((p) => p.city))].sort(), [])
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const statusPretty = (status: string | null) => {
+    if (status === "active") return "bg-green-100 text-green-800"
+    if (status === "blocked") return "bg-rose-100 text-rose-700"
+    return "bg-slate-100 text-slate-700"
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Users</h1>
-        <p className="text-slate-600 mt-1">Manage patients (mock data)</p>
+        <p className="text-slate-600 mt-1">All patients from database</p>
       </div>
 
       <Card>
@@ -78,8 +117,8 @@ export default function UsersPage() {
               <SelectContent>
                 <SelectItem value="all">All status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+                <SelectItem value="deleted">Deleted</SelectItem>
               </SelectContent>
             </Select>
             <Select value={genderFilter} onValueChange={setGenderFilter}>
@@ -88,9 +127,8 @@ export default function UsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All gender</SelectItem>
-                <SelectItem value="Male">Male</SelectItem>
-                <SelectItem value="Female">Female</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
             <Select value={cityFilter} onValueChange={setCityFilter}>
@@ -117,6 +155,9 @@ export default function UsersPage() {
             >
               Clear filters
             </Button>
+            <Button variant="outline" onClick={load}>
+              Refresh
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -124,9 +165,7 @@ export default function UsersPage() {
       <Card>
         <CardHeader>
           <CardTitle>Patients</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} of {MOCK_PATIENTS.length} users
-          </p>
+          <p className="text-sm text-muted-foreground">{loading ? "Loading..." : `${items.length} users`}</p>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -137,43 +176,40 @@ export default function UsersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>DOB</TableHead>
+                  <TableHead>Telegram</TableHead>
                   <TableHead>Gender</TableHead>
                   <TableHead>City</TableHead>
-                  <TableHead>Country</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Registered</TableHead>
-                  <TableHead>Last visit</TableHead>
+                  <TableHead>Updated</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs">{p.id}</TableCell>
-                    <TableCell className="font-medium">{p.fullName}</TableCell>
-                    <TableCell>{p.email}</TableCell>
-                    <TableCell>{p.phone}</TableCell>
-                    <TableCell>{p.dateOfBirth}</TableCell>
-                    <TableCell>{p.gender}</TableCell>
-                    <TableCell>{p.city}</TableCell>
-                    <TableCell>{p.country}</TableCell>
+                {items.map((p) => (
+                  <TableRow key={p._id}>
+                    <TableCell className="font-mono text-xs">{p._id}</TableCell>
+                    <TableCell className="font-medium">{p.fullName || "-"}</TableCell>
+                    <TableCell>{p.email || "-"}</TableCell>
+                    <TableCell>{p.phone || "-"}</TableCell>
+                    <TableCell>{p.telegram || "-"}</TableCell>
+                    <TableCell>{p.gender || "-"}</TableCell>
+                    <TableCell>{p.city || "-"}</TableCell>
                     <TableCell>
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          p.status === "active"
-                            ? "bg-green-100 text-green-800"
-                            : p.status === "inactive"
-                              ? "bg-slate-100 text-slate-800"
-                              : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        {p.status}
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusPretty(p.status)}`}>
+                        {p.status || "unknown"}
                       </span>
                     </TableCell>
-                    <TableCell>{p.registeredAt}</TableCell>
-                    <TableCell>{p.lastVisit}</TableCell>
+                    <TableCell>{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-"}</TableCell>
+                    <TableCell>{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "-"}</TableCell>
                   </TableRow>
                 ))}
+                {!loading && items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-10 text-slate-500">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                ) : null}
               </TableBody>
             </Table>
           </div>

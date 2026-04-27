@@ -14,6 +14,8 @@ import {
   X,
   Shield,
   Image as ImageIcon,
+  MessageSquareText,
+  Send,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "./ui/button"
@@ -22,8 +24,10 @@ import { cn } from "@/lib/utils"
 const nav = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Users", href: "/dashboard/users", icon: Users },
+  { name: "Telegram Users", href: "/dashboard/telegram-users", icon: Send },
   { name: "Clinics", href: "/dashboard/clinics", icon: Building2 },
   { name: "Posts", href: "/dashboard/posts", icon: ImageIcon },
+  { name: "AI Feedbacks", href: "/dashboard/ai-feedbacks", icon: MessageSquareText },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

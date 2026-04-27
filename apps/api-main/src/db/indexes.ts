@@ -13,6 +13,9 @@ import {
   POSTS_COLLECTION,
   POST_LIKES_COLLECTION,
   POST_COMMENTS_COLLECTION,
+  AI_CHAT_CONVERSATIONS_COLLECTION,
+  AI_CHAT_MESSAGES_COLLECTION,
+  TELEGRAM_USERS_COLLECTION,
 } from "./mongo"
 
 async function safeIndex(fn: () => Promise<unknown>) {
@@ -136,4 +139,18 @@ export async function createIndexes(): Promise<void> {
   await safeIndex(() => likesColl.createIndex({ postId: 1, patientId: 1 }, { unique: true }))
   const commentsColl = database.collection(POST_COMMENTS_COLLECTION)
   await safeIndex(() => commentsColl.createIndex({ postId: 1, createdAt: -1 }))
+
+  // AI chat
+  const aiConvColl = database.collection(AI_CHAT_CONVERSATIONS_COLLECTION)
+  await safeIndex(() => aiConvColl.createIndex({ patientId: 1, updatedAt: -1 }))
+  await safeIndex(() => aiConvColl.createIndex({ feedbackStatus: 1, feedbackAt: -1 }))
+  await safeIndex(() => aiConvColl.createIndex({ createdAt: -1 }))
+  const aiMsgColl = database.collection(AI_CHAT_MESSAGES_COLLECTION)
+  await safeIndex(() => aiMsgColl.createIndex({ conversationId: 1, createdAt: 1 }))
+
+  // Telegram bot users
+  const tgUsersColl = database.collection(TELEGRAM_USERS_COLLECTION)
+  await safeIndex(() => tgUsersColl.createIndex({ tgChatId: 1 }))
+  await safeIndex(() => tgUsersColl.createIndex({ phoneNumber: 1 }))
+  await safeIndex(() => tgUsersColl.createIndex({ updatedAt: -1 }))
 }

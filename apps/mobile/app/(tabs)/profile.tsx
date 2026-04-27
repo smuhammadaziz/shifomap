@@ -108,13 +108,6 @@ export default function ProfileScreen() {
       onPress: () => router.push('/(tabs)/appointments'),
     },
     {
-      icon: 'receipt',
-      color: tokens.brand.mint,
-      bg: '#d1fae5',
-      title: language === 'uz' ? 'Retseptlar' : 'Рецепты',
-      onPress: () => router.push('/pill-reminder'),
-    },
-    {
       icon: 'chatbubbles',
       color: tokens.brand.sky,
       bg: '#dbeafe',

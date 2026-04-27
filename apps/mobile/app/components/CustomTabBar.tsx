@@ -21,12 +21,14 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const language = useAuthStore((s) => s.language);
   const tokens = getTokens(theme);
   const isDark = theme === 'dark';
+  const activeRouteName = state.routes[state.index]?.name;
+  const isFeedActive = activeRouteName === 'feed';
 
-  const activePillBg = isDark ? '#e2e8f0' : '#0f172a';
-  const activePillFg = isDark ? '#0f172a' : '#ffffff';
-  const barBg = isDark ? '#09090b' : '#ffffff';
-  const barBorder = tokens.colors.border;
-  const inactiveIcon = tokens.colors.textTertiary;
+  const activePillBg = isFeedActive ? 'rgba(255,255,255,0.16)' : isDark ? '#e2e8f0' : '#0f172a';
+  const activePillFg = isFeedActive ? '#ffffff' : isDark ? '#0f172a' : '#ffffff';
+  const barBg = isFeedActive ? 'rgba(0,0,0,0.42)' : isDark ? '#09090b' : '#ffffff';
+  const barBorder = isFeedActive ? 'transparent' : tokens.colors.border;
+  const inactiveIcon = isFeedActive ? '#ffffff' : tokens.colors.textTertiary;
 
   const tabs: {
     key: string;
@@ -47,8 +49,6 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     { key: 'profile', route: 'profile', icon: 'person-outline', iconActive: 'person', labelKey: 'tabProfile' },
   ];
 
-  const activeRouteName = state.routes[state.index]?.name;
-
   const handlePress = (routeName: string) => {
     const route = state.routes.find((r) => r.name === routeName);
     if (!route) return;
@@ -68,6 +68,17 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           backgroundColor: barBg,
           borderTopColor: barBorder,
           paddingBottom: insets.bottom,
+          ...(isFeedActive
+            ? {
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderTopWidth: 0,
+                shadowOpacity: 0,
+                elevation: 0,
+              }
+            : null),
         },
       ]}
       pointerEvents="box-none"

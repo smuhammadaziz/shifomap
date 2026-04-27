@@ -83,51 +83,71 @@ export default function ClinicsMapScreen() {
       <html>
       <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+          <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+          />
+          <script
+            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""
+          ></script>
           <style>
               body, html { padding: 0; margin: 0; width: 100%; height: 100%; overflow: hidden; background-color: ${colors.background}; }
               #map { width: 100%; height: 100%; }
+              .leaflet-control-attribution { font-size: 10px; }
           </style>
       </head>
       <body>
           <div id="map"></div>
           <script>
-              ymaps.ready(init);
               function init() {
-                  var map = new ymaps.Map("map", {
-                      center: [41.311081, 69.240562], // Tashkent center
-                      zoom: 12,
-                      controls: ['zoomControl', 'fullscreenControl']
+                  var map = L.map("map", {
+                    zoomControl: true,
+                    attributionControl: true,
+                    preferCanvas: true,
+                  }).setView([41.311081, 69.240562], 12);
+
+                  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    minZoom: 4,
+                    attribution: '&copy; OpenStreetMap contributors'
+                  }).addTo(map);
+
+                  var markerIcon = L.divIcon({
+                    className: 'clinic-pin',
+                    html: '<div style="width:14px;height:14px;border-radius:999px;background:#ec4899;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7],
                   });
-                  
+
                   var markers = ${JSON.stringify(markersData)};
-                  
+                  var bounds = [];
+
                   if (markers.length > 0) {
-                      var bounds = [];
-                      markers.forEach(function(m) {
-                          bounds.push([m.lat, m.lng]);
-                          var pm = new ymaps.Placemark([m.lat, m.lng], {
-                              hintContent: m.clinicDisplayName
-                          }, {
-                              preset: 'islands#pinkDotIcon' // Pink icon to match screenshot
-                          });
-                          
-                          pm.events.add('click', function(e) {
-                              window.ReactNativeWebView.postMessage(JSON.stringify(m));
-                          });
-                          
-                          map.geoObjects.add(pm);
+                    markers.forEach(function(m) {
+                      bounds.push([m.lat, m.lng]);
+                      var marker = L.marker([m.lat, m.lng], { icon: markerIcon }).addTo(map);
+                      marker.bindTooltip(m.clinicDisplayName, { direction: 'top', offset: [0, -8], opacity: 0.9 });
+                      marker.on('click', function() {
+                        window.ReactNativeWebView.postMessage(JSON.stringify(m));
                       });
-                      
-                      if(bounds.length > 1) {
-                        try {
-                          map.setBounds(map.geoObjects.getBounds(), { checkZoomRange: true, zoomMargin: 30 });
-                        } catch(e) {}
-                      } else if (bounds.length === 1) {
-                          map.setCenter(bounds[0], 15);
-                      }
+                    });
+
+                    if (bounds.length > 1) {
+                      map.fitBounds(bounds, { padding: [26, 26], maxZoom: 15 });
+                    } else if (bounds.length === 1) {
+                      map.setView(bounds[0], 15);
+                    }
                   }
+
+                  setTimeout(function() {
+                    map.invalidateSize();
+                  }, 120);
               }
+              init();
           </script>
       </body>
       </html>
@@ -276,17 +296,20 @@ export default function ClinicsMapScreen() {
                   onPress={() => {
                     const lat = selectedMarker.lat;
                     const lng = selectedMarker.lng;
-                    const yandexAppUrl = `yandexnavi://build_route_on_map?lat_to=${lat}&lon_to=${lng}`;
-                    const yandexWebUrl = `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`;
-                    Linking.canOpenURL(yandexAppUrl)
+                    const googleMapsAppUrl = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+                    const appleMapsUrl = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
+                    const webMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                    Linking.canOpenURL(googleMapsAppUrl)
                       .then((supported) => {
                         if (supported) {
-                          Linking.openURL(yandexAppUrl);
+                          Linking.openURL(googleMapsAppUrl);
+                        } else if (Platform.OS === 'ios') {
+                          Linking.openURL(appleMapsUrl);
                         } else {
-                          Linking.openURL(yandexWebUrl);
+                          Linking.openURL(webMapsUrl);
                         }
                       })
-                      .catch(() => Linking.openURL(yandexWebUrl));
+                      .catch(() => Linking.openURL(webMapsUrl));
                   }}
                >
                   <View style={styles.directionsBtnContent}>

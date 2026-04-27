@@ -828,3 +828,57 @@ export async function getDoctorSlots(clinicId: string, doctorId: string, date: s
   if (!data.success) throw new Error('Failed to load');
   return data.data;
 }
+
+// --- AI chat logging + feedback ---
+export interface AiConversation {
+  _id: string;
+  patientId: string;
+  patientName: string | null;
+  patientPhone: string | null;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  feedbackStatus: 'none' | 'rated' | 'dismissed';
+  feedbackRating: number | null;
+  feedbackText: string | null;
+  feedbackAt: string | null;
+}
+
+export interface AiConversationMessage {
+  _id: string;
+  conversationId: string;
+  role: 'user' | 'assistant';
+  text: string;
+  createdAt: string;
+}
+
+export async function createAiConversation(title: string): Promise<AiConversation> {
+  const { data } = await api.post<{ success: boolean; data: AiConversation }>('/ai-chat/conversations', { title });
+  if (!data.success) throw new Error('Failed to create conversation');
+  return data.data;
+}
+
+export async function addAiConversationMessage(
+  conversationId: string,
+  role: 'user' | 'assistant',
+  text: string
+): Promise<AiConversationMessage> {
+  const { data } = await api.post<{ success: boolean; data: AiConversationMessage }>(
+    `/ai-chat/conversations/${conversationId}/messages`,
+    { role, text }
+  );
+  if (!data.success) throw new Error('Failed to add message');
+  return data.data;
+}
+
+export async function submitAiConversationFeedback(
+  conversationId: string,
+  input: { rating?: number; feedbackText?: string; dismissed?: boolean }
+): Promise<{ feedbackStatus: 'none' | 'rated' | 'dismissed' }> {
+  const { data } = await api.post<{ success: boolean; data: { feedbackStatus: 'none' | 'rated' | 'dismissed' } }>(
+    `/ai-chat/conversations/${conversationId}/feedback`,
+    input
+  );
+  if (!data.success) throw new Error('Failed to submit feedback');
+  return data.data;
+}

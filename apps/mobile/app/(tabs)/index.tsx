@@ -198,11 +198,18 @@ export default function HomeScreen() {
       path: '/first-aid',
     },
     {
-      title: language === 'uz' ? 'Tahlil tahlil' : 'Анализ',
+      title: language === 'uz' ? 'AI Tahlil' : 'AI Анализ',
       subtitle: language === 'uz' ? 'AI izohi' : 'AI объяснит',
       icon: 'document-text',
       gradient: [tokens.brand.sky, tokens.brand.skySoft],
       path: '/ai-analyze',
+    },
+    {
+      title: language === 'uz' ? 'Dori eslatma' : 'Таблетки',
+      subtitle: language === 'uz' ? 'Vaqtida ichish' : 'Вовремя принимать',
+      icon: 'medical',
+      gradient: [tokens.brand.indigo, tokens.brand.sky],
+      path: '/pill-reminder',
     },
   ];
 

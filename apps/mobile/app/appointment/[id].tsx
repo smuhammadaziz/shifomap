@@ -24,14 +24,16 @@ import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
 import { getColors } from '../../lib/theme';
 import Skeleton from '../components/Skeleton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop';
-const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function getDayName(dateStr: string): string {
+function getDayName(dateStr: string, language: string): string {
   const d = new Date(dateStr + 'T12:00:00');
-  return DAY_NAMES[d.getDay()] ?? '';
+  const uz = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+  const ru = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+  return language === 'ru' ? ru[d.getDay()] ?? '' : uz[d.getDay()] ?? '';
 }
 
 function formatDateFull(dateStr: string): string {
@@ -47,6 +49,7 @@ export default function AppointmentDetailScreen() {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,7 +152,7 @@ export default function AppointmentDetailScreen() {
     );
   }
 
-  const dayName = getDayName(booking.scheduledDate);
+  const dayName = getDayName(booking.scheduledDate, language);
   const dateFull = formatDateFull(booking.scheduledDate);
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed' || booking.status === 'patient_arrived';
   const steps = [
@@ -167,19 +170,51 @@ export default function AppointmentDetailScreen() {
     cancelled: -1,
   };
   const currentRank = statusRank[booking.status] ?? 0;
+  const statusLabel =
+    booking.status === 'completed'
+      ? t.complete
+      : booking.status === 'cancelled'
+        ? t.cancelled
+        : t.upcoming;
+  const statusBg =
+    booking.status === 'completed'
+      ? '#dcfce7'
+      : booking.status === 'cancelled'
+        ? '#fee2e2'
+        : colors.primaryBg;
+  const statusColor =
+    booking.status === 'completed'
+      ? '#166534'
+      : booking.status === 'cancelled'
+        ? '#b91c1c'
+        : colors.primaryLight;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t.yourAppointment}</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t.yourAppointment}</Text>
+          <Text style={[styles.headerSub, { color: colors.textTertiary }]}>#{booking._id.slice(-6).toUpperCase()}</Text>
+        </View>
+        <View style={[styles.headerStatus, { backgroundColor: statusBg }]}>
+          <Text style={[styles.headerStatusText, { color: statusColor }]}>{statusLabel}</Text>
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={[styles.topSummary, { backgroundColor: colors.primary }]}>
+          <View style={styles.topSummaryRow}>
+            <Text style={styles.topSummaryTitle}>{language === 'ru' ? 'Ваша запись' : 'Sizning navbatingiz'}</Text>
+            <Text style={styles.topSummaryTime}>{booking.scheduledTime}</Text>
+          </View>
+          <Text style={styles.topSummarySub}>
+            {dateFull} · {booking.clinicDisplayName || 'Clinic'}
+          </Text>
+        </View>
 
         {/* Card: Time & Date (Large floating presentation) */}
         <View style={[styles.glassCard, { backgroundColor: colors.backgroundCard, shadowColor: '#000' }]}>
@@ -189,7 +224,7 @@ export default function AppointmentDetailScreen() {
             </View>
             <View>
               <Text style={[styles.dateBig, { color: colors.text }]}>{dateFull}</Text>
-              <Text style={[styles.dayText, { color: colors.textSecondary }]}>{dayName}</Text>
+              <Text style={[styles.dayText, { color: colors.textSecondary }]} numberOfLines={1}>{dayName}</Text>
             </View>
           </View>
           <View style={[styles.timeDivider, { borderLeftColor: colors.border }]} />
@@ -214,7 +249,12 @@ export default function AppointmentDetailScreen() {
           <View style={styles.rows}>
             <Row label={language === 'ru' ? 'Клиника' : 'Klinika'} value={booking.clinicDisplayName || '—'} colors={colors} />
             <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
-            <Row label={language === 'ru' ? 'Филиал' : 'Filial'} value={booking.branchName || '—'} colors={colors} />
+            <Row
+              label={language === 'ru' ? 'Филиал' : 'Filial'}
+              value={booking.branchName || '—'}
+              colors={colors}
+              multilineValue
+            />
             <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
             <Row label={language === 'ru' ? 'Услуга' : 'Xizmat'} value={booking.serviceTitle || '—'} colors={colors} />
           </View>
@@ -298,16 +338,36 @@ export default function AppointmentDetailScreen() {
       </ScrollView>
 
       {/* Floating Action Buttons */}
-      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-        {canCancel && (
+      <View style={[styles.bottomBar, { backgroundColor: colors.backgroundCard, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={styles.bottomActionsRow}>
+          {canCancel ? (
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderColor: colors.error }]}
+              onPress={() => setSheetVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.cancelBtnText, { color: colors.error }]} numberOfLines={1}>
+                {t.cancelAppointment}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
-            style={[styles.cancelBtn, { borderColor: colors.error }]}
-            onPress={() => setSheetVisible(true)}
-            activeOpacity={0.8}
+            style={[
+              styles.reBookBtn,
+              { backgroundColor: colors.primaryBg, borderColor: colors.primaryLight },
+              !canCancel ? { flex: 1 } : null,
+            ]}
+            activeOpacity={0.85}
+            onPress={() =>
+              router.push({
+                pathname: '/book',
+                params: { clinicId: booking.clinicId, serviceId: booking.serviceId },
+              })
+            }
           >
-            <Text style={[styles.cancelBtnText, { color: colors.error }]}>{t.cancelAppointment}</Text>
+            <Text style={[styles.reBookBtnText, { color: colors.primaryLight }]}>{t.reBook}</Text>
           </TouchableOpacity>
-        )}
+        </View>
       </View>
 
       {/* Cancel reason bottom sheet */}
@@ -355,11 +415,31 @@ export default function AppointmentDetailScreen() {
   );
 }
 
-function Row({ label, value, colors }: { label: string; value: string; colors: any }) {
+function Row({
+  label,
+  value,
+  colors,
+  multilineValue = false,
+}: {
+  label: string;
+  value: string;
+  colors: any;
+  multilineValue?: boolean;
+}) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, multilineValue ? { alignItems: 'flex-start' } : null]}>
       <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>{label}</Text>
-      <Text style={[styles.rowValue, { color: colors.text }]}>{value}</Text>
+      <Text
+        style={[
+          styles.rowValue,
+          { color: colors.text },
+          multilineValue ? styles.rowValueMultiline : null,
+        ]}
+        numberOfLines={multilineValue ? 2 : 1}
+        ellipsizeMode="tail"
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -372,11 +452,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 56,
     paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: { fontSize: 18, fontWeight: '700' },
+  headerSub: { fontSize: 11, marginTop: 2, fontWeight: '600', letterSpacing: 0.4 },
+  headerStatus: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  headerStatusText: { fontSize: 11, fontWeight: '700' },
   backBtn: { padding: 4 },
 
   // Empty states
@@ -393,12 +475,22 @@ const styles = StyleSheet.create({
   emptyBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, gap: 16 },
+  scrollContent: { padding: 14, gap: 12, paddingBottom: 100 },
+  topSummary: {
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 2,
+  },
+  topSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  topSummaryTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  topSummaryTime: { color: '#fff', fontSize: 27, fontWeight: '800', letterSpacing: -0.5 },
+  topSummarySub: { color: 'rgba(255,255,255,0.9)', marginTop: 4, fontSize: 13, fontWeight: '600' },
 
   // Cooler unified cards
   glassCard: {
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 18,
+    padding: 16,
     elevation: 2,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -423,7 +515,7 @@ const styles = StyleSheet.create({
   doctorSpecialty: { fontSize: 15, fontWeight: '500' },
 
   // Timeline
-  sectionTitle: { fontSize: 17, fontWeight: '700', marginBottom: 20 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 14 },
   cancelledAlert: { padding: 16, borderRadius: 16, gap: 8 },
   cancelledAlertText: { fontSize: 16, fontWeight: '600' },
   cancelledRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -440,7 +532,8 @@ const styles = StyleSheet.create({
   rows: { gap: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { fontSize: 15, fontWeight: '500' },
-  rowValue: { fontSize: 15, fontWeight: '700' },
+  rowValue: { fontSize: 15, fontWeight: '700', flex: 1, textAlign: 'right', marginLeft: 12 },
+  rowValueMultiline: { lineHeight: 21, textAlign: 'right' },
   rowDivider: { height: StyleSheet.hairlineWidth },
 
   // Bottom action
@@ -448,18 +541,33 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 10,
     paddingBottom: 34,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  bottomActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   cancelBtn: {
+    flex: 1,
     borderWidth: 1.5,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
-  cancelBtnText: { fontSize: 17, fontWeight: '700' },
+  cancelBtnText: { fontSize: 15, fontWeight: '700' },
+  reBookBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  reBookBtnText: { fontSize: 15, fontWeight: '700' },
 
   // Cancel Sheet
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
