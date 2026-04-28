@@ -147,6 +147,13 @@ export async function deleteMe(): Promise<{ success: boolean }> {
   return data;
 }
 
+export async function registerPatientExpoPushToken(expoPushToken: string): Promise<void> {
+  const { data } = await api.post<{ success: boolean }>('/patients/me/push-token', {
+    expoPushToken,
+  });
+  if (!data.success) throw new Error('Failed to register push token');
+}
+
 export async function changePatientPassword(oldPassword: string, newPassword: string): Promise<Patient> {
   const { data } = await api.post<{ success: boolean; data: Patient }>(
     '/patients/me/change-password',

@@ -10,6 +10,7 @@ import {
   updatePatientProfile,
   updatePatientPassword,
   deletePatient,
+  upsertPatientExpoPushToken,
 } from "./patients.repo"
 import { logger } from "@/common/logger"
 import type {
@@ -301,4 +302,12 @@ export async function deleteMe(patientId: string) {
   const deleted = await deletePatient(new ObjectId(patientId))
   if (!deleted) throw badRequest("Failed to delete account")
   return { success: true }
+}
+
+export async function registerPatientExpoPushToken(patientId: string, expoPushToken: string) {
+  if (!ObjectId.isValid(patientId)) throw badRequest("Invalid patient ID")
+  const patient = await findPatientById(new ObjectId(patientId))
+  if (!patient) throw unauthorized("Patient not found")
+  await upsertPatientExpoPushToken(new ObjectId(patientId), expoPushToken)
+  logger.info("[patients] expo push token registered", { patientId })
 }

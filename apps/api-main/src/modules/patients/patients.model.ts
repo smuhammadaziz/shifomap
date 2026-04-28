@@ -10,6 +10,8 @@ export type PatientLanguage = "uz" | "ru" | "en"
  */
 export interface PatientDoc {
   _id: ObjectId
+  /** Expo Push tokens for remote notifications (mobile app registers via POST /patients/me/push-token). */
+  expoPushTokens?: string[]
   fullName: string
   gender: "male" | "female"
   age: number | null
@@ -86,7 +88,12 @@ export const updatePatientBodySchema = z.object({
 
 export const changePatientPasswordBodySchema = z.object({
   oldPassword: z.string().min(8, "Password must be at least 8 characters"),
-  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+})
+
+/** Mobile registers Expo Push token after login */
+export const registerExpoPushTokenBodySchema = z.object({
+  expoPushToken: z.string().min(20).max(512),
 })
 
 export type ChangePatientPasswordBody = z.infer<typeof changePatientPasswordBodySchema>

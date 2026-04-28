@@ -6,6 +6,7 @@ import {
   completeProfileBodySchema,
   updatePatientBodySchema,
   changePatientPasswordBodySchema,
+  registerExpoPushTokenBodySchema,
 } from "./patients.model"
 import {
   authGoogle,
@@ -16,6 +17,7 @@ import {
   updateMe,
   changePatientPassword,
   deleteMe,
+  registerPatientExpoPushToken,
 } from "./patients.service"
 import { requirePatientAuth } from "@/common/middleware/auth"
 import { logger } from "@/common/logger"
@@ -119,6 +121,22 @@ export const patientsRoutes = new Elysia({ prefix: "/patients" })
     const result = await getMe(auth.sub)
     set.status = 200
     return { success: true, data: result }
+  })
+  // POST /v1/patients/me/push-token — register Expo Push token (doctor chat, etc.)
+  .post("/me/push-token", async ({ body, auth, set }) => {
+    const parsed = registerExpoPushTokenBodySchema.safeParse(body ?? {})
+    if (!parsed.success) {
+      set.status = 400
+      return {
+        success: false,
+        error: "Validation failed",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.flatten().fieldErrors,
+      }
+    }
+    await registerPatientExpoPushToken(auth.sub, parsed.data.expoPushToken)
+    set.status = 200
+    return { success: true }
   })
   // PATCH /v1/patients/me
   .patch("/me", async ({ body, auth, set }) => {

@@ -44,6 +44,15 @@
             "targetSdkVersion": 35
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#09090b",
+          "androidMode": "default",
+          "sounds": []
+        }
       ]
     ],
     "extra": {

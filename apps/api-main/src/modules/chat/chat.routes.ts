@@ -19,6 +19,10 @@ import { requirePatientAuth, requireAuth } from "@/common/middleware/auth"
 import { toObjectId } from "@/common/utils/id"
 import { badRequest, notFound, unauthorized } from "@/common/errors"
 import type { ClinicDoc } from "@/modules/clinics/clinics.model"
+import type { PatientDoc } from "@/modules/patients/patients.model"
+import { findPatientById } from "@/modules/patients/patients.repo"
+import { sendExpoPushBroadcast } from "@/services/expo-push-send.service"
+import { logger } from "@/common/logger"
 
 async function findOrCreateConversation(
   patientId: ObjectId,
@@ -67,6 +71,40 @@ async function buildConvExtras(conv: ChatConversationDoc) {
     patientAvatar: patient?.profile?.avatarUrl ?? null,
     doctorName: doctor?.fullName ?? null,
     doctorAvatar: doctor?.avatarUrl ?? null,
+  }
+}
+
+async function notifyPatientOfDoctorChatMessage(conv: ChatConversationDoc, plainText: string) {
+  try {
+    const patient = await findPatientById(conv.patientId)
+    if (!patient?.preferences.notificationsEnabled) return
+
+    const tokens = (patient as PatientDoc).expoPushTokens ?? []
+    if (tokens.length === 0) return
+
+    const extras = await buildConvExtras(conv)
+    const lang = patient.preferences.language
+    const doctorLabel = extras.doctorName?.trim().length ? extras.doctorName.trim() : lang === "ru" ? "Врач" : "Shifokor"
+    const preview = plainText.replace(/\s+/g, " ").slice(0, 180).trim()
+    const title = lang === "ru" ? "Новое сообщение" : "Yangi xabar"
+    const body =
+      preview.length > 0
+        ? `${doctorLabel}${lang === "ru" ? ": " : ": "}${preview}`
+        : doctorLabel
+
+    await sendExpoPushBroadcast({
+      tokens,
+      title,
+      body,
+      data: {
+        type: "chat_message",
+        conversationId: conv._id.toHexString(),
+      },
+    })
+  } catch (e: unknown) {
+    logger.warn("[chat] notify patient expo push failed", {
+      err: e instanceof Error ? e.message : String(e),
+    })
   }
 }
 
@@ -303,6 +341,10 @@ export const chatDoctorRoutes = new Elysia({ prefix: "/chat/doctor" })
         $inc: { patientUnread: 1 },
       }
     )
+
+    /* Fire-and-forget: patient phones get system notification when doctor sends a chat line */
+    void notifyPatientOfDoctorChatMessage(conv, parsed.data.text)
+
     set.status = 201
     return { success: true, data: mapMessageToPublic(msg) }
   })

@@ -6,7 +6,13 @@ import { useRouter } from 'expo-router';
 import { useAuthStore, DEFAULT_AVATAR } from '../store/auth-store';
 import { useThemeStore } from '../store/theme-store';
 import { getTranslations } from '../lib/translations';
-import { updateMe } from '../lib/api';
+import { getCustomReminders, updateMe } from '../lib/api';
+import {
+  getPillsLocalNotificationsEnabled,
+  setPillsLocalNotificationsEnabled,
+  syncPillReminderNotifications,
+  cancelAllScheduledPillReminders,
+} from '../lib/pill-local-notifications';
 import { getColors } from '../lib/theme';
 
 export default function SettingsScreen() {
@@ -37,12 +43,34 @@ export default function SettingsScreen() {
     }
   }, [patient?.preferences?.notificationsEnabled]);
 
+  useEffect(() => {
+    getPillsLocalNotificationsEnabled()
+      .then((enabled) => setToggles((prev) => ({ ...prev, pills: enabled })))
+      .catch(() => {});
+  }, []);
+
   const toggleSwitch = (key: keyof typeof toggles) => {
     const next = !toggles[key];
     setToggles((prev) => ({ ...prev, [key]: next }));
     if (key === 'general') {
       updateMe({ preferences: { notificationsEnabled: next } })
         .then((p) => setPatient(p))
+        .catch(() => {});
+    }
+    if (key === 'pills') {
+      setPillsLocalNotificationsEnabled(next)
+        .then(async () => {
+          if (next) {
+            try {
+              const list = await getCustomReminders();
+              await syncPillReminderNotifications(list);
+            } catch {
+              await syncPillReminderNotifications([]);
+            }
+          } else {
+            await cancelAllScheduledPillReminders();
+          }
+        })
         .catch(() => {});
     }
   };

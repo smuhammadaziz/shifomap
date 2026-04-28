@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { PushNotificationsBridge } from './components/PushNotificationsBridge';
+import { initPillNotificationsForeground } from '../lib/pill-local-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useSavedServicesStore } from '../store/saved-services-store';
 import { useThemeStore } from '../store/theme-store';
@@ -14,6 +16,7 @@ export default function RootLayout() {
   useEffect(() => {
     hydrateSaved();
     hydrateTheme();
+    void initPillNotificationsForeground();
   }, [hydrateSaved, hydrateTheme]);
 
   const screenOptions = {
@@ -27,6 +30,7 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
+      <PushNotificationsBridge />
       <Stack screenOptions={screenOptions}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)" options={screenOptions} />

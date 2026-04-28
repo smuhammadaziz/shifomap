@@ -123,3 +123,18 @@ export async function deletePatient(patientId: ObjectId): Promise<boolean> {
   const result = await db.collection<PatientDoc>(PATIENTS_COLLECTION).deleteOne({ _id: patientId })
   return result.deletedCount > 0
 }
+
+const MAX_EXPO_PUSH_TOKENS = 8
+
+/** Stores latest Expo push token first; dedupe; cap list size. */
+export async function upsertPatientExpoPushToken(patientId: ObjectId, token: string): Promise<void> {
+  const patient = await findPatientById(patientId)
+  if (!patient) return
+  const prev = (patient.expoPushTokens ?? []).filter((t) => t !== token)
+  const expoPushTokens = [token, ...prev].slice(0, MAX_EXPO_PUSH_TOKENS)
+  const db = getDb()
+  await db.collection<PatientDoc>(PATIENTS_COLLECTION).updateOne(
+    { _id: patientId },
+    { $set: { expoPushTokens, updatedAt: new Date() } }
+  )
+}

@@ -22,6 +22,7 @@ import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
 import { getTokens } from '../../lib/design';
 import { Button } from '../../components/ui';
+import { promptNotificationPermissionInOnboarding } from '../../lib/pill-local-notifications';
 
 // Healthcare-themed hero imagery (public unsplash CDN) — safe, license-free
 const HERO_IMAGES = [
@@ -42,6 +43,7 @@ export default function OnboardingScreen() {
   const tokens = getTokens(theme);
 
   const [index, setIndex] = useState(0);
+  const [notifLoading, setNotifLoading] = useState(false);
   const fade = useSharedValue(1);
   const scale = useSharedValue(1);
 
@@ -69,25 +71,48 @@ export default function OnboardingScreen() {
     [language, t],
   );
 
+  const totalSteps = steps.length + 1;
+
   const finishOnboarding = useCallback(async () => {
     await setOnboardingSeen();
     router.replace('/(auth)/login');
   }, [setOnboardingSeen, router]);
 
+  const animateToIndex = useCallback(
+    (nextIdx: number) => {
+      fade.value = withTiming(0, { duration: 160 });
+      setTimeout(() => {
+        setIndex(nextIdx);
+        fade.value = withTiming(1, { duration: 240 });
+        scale.value = withSpring(1.04, springConfig, () => {
+          scale.value = withSpring(1, springConfig);
+        });
+      }, 160);
+    },
+    [fade, scale],
+  );
+
   const goNext = useCallback(() => {
-    if (index >= steps.length - 1) {
+    if (index >= totalSteps - 1) {
       finishOnboarding();
       return;
     }
-    fade.value = withTiming(0, { duration: 160 });
-    setTimeout(() => {
-      setIndex((i) => i + 1);
-      fade.value = withTiming(1, { duration: 240 });
-      scale.value = withSpring(1.04, springConfig, () => {
-        scale.value = withSpring(1, springConfig);
-      });
-    }, 160);
-  }, [index, steps.length, finishOnboarding, fade, scale]);
+    animateToIndex(index + 1);
+  }, [index, totalSteps, finishOnboarding, animateToIndex]);
+
+  const onAllowNotifications = useCallback(async () => {
+    setNotifLoading(true);
+    try {
+      await promptNotificationPermissionInOnboarding();
+    } finally {
+      setNotifLoading(false);
+    }
+    animateToIndex(1);
+  }, [animateToIndex]);
+
+  const onSkipNotifications = useCallback(() => {
+    animateToIndex(1);
+  }, [animateToIndex]);
 
   const imgAnim = useAnimatedStyle(() => ({
     opacity: fade.value,
@@ -95,7 +120,8 @@ export default function OnboardingScreen() {
   }));
   const textAnim = useAnimatedStyle(() => ({ opacity: fade.value }));
 
-  const step = steps[index];
+  const heroIdx = index - 1;
+  const heroStep = heroIdx >= 0 ? steps[heroIdx] : null;
   const imgSize = Math.min(screenWidth * 0.82, screenHeight * 0.45);
 
   return (
@@ -103,7 +129,7 @@ export default function OnboardingScreen() {
       <View style={styles.headerRow}>
         <View style={{ width: 44 }} />
         <View style={styles.dots}>
-          {steps.map((_, i) => (
+          {Array.from({ length: totalSteps }).map((_, i) => (
             <View
               key={i}
               style={[
@@ -124,69 +150,129 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={styles.content}>
-        <Animated.View style={[styles.imgWrap, imgAnim]}>
-          <LinearGradient
-            colors={tokens.gradients.soft as [string, string, ...string[]]}
-            style={[styles.imgBubble, { width: imgSize, height: imgSize, borderRadius: imgSize / 2 }]}
-          >
-            <Image source={{ uri: step.image }} style={[styles.img, { width: imgSize * 0.86, height: imgSize * 0.86, borderRadius: (imgSize * 0.86) / 2 }]} />
-          </LinearGradient>
+        {index === 0 ? (
+          <>
+            <Animated.View style={[styles.notifBellWrap, imgAnim]}>
+              <LinearGradient
+                colors={tokens.gradients.soft as [string, string, ...string[]]}
+                style={styles.notifBellBubble}
+              >
+                <View style={[styles.notifBellInner, { backgroundColor: tokens.colors.backgroundCard }]}>
+                  <Ionicons name="notifications" size={56} color={tokens.brand.iris} />
+                </View>
+              </LinearGradient>
+            </Animated.View>
+            <Animated.View style={[styles.textWrap, textAnim]}>
+              <Text style={[tokens.type.overline, { color: tokens.brand.iris, marginBottom: 8 }]}>
+                {language === 'uz' ? 'BILDIRISHNOMALAR' : 'УВЕДОМЛЕНИЯ'}
+              </Text>
+              <Text style={[tokens.type.display, { color: tokens.colors.text, textAlign: 'center' }]}>
+                {t.onboardingNotifTitle}
+              </Text>
+              <Text
+                style={{
+                  color: tokens.colors.textSecondary,
+                  fontSize: 15,
+                  lineHeight: 22,
+                  textAlign: 'center',
+                  marginTop: 12,
+                  paddingHorizontal: 8,
+                }}
+              >
+                {t.onboardingNotifSubtitle}
+              </Text>
+            </Animated.View>
+          </>
+        ) : heroStep ? (
+          <>
+            <Animated.View style={[styles.imgWrap, imgAnim]}>
+              <LinearGradient
+                colors={tokens.gradients.soft as [string, string, ...string[]]}
+                style={[styles.imgBubble, { width: imgSize, height: imgSize, borderRadius: imgSize / 2 }]}
+              >
+                <Image
+                  source={{ uri: heroStep.image }}
+                  style={[
+                    styles.img,
+                    { width: imgSize * 0.86, height: imgSize * 0.86, borderRadius: (imgSize * 0.86) / 2 },
+                  ]}
+                />
+              </LinearGradient>
 
-          <View style={[styles.floatCard, styles.floatTopLeft, { backgroundColor: tokens.colors.backgroundCard }]}>
-            <View style={[styles.floatIcon, { backgroundColor: tokens.brand.iris }]}>
-              <Ionicons name="heart" size={14} color="#fff" />
-            </View>
-            <View>
-              <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 12 }}>98 BPM</Text>
-              <Text style={{ color: tokens.colors.textTertiary, fontSize: 10 }}>Pulse</Text>
-            </View>
-          </View>
+              <View style={[styles.floatCard, styles.floatTopLeft, { backgroundColor: tokens.colors.backgroundCard }]}>
+                <View style={[styles.floatIcon, { backgroundColor: tokens.brand.iris }]}>
+                  <Ionicons name="heart" size={14} color="#fff" />
+                </View>
+                <View>
+                  <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 12 }}>98 BPM</Text>
+                  <Text style={{ color: tokens.colors.textTertiary, fontSize: 10 }}>Pulse</Text>
+                </View>
+              </View>
 
-          <View style={[styles.floatCard, styles.floatBottomRight, { backgroundColor: tokens.colors.backgroundCard }]}>
-            <View style={[styles.floatIcon, { backgroundColor: tokens.brand.mint }]}>
-              <Ionicons name="shield-checkmark" size={14} color="#fff" />
-            </View>
-            <View>
-              <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 12 }}>Trusted</Text>
-              <Text style={{ color: tokens.colors.textTertiary, fontSize: 10 }}>Doctors</Text>
-            </View>
-          </View>
-        </Animated.View>
+              <View style={[styles.floatCard, styles.floatBottomRight, { backgroundColor: tokens.colors.backgroundCard }]}>
+                <View style={[styles.floatIcon, { backgroundColor: tokens.brand.mint }]}>
+                  <Ionicons name="shield-checkmark" size={14} color="#fff" />
+                </View>
+                <View>
+                  <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 12 }}>Trusted</Text>
+                  <Text style={{ color: tokens.colors.textTertiary, fontSize: 10 }}>Doctors</Text>
+                </View>
+              </View>
+            </Animated.View>
 
-        <Animated.View style={[styles.textWrap, textAnim]}>
-          <Text style={[tokens.type.overline, { color: tokens.brand.iris, marginBottom: 8 }]}>
-            {step.eyebrow}
-          </Text>
-          <Text style={[tokens.type.display, { color: tokens.colors.text, textAlign: 'center' }]}>
-            {step.title}
-          </Text>
-          <Text
-            style={{
-              color: tokens.colors.textSecondary,
-              fontSize: 15,
-              lineHeight: 22,
-              textAlign: 'center',
-              marginTop: 12,
-              paddingHorizontal: 8,
-            }}
-          >
-            {step.subtitle}
-          </Text>
-        </Animated.View>
+            <Animated.View style={[styles.textWrap, textAnim]}>
+              <Text style={[tokens.type.overline, { color: tokens.brand.iris, marginBottom: 8 }]}>
+                {heroStep.eyebrow}
+              </Text>
+              <Text style={[tokens.type.display, { color: tokens.colors.text, textAlign: 'center' }]}>
+                {heroStep.title}
+              </Text>
+              <Text
+                style={{
+                  color: tokens.colors.textSecondary,
+                  fontSize: 15,
+                  lineHeight: 22,
+                  textAlign: 'center',
+                  marginTop: 12,
+                  paddingHorizontal: 8,
+                }}
+              >
+                {heroStep.subtitle}
+              </Text>
+            </Animated.View>
+          </>
+        ) : null}
       </View>
 
       <View style={styles.footer}>
-        <Button
-          title={
-            index === steps.length - 1
-              ? (language === 'uz' ? 'Boshlash' : 'Начать')
-              : t.onboardingNext
-          }
-          onPress={goNext}
-          variant="gradient"
-          size="lg"
-          rightIcon="arrow-forward"
-        />
+        {index === 0 ? (
+          <View style={styles.notifFooterCol}>
+            <Button
+              title={t.onboardingAllowNotifications}
+              onPress={() => void onAllowNotifications()}
+              variant="gradient"
+              size="lg"
+              loading={notifLoading}
+              disabled={notifLoading}
+              rightIcon="notifications"
+            />
+            <Button
+              title={t.onboardingNotificationsLater}
+              onPress={onSkipNotifications}
+              variant="outline"
+              size="lg"
+              disabled={notifLoading}
+            />
+          </View>
+        ) : (
+          <Button
+            title={index >= totalSteps - 1 ? (language === 'uz' ? 'Boshlash' : 'Начать') : t.onboardingNext}
+            onPress={goNext}
+            variant="gradient"
+            size="lg"
+            rightIcon={index >= totalSteps - 1 ? undefined : 'arrow-forward'}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -232,4 +318,20 @@ const styles = StyleSheet.create({
   },
   textWrap: { marginTop: 36, alignItems: 'center' },
   footer: { paddingHorizontal: 24, paddingBottom: 12 },
+  notifFooterCol: { gap: 12 },
+  notifBellWrap: { alignItems: 'center', justifyContent: 'center' },
+  notifBellBubble: {
+    width: 176,
+    height: 176,
+    borderRadius: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBellInner: {
+    width: 138,
+    height: 138,
+    borderRadius: 69,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

@@ -7,6 +7,7 @@ import { useThemeStore } from '../store/theme-store';
 import { getTranslations } from '../lib/translations';
 import { getColors } from '../lib/theme';
 import { getMyPrescriptions, getCustomReminders, addCustomReminder, deleteCustomReminder, type PrescriptionCard, type CustomReminder } from '../lib/api';
+import { syncPillReminderNotifications } from '../lib/pill-local-notifications';
 import { useRouter } from 'expo-router';
 
 const REMINDER_COLORS = [
@@ -50,9 +51,11 @@ const PillReminderScreen = () => {
             ]);
             setList(pData);
             setCustomList(cData);
+            await syncPillReminderNotifications(cData);
         } catch {
             setList([]);
             setCustomList([]);
+            await syncPillReminderNotifications([]);
         } finally {
             setLoading(false);
             setRefreshing(false);

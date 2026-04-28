@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { cancelAllScheduledPillReminders } from '../lib/pill-local-notifications';
 import { setAuthToken } from '../lib/api';
 import type { Patient } from '../lib/api';
 
@@ -92,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    await cancelAllScheduledPillReminders().catch(() => {});
     set({ token: null, patient: null });
     setAuthToken(null);
     await AsyncStorage.multiRemove([TOKEN_KEY, PATIENT_KEY]);
