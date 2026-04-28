@@ -150,7 +150,8 @@ export async function createIndexes(): Promise<void> {
 
   // Telegram bot users
   const tgUsersColl = database.collection(TELEGRAM_USERS_COLLECTION)
-  await safeIndex(() => tgUsersColl.createIndex({ tgChatId: 1 }))
+  // Keep tgChatId unique (one Telegram user per chat id) and match existing production index shape.
+  await safeIndex(() => tgUsersColl.createIndex({ tgChatId: 1 }, { unique: true }))
   await safeIndex(() => tgUsersColl.createIndex({ phoneNumber: 1 }))
   await safeIndex(() => tgUsersColl.createIndex({ updatedAt: -1 }))
 }
