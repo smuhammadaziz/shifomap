@@ -180,7 +180,7 @@ function PostCard({
           <Text style={styles.actionCount}>{post.commentsCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={onShare} activeOpacity={0.8}>
-          <Ionicons name="share-social-outline" size={28} color="#fff" />
+          <Ionicons name="paper-plane-outline" size={28} color="#fff" />
           <Text style={styles.actionCount}>{language === 'uz' ? 'Ulash' : 'Поделиться'}</Text>
         </TouchableOpacity>
       </View>

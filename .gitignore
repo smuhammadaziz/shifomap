@@ -7,6 +7,7 @@ package-lock.json
 .env
 .env.*
 !.env.example
+apps/mobile/fcm-key.json
 
 # Build / output
 dist/

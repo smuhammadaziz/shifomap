@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: 'rgba(10, 47, 184, 0.92)',
   },
   actionBtnDarkText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   ticketOverlay: {

@@ -23,7 +23,11 @@ async function safeIndex(fn: () => Promise<unknown>) {
     await fn()
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (!msg.includes("already exists") && !msg.includes("duplicate")) {
+    if (
+      !msg.includes("already exists") &&
+      !msg.includes("duplicate") &&
+      !msg.includes("same name as the requested index")
+    ) {
       throw e
     }
   }

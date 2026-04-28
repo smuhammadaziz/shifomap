@@ -24,8 +24,10 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const activeRouteName = state.routes[state.index]?.name;
   const isFeedActive = activeRouteName === 'feed';
 
-  const activePillBg = isFeedActive ? 'rgba(255,255,255,0.16)' : isDark ? '#e2e8f0' : '#0f172a';
-  const activePillFg = isFeedActive ? '#ffffff' : isDark ? '#0f172a' : '#ffffff';
+  // Match active tab with brand blue from logo.
+  const logoBlue = '#0A2FB8';
+  const activePillBg = isFeedActive ? 'rgba(10, 47, 184, 0.92)' : logoBlue;
+  const activePillFg = '#ffffff';
   const barBg = isFeedActive ? 'rgba(0,0,0,0.42)' : isDark ? '#09090b' : '#ffffff';
   const barBorder = isFeedActive ? 'transparent' : tokens.colors.border;
   const inactiveIcon = isFeedActive ? '#ffffff' : tokens.colors.textTertiary;
