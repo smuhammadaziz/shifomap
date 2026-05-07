@@ -114,7 +114,13 @@ function getWeekRangeLabel(days: { dateStr: string }[], lang: string): string {
 
 export default function BookScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ clinicId?: string; serviceId?: string }>();
+  const params = useLocalSearchParams<{
+    clinicId?: string;
+    serviceId?: string;
+    doctorId?: string;
+    date?: string;
+    time?: string;
+  }>();
   const language = useAuthStore((s) => s.language) ?? 'uz';
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
@@ -179,6 +185,21 @@ export default function BookScreen() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, [clinicId, serviceId]);
 
+  useEffect(() => {
+    if (params.doctorId) setSelectedDoctorId(params.doctorId);
+    if (params.date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const t = new Date(`${params.date}T00:00:00`);
+      const diffDays = Math.floor((t.getTime() - today.getTime()) / 86400000);
+      if (diffDays >= 0) {
+        setWeekOffset(Math.floor(diffDays / 7));
+      }
+      setSelectedDate(params.date);
+    }
+    if (params.time) setSelectedTime(params.time);
+  }, [params.doctorId, params.date, params.time]);
+
   const serviceDoctors = useMemo(() => {
     if (!clinic || !service) return [];
     return (clinic.doctors ?? []).filter((d) => d.isActive && (service.doctorIds ?? []).includes(d._id));
@@ -199,13 +220,14 @@ export default function BookScreen() {
     else if (serviceBranches.length > 0 && !selectedBranchId) setSelectedBranchId(serviceBranches[0]._id);
   }, [serviceBranches]);
 
-  // Auto-select today on first load
+  // Auto-select first selectable day when not opening from a deep link
   useEffect(() => {
+    if (params.date) return;
     if (!selectedDate && weekDays.length > 0) {
       const firstSelectable = weekDays.find((d) => !d.isPast);
       if (firstSelectable) setSelectedDate(firstSelectable.dateStr);
     }
-  }, []);
+  }, [weekDays, params.date, selectedDate]);
 
   const selectedDoctor = selectedDoctorId ? serviceDoctors.find((d) => d._id === selectedDoctorId) : null;
 

@@ -35,11 +35,12 @@ export async function insertBooking(input: InsertBookingInput): Promise<BookingD
 
 export async function findBookingsByUserId(
   userId: ObjectId,
-  options?: { status?: BookingDoc["status"]; limit?: number }
+  options?: { status?: BookingDoc["status"]; limit?: number; minScheduledAt?: Date }
 ): Promise<BookingDoc[]> {
   const db = getDb()
   const filter: Record<string, unknown> = { userId, deletedAt: null }
   if (options?.status) filter.status = options.status
+  if (options?.minScheduledAt) filter.scheduledAt = { $gte: options.minScheduledAt }
   const limit = options?.limit ?? 100
   const cursor = db
     .collection<BookingDoc>(BOOKINGS_COLLECTION)

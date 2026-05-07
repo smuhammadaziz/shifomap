@@ -19,6 +19,7 @@ import {
   X,
   Star,
   MessageSquare,
+  Tags,
 } from 'lucide-react'
 import { useState, useMemo, useEffect } from 'react'
 import { Button } from './ui/button'
@@ -68,6 +69,7 @@ export default function Sidebar() {
       { name: t.sidebar.accounts, href: '/dashboard/accounts', icon: Users },
       { name: t.sidebar.analytics, href: '/dashboard/analytics', icon: BarChart3 },
       { name: t.sidebar.ratingsAndReviews, href: '/dashboard/ratings', icon: Star },
+      { name: t.sidebar.discounts, href: '/dashboard/discounts', icon: Tags },
     ],
     [t.sidebar]
   )

@@ -21,6 +21,7 @@ import { useThemeStore } from '../../store/theme-store';
 import { getTranslations } from '../../lib/translations';
 import { getTokens } from '../../lib/design';
 import { Button } from '../../components/ui';
+import { isValidUzPhone9, UZ_PHONE_INLINE_ERROR_RU, UZ_PHONE_INLINE_ERROR_UZ } from '../../lib/uz-phone';
 
 const PHONE_PREFIX = '+998';
 const LOGO_IMG = require('../../assets/play_store_512-Photoroom.png');
@@ -37,11 +38,12 @@ export default function Login() {
   const tokens = getTokens(theme);
   const setPendingPhone = useAuthStore((s) => s.setPendingPhone);
 
-  const isValid = digits.length === 9;
+  const isValid = digits.length === 9 && isValidUzPhone9(digits);
+  const showOperatorError = digits.length === 9 && !isValidUzPhone9(digits);
 
   const onPhoneNext = () => {
     if (!isValid) {
-      Alert.alert('', t.loginError);
+      Alert.alert('', digits.length === 9 ? (language === 'ru' ? UZ_PHONE_INLINE_ERROR_RU : UZ_PHONE_INLINE_ERROR_UZ) : t.loginError);
       return;
     }
     const fullPhone = PHONE_PREFIX + digits;
@@ -133,6 +135,11 @@ export default function Login() {
                 />
               </View>
             </View>
+            {showOperatorError ? (
+              <Text style={{ color: tokens.colors.error, fontSize: 12, marginTop: 8, marginLeft: 4 }}>
+                {language === 'ru' ? UZ_PHONE_INLINE_ERROR_RU : UZ_PHONE_INLINE_ERROR_UZ}
+              </Text>
+            ) : null}
 
             <View style={{ height: 22 }} />
             <Button

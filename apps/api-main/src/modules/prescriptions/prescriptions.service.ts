@@ -3,7 +3,23 @@ import { unauthorized, notFound, badRequest } from "@/common/errors"
 import { findClinicById } from "@/modules/clinics/clinics.repo"
 import { findBookingByIdForClinic } from "@/modules/bookings/bookings.repo"
 import type { PrescriptionMedicine } from "./prescriptions.model"
-import { upsertPrescription, listPrescriptionsByUserId, findPrescriptionByIdForPatient, listPrescriptionEventsForDate, upsertPrescriptionEvent, upsertCustomReminder, listCustomRemindersByUserId, deleteCustomReminder } from "./prescriptions.repo"
+import { findPatientsByIds } from "@/modules/patients/patients.repo"
+import {
+  upsertPrescription,
+  listPrescriptionsByUserId,
+  findPrescriptionByIdForPatient,
+  listPrescriptionEventsForDate,
+  upsertPrescriptionEvent,
+  upsertCustomReminder,
+  listCustomRemindersByUserId,
+  deleteCustomReminder,
+  findCustomReminderByIdForPatient,
+  upsertPillCheckEvent,
+  listPillCheckTakenCustomKeysForDate,
+  listPillCheckEventsInRange,
+  findCustomRemindersByIds,
+} from "./prescriptions.repo"
+import type { CustomReminderPillEventBody } from "./prescriptions.model"
 
 function genDefaultTimes(timesPerDay: number): string[] {
   if (timesPerDay <= 1) return ["09:00"]
@@ -167,18 +183,28 @@ export async function setMyPrescriptionEvent(auth: { role?: string; sub: string 
   }
 }
 
-export async function getMyNextPill(auth: { role?: string; sub: string }) {
+type NextPillPayload = {
+  prescriptionId: string | null
+  customReminderId: string | null
+  medicineKey: string | null
+  date: string
+  time: string
+  medicineName: string
+}
+
+export async function getMyNextPill(auth: { role?: string; sub: string }): Promise<NextPillPayload | null> {
   if (auth.role !== "patient") throw unauthorized("Patient access only")
   const userId = new ObjectId(auth.sub)
   const today = new Date().toISOString().slice(0, 10)
   const nowTime = new Date().toISOString().slice(11, 16)
 
-  const [prescriptions, customDocs] = await Promise.all([
+  const [prescriptions, customDocs, customTaken] = await Promise.all([
     listPrescriptionsByUserId(userId, 50),
     listCustomRemindersByUserId(userId),
+    listPillCheckTakenCustomKeysForDate(userId, today),
   ])
 
-  let best: { prescriptionId: string | null; time: string; medicineName: string } | null = null
+  let best: NextPillPayload | null = null
 
   // 1. Check Prescriptions
   for (const p of prescriptions) {
@@ -188,7 +214,14 @@ export async function getMyNextPill(auth: { role?: string; sub: string }) {
       for (const time of m.scheduleTimes.slice(0, m.timesPerDay)) {
         if (time < nowTime) continue
         if (taken.has(`${m.key}|${time}`)) continue
-        const candidate = { prescriptionId: p._id.toHexString(), time, medicineName: m.name }
+        const candidate: NextPillPayload = {
+          prescriptionId: p._id.toHexString(),
+          customReminderId: null,
+          medicineKey: m.key,
+          date: today,
+          time,
+          medicineName: m.name,
+        }
         if (!best || candidate.time < best.time) best = candidate
       }
     }
@@ -197,29 +230,122 @@ export async function getMyNextPill(auth: { role?: string; sub: string }) {
   // 2. Check Custom Reminders
   for (const c of customDocs) {
     if (!c.isActive) continue
-    // Logic for custom reminders: if timesPerDay > 1, we should probably calculate spread, 
-    // but for now let's assume 'time' is the first dose.
-    // User said "how many per day" - simplified: spread them out
-    const times = genDefaultTimes(c.timesPerDay).map(t => {
-      // If user provided a specific start time, we might want to offset, 
-      // but genDefaultTimes returns fixed slots. Let's use it for now.
-      return t
-    })
+    const doseTimes = [c.time]
 
-    // Wait, the user said "approximate consume time" - let's treat that as the BASE time if timesPerDay is 1
-    // if timesPerDay > 1, let's use the first slot as the user's provided 'time' and spread others.
-    // Actually, simple implementation: just the user's provided 'time' for now.
-    const doseTimes = [c.time] 
-    // If we wanted to support multiple doses for custom reminders, we'd add more here.
-    
     for (const t of doseTimes) {
       if (t < nowTime) continue
-      const candidate = { prescriptionId: null, time: t, medicineName: c.pillName }
+      const key = `${c._id.toHexString()}|${t}`
+      if (customTaken.has(key)) continue
+      const candidate: NextPillPayload = {
+        prescriptionId: null,
+        customReminderId: c._id.toHexString(),
+        medicineKey: null,
+        date: today,
+        time: t,
+        medicineName: c.pillName,
+      }
       if (!best || candidate.time < best.time) best = candidate
     }
   }
 
   return best
+}
+
+export async function recordCustomReminderPillEvent(
+  auth: { role?: string; sub: string },
+  reminderIdStr: string,
+  body: CustomReminderPillEventBody
+) {
+  if (auth.role !== "patient") throw unauthorized("Patient access only")
+  const userId = new ObjectId(auth.sub)
+  if (!ObjectId.isValid(reminderIdStr)) throw badRequest("Invalid reminder id")
+  const reminderId = new ObjectId(reminderIdStr)
+  const rem = await findCustomReminderByIdForPatient(reminderId, userId)
+  if (!rem) throw notFound("Reminder not found")
+
+  const ev = await upsertPillCheckEvent({
+    userId,
+    reminderId,
+    date: body.date,
+    time: body.time,
+    action: body.action,
+  })
+  return {
+    id: ev._id.toHexString(),
+    reminderId: reminderIdStr,
+    date: ev.date,
+    time: ev.time,
+    action: ev.action,
+    actedAt: ev.actedAt.toISOString(),
+  }
+}
+
+export type PillCheckStatRow = {
+  patientName: string
+  patientPhone: string
+  pillName: string
+  reminderId: string
+  takenCount: number
+  skippedCount: number
+  lastTakenAt: string | null
+}
+
+export async function getAdminPillCheckStats(fromStr: string, toStr: string, q: string): Promise<PillCheckStatRow[]> {
+  const end = toStr && /^\d{4}-\d{2}-\d{2}$/.test(toStr) ? new Date(`${toStr}T23:59:59.999Z`) : new Date()
+  const start =
+    fromStr && /^\d{4}-\d{2}-\d{2}$/.test(fromStr)
+      ? new Date(`${fromStr}T00:00:00.000Z`)
+      : new Date(end.getTime() - 30 * 86400000)
+  const events = await listPillCheckEventsInRange(start, end)
+  const needle = q.trim().toLowerCase()
+
+  type Agg = { userId: ObjectId; reminderId: ObjectId; takenCount: number; skippedCount: number; lastTakenAt: Date | null }
+  const map = new Map<string, Agg>()
+  for (const e of events) {
+    const k = `${e.userId.toHexString()}:${e.reminderId.toHexString()}`
+    let row = map.get(k)
+    if (!row) {
+      row = { userId: e.userId, reminderId: e.reminderId, takenCount: 0, skippedCount: 0, lastTakenAt: null }
+      map.set(k, row)
+    }
+    if (e.action === "taken") {
+      row.takenCount += 1
+      if (!row.lastTakenAt || e.actedAt > row.lastTakenAt) row.lastTakenAt = e.actedAt
+    } else {
+      row.skippedCount += 1
+    }
+  }
+
+  const userIds = [...new Set(Array.from(map.values(), (r) => r.userId.toHexString()))].map((id) => new ObjectId(id))
+  const reminderIds = [...new Set(Array.from(map.values(), (r) => r.reminderId.toHexString()))].map((h) => new ObjectId(h))
+
+  const [patients, reminders] = await Promise.all([findPatientsByIds(userIds), findCustomRemindersByIds(reminderIds)])
+  const patientById = new Map(patients.map((p) => [p._id.toHexString(), p]))
+  const reminderById = new Map(reminders.map((r) => [r._id.toHexString(), r]))
+
+  const rows: PillCheckStatRow[] = []
+  for (const r of map.values()) {
+    const p = patientById.get(r.userId.toHexString())
+    const rem = reminderById.get(r.reminderId.toHexString())
+    const patientName = p?.fullName ?? "—"
+    const patientPhone = p?.contacts?.phone ?? "—"
+    const pillName = rem?.pillName ?? "—"
+    if (needle) {
+      const hay = `${patientName} ${patientPhone} ${pillName}`.toLowerCase()
+      if (!hay.includes(needle)) continue
+    }
+    rows.push({
+      patientName,
+      patientPhone,
+      pillName,
+      reminderId: r.reminderId.toHexString(),
+      takenCount: r.takenCount,
+      skippedCount: r.skippedCount,
+      lastTakenAt: r.lastTakenAt ? r.lastTakenAt.toISOString() : null,
+    })
+  }
+  rows.sort((a, b) => (b.lastTakenAt ?? "").localeCompare(a.lastTakenAt ?? ""))
+  return rows
 }
 
 export async function publicCreateCustomReminder(auth: { role?: string; sub: string }, body: { pillName: string; time: string; notes?: string | null; timesPerDay: number }) {

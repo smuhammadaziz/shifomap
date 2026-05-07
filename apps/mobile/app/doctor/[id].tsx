@@ -24,9 +24,9 @@ import { getTranslations } from '../../lib/translations';
 import { getTokens } from '../../lib/design';
 import { Button, Card, SkeletonBlock, IconButton } from '../../components/ui';
 import ReviewBottomSheet from '../components/ReviewBottomSheet';
+import { formatWorkingHoursSummary } from '../../lib/formatWorkingHours';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&q=80';
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function DoctorDetailScreen() {
   const { id: doctorId, clinicId } = useLocalSearchParams<{ id: string; clinicId?: string }>();
@@ -134,9 +134,10 @@ export default function DoctorDetailScreen() {
     );
   }
 
-  const scheduleText = doctor.schedule?.weekly?.length
-    ? doctor.schedule.weekly.map((w) => `${DAY_NAMES[w.day - 1] ?? w.day} ${w.from}–${w.to}`).join(' · ')
-    : null;
+  const scheduleText =
+    doctor.schedule?.weekly?.length
+      ? formatWorkingHoursSummary(doctor.schedule.weekly, language === 'ru' ? 'ru' : 'uz')
+      : null;
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.colors.background }]}>
@@ -154,23 +155,23 @@ export default function DoctorDetailScreen() {
           </View>
 
           <View style={styles.profile}>
-            <View style={styles.avatarWrap}>
+            <View style={[styles.avatarWrap, { backgroundColor: tokens.colors.backgroundCard }]}>
               <Image
                 source={{ uri: doctor.avatarUrl || DEFAULT_AVATAR }}
                 style={styles.avatar}
               />
-              <View style={[styles.onlineDot, { borderColor: '#fff' }]} />
+              <View style={[styles.onlineDot, { borderColor: tokens.colors.backgroundCard }]} />
             </View>
 
             <Text style={[tokens.type.titleXl, { color: tokens.colors.text, marginTop: 14, textAlign: 'center' }]}>
               {doctor.fullName}
             </Text>
-            <View style={styles.specPill}>
+            <View style={[styles.specPill, { backgroundColor: tokens.colors.backgroundCard }]}>
               <Ionicons name="medkit" size={12} color={tokens.brand.iris} />
               <Text style={{ color: tokens.brand.iris, fontSize: 12, fontWeight: '700' }}>{doctor.specialty}</Text>
             </View>
 
-            <View style={styles.statsRow}>
+            <View style={[styles.statsRow, { backgroundColor: tokens.colors.backgroundCard }]}>
               <View style={styles.statCell}>
                 <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]}>
                   {doctorRating?.avg?.toFixed(1) ?? '—'}
@@ -185,7 +186,13 @@ export default function DoctorDetailScreen() {
                   {doctorRating?.count ?? 0}
                 </Text>
                 <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, fontWeight: '600' }}>
-                  {language === 'uz' ? "Sharhlar" : 'Отзывы'}
+                  {doctorRating?.count
+                    ? language === 'uz'
+                      ? `${doctorRating.count} sharh asosida`
+                      : `По ${doctorRating.count} отзывам`
+                    : language === 'uz'
+                      ? 'Sharhlar'
+                      : 'Отзывы'}
                 </Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: tokens.colors.border }]} />
@@ -337,7 +344,6 @@ const styles = StyleSheet.create({
     width: 128,
     height: 128,
     borderRadius: 64,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#0f1a4a',
@@ -361,7 +367,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#fff',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -369,7 +374,6 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     paddingVertical: 14,
     paddingHorizontal: 18,
     marginTop: 18,

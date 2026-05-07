@@ -1,7 +1,22 @@
 import { Elysia } from "elysia"
 import { requirePatientAuth, requireAuth } from "@/common/middleware/auth"
-import { upsertPrescriptionBodySchema, prescriptionEventBodySchema, createCustomReminderSchema } from "./prescriptions.model"
-import { upsertPrescriptionByDoctor, listMyPrescriptions, getMyPrescriptionDetail, setMyPrescriptionEvent, getMyNextPill, publicCreateCustomReminder, publicListCustomReminders, publicDeleteCustomReminder } from "./prescriptions.service"
+import {
+  upsertPrescriptionBodySchema,
+  prescriptionEventBodySchema,
+  createCustomReminderSchema,
+  customReminderPillEventBodySchema,
+} from "./prescriptions.model"
+import {
+  upsertPrescriptionByDoctor,
+  listMyPrescriptions,
+  getMyPrescriptionDetail,
+  setMyPrescriptionEvent,
+  getMyNextPill,
+  publicCreateCustomReminder,
+  publicListCustomReminders,
+  publicDeleteCustomReminder,
+  recordCustomReminderPillEvent,
+} from "./prescriptions.service"
 
 export const prescriptionsRoutes = new Elysia({ prefix: "/prescriptions" })
   // Doctor create/update prescription (requires doctor auth)
@@ -73,6 +88,16 @@ export const prescriptionsPatientRoutes = new Elysia({ prefix: "/prescriptions" 
   })
   .delete("/me/custom-reminders/:id", async ({ auth, params, set }) => {
     const data = await publicDeleteCustomReminder(auth, params.id)
+    set.status = 200
+    return { success: true, data }
+  })
+  .post("/me/custom-reminders/:id/event", async ({ auth, params, body, set }) => {
+    const parsed = customReminderPillEventBodySchema.safeParse(body ?? {})
+    if (!parsed.success) {
+      set.status = 400
+      return { success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors }
+    }
+    const data = await recordCustomReminderPillEvent(auth, params.id, parsed.data)
     set.status = 200
     return { success: true, data }
   })

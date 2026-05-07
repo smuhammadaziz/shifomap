@@ -59,6 +59,7 @@ export default function RootLayout() {
         <Stack.Screen name="chat/index" options={screenOptions} />
         <Stack.Screen name="chat/[id]" options={screenOptions} />
         <Stack.Screen name="post/[id]" options={screenOptions} />
+        <Stack.Screen name="stories-viewer" options={screenOptions} />
       </Stack>
     </>
   );

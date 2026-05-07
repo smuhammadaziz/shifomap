@@ -2,13 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
 import { useSavedServicesStore, type SavedServiceItem } from '../../store/saved-services-store';
 import { getTranslations } from '../../lib/translations';
 import { getColors } from '../../lib/theme';
+import { getTokens } from '../../lib/design';
 
-const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=200&h=200&fit=crop';
+const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=240&h=240&fit=crop';
 
 function formatPrice(price: SavedServiceItem['price']): string {
   if (price.amount != null) return `${price.amount.toLocaleString()} ${price.currency}`;
@@ -24,54 +26,109 @@ const FeaturedClinics = () => {
   const theme = useThemeStore((s) => s.theme);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const tokens = getTokens(theme);
   const { items: savedServices, removeService } = useSavedServicesStore();
 
   return (
     <View style={styles.sectionContainer}>
       <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.savedServices}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{t.savedServices}</Text>
+        {savedServices.length > 0 ? (
+          <TouchableOpacity hitSlop={12} onPress={() => router.push('/services-results?saved=1' as never)}>
+            <Text style={{ color: tokens.brand.iris, fontWeight: '700', fontSize: 13 }}>
+              {language === 'ru' ? 'Все' : "Barchasi"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {savedServices.length === 0 ? (
         <View style={[styles.emptyState, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <Ionicons name="bookmark-outline" size={40} color={colors.textTertiary} />
-          <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>{t.noSavedServices}</Text>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primaryBg }]}>
+            <Ionicons name="bookmark-outline" size={24} color={tokens.brand.iris} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t.noSavedServices}</Text>
           <Text style={[styles.emptyHint, { color: colors.textTertiary }]}>{t.noSavedServicesHint}</Text>
         </View>
       ) : (
         savedServices.map((service) => (
           <TouchableOpacity
             key={service._id}
-            style={[styles.clinicCard, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
-            activeOpacity={0.8}
+            style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}
+            activeOpacity={0.9}
             onPress={() => router.push({ pathname: '/service/[id]', params: { id: service._id } })}
           >
-            <Image
-              source={{ uri: service.serviceImage || DEFAULT_IMAGE }}
-              style={[styles.clinicImage, { backgroundColor: colors.border }]}
+            {/* Left accent strip */}
+            <LinearGradient
+              colors={[tokens.brand.iris, tokens.brand.lilac]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.accent}
             />
-            <View style={styles.cardContent}>
-              <View style={styles.titleRow}>
-                <Text style={[styles.clinicName, { color: colors.text }]} numberOfLines={2}>{service.title}</Text>
+
+            {/* Image with saved badge */}
+            <View style={styles.imageWrap}>
+              <Image
+                source={{ uri: service.serviceImage || DEFAULT_IMAGE }}
+                style={[styles.image, { backgroundColor: colors.border }]}
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.45)']}
+                style={styles.imageOverlay}
+                pointerEvents="none"
+              />
+              <View style={[styles.savedBadge, { backgroundColor: tokens.brand.amber }]}>
+                <Ionicons name="bookmark" size={11} color="#fff" />
+              </View>
+            </View>
+
+            {/* Content */}
+            <View style={styles.body}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {service.categoryName ? (
+                    <Text
+                      style={[styles.kicker, { color: tokens.brand.iris }]}
+                      numberOfLines={1}
+                    >
+                      {service.categoryName}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+                    {service.title}
+                  </Text>
+                </View>
                 <TouchableOpacity
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   onPress={(e) => {
                     e.stopPropagation();
                     removeService(service._id);
                   }}
-                  style={styles.bookmarkBtn}
+                  style={[styles.removeBtn, { backgroundColor: colors.backgroundSecondary }]}
                 >
-                  <Ionicons name="bookmark" size={22} color={colors.warning} />
+                  <Ionicons name="close" size={14} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              {service.categoryName ? (
-                <Text style={[styles.clinicDescription, { color: colors.textSecondary }]}>{service.categoryName}</Text>
-              ) : null}
-              <View style={styles.footerRow}>
-                <View style={[styles.priceTag, { backgroundColor: colors.primaryBg }]}>
-                  <Text style={[styles.priceText, { color: colors.primaryLight }]}>{formatPrice(service.price)}</Text>
-                </View>
-                <Text style={[styles.distanceText, { color: colors.textSecondary }]} numberOfLines={1}>{service.clinicDisplayName}</Text>
+
+              <View style={styles.metaRow}>
+                <LinearGradient
+                  colors={[tokens.brand.iris, tokens.brand.lilac]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.priceChip}
+                >
+                  <Ionicons name="cash-outline" size={12} color="#fff" />
+                  <Text style={styles.priceText} numberOfLines={1}>
+                    {formatPrice(service.price)}
+                  </Text>
+                </LinearGradient>
+              </View>
+
+              <View style={styles.clinicRow}>
+                <Ionicons name="business-outline" size={12} color={colors.textTertiary} />
+                <Text style={[styles.clinicName, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {service.clinicDisplayName}
+                </Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -82,39 +139,116 @@ const FeaturedClinics = () => {
 };
 
 const styles = StyleSheet.create({
-  sectionContainer: { marginTop: 24, paddingHorizontal: 20 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  sectionTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 },
+  sectionContainer: { marginTop: 26, paddingHorizontal: 20 },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 18, fontWeight: '800' },
 
   emptyState: {
     borderRadius: 20,
-    padding: 32,
+    paddingVertical: 26,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 12 },
-  emptyHint: { fontSize: 13, marginTop: 6, textAlign: 'center' },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '700', marginTop: 12 },
+  emptyHint: { fontSize: 12, marginTop: 4, textAlign: 'center', lineHeight: 18 },
 
-  clinicCard: {
+  card: {
     flexDirection: 'row',
-    borderRadius: 20,
+    alignItems: 'center',
+    borderRadius: 22,
     padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
+    paddingLeft: 14,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  clinicImage: { width: 90, height: 90, borderRadius: 16 },
-  cardContent: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
+  accent: {
+    position: 'absolute',
+    top: 14,
+    bottom: 14,
+    left: 0,
+    width: 3,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  imageWrap: {
+    width: 84,
+    height: 84,
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  image: { width: '100%', height: '100%' },
+  imageOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '50%',
+  },
+  savedBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 2,
+  },
 
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  clinicName: { fontSize: 16, fontWeight: 'bold', flex: 1, marginRight: 8 },
-  bookmarkBtn: { padding: 4 },
+  body: { flex: 1, marginLeft: 14, gap: 8, minWidth: 0 },
+  kicker: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  title: { fontSize: 15, fontWeight: '700', lineHeight: 20 },
 
-  clinicDescription: { fontSize: 12, marginTop: 4, lineHeight: 18 },
+  removeBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  priceTag: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  priceText: { fontSize: 12, fontWeight: '600' },
-  distanceText: { fontSize: 12, marginLeft: 4, flex: 1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center' },
+  priceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  priceText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+  clinicRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  clinicName: { fontSize: 12, fontWeight: '500', flexShrink: 1 },
 });
 
 export default FeaturedClinics;

@@ -2,6 +2,7 @@ import { Elysia } from "elysia"
 import { requireAuth } from "@/common/middleware/auth"
 import {
   getClinicBookings,
+  getClinicDashboardStats,
   getDoctorTodayBookings,
   getDoctorBookings,
   getClinicBookingById,
@@ -19,6 +20,12 @@ export const bookingsManageRoutes = new Elysia({ prefix: "/bookings-manage" })
   .get("/clinic", async ({ auth, query, set }) => {
     const status = (query.status as string | undefined) ?? undefined
     const data = await getClinicBookings(auth, { status: status as any })
+    set.status = 200
+    return { success: true, data }
+  })
+  // Clinic owner/admin: aggregated dashboard stats
+  .get("/clinic/dashboard-stats", async ({ auth, set }) => {
+    const data = await getClinicDashboardStats(auth)
     set.status = 200
     return { success: true, data }
   })

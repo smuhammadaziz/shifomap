@@ -16,6 +16,9 @@ import {
   Image as ImageIcon,
   MessageSquareText,
   Send,
+  PillBottle,
+  BookOpen,
+  MapPin,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "./ui/button"
@@ -27,7 +30,10 @@ const nav = [
   { name: "Telegram Users", href: "/dashboard/telegram-users", icon: Send },
   { name: "Clinics", href: "/dashboard/clinics", icon: Building2 },
   { name: "Posts", href: "/dashboard/posts", icon: ImageIcon },
+  { name: "Stories", href: "/dashboard/stories", icon: BookOpen },
+  { name: "Pharmacies", href: "/dashboard/pharmacies", icon: MapPin },
   { name: "AI Feedbacks", href: "/dashboard/ai-feedbacks", icon: MessageSquareText },
+  { name: "Pill check-ins", href: "/dashboard/pill-checks", icon: PillBottle },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

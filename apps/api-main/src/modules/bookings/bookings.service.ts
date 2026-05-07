@@ -13,8 +13,9 @@ import {
   updateBookingStatusByClinic,
   findBookedTimesForDoctorOnDate,
 } from "./bookings.repo"
-import type { BookingDoc } from "./bookings.model"
+import type { BookingDoc, BookingStatus } from "./bookings.model"
 import type { CreateBookingBody } from "./bookings.model"
+import { findPatientsByIds } from "@/modules/patients/patients.repo"
 import { badRequest, notFound, unauthorized } from "@/common/errors"
 
 function getClinicDisplayNames(clinic: ClinicDoc | null, booking: BookingDoc) {
@@ -309,5 +310,180 @@ function mapBookingToPublic(doc: BookingDoc, clinic?: ClinicDoc | null) {
     updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
     serviceTitle: service?.title,
     durationMin: service?.durationMin,
+  }
+}
+
+function dateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+function priceAmount(p: BookingDoc["consultationPrice"]): number {
+  if (!p) return 0
+  if (typeof p.amount === "number") return p.amount
+  if (typeof p.minAmount === "number" && typeof p.maxAmount === "number") {
+    return Math.round((p.minAmount + p.maxAmount) / 2)
+  }
+  if (typeof p.minAmount === "number") return p.minAmount
+  if (typeof p.maxAmount === "number") return p.maxAmount
+  return 0
+}
+
+export async function getClinicDashboardStats(auth: { role?: string; clinicId?: string; sub: string }) {
+  if (!auth.role?.startsWith("clinic_") || !auth.clinicId) throw unauthorized("Clinic admin access only")
+  const clinicId = new ObjectId(auth.clinicId)
+  const clinic = await findClinicById(clinicId)
+  if (!clinic) throw notFound("Clinic not found")
+
+  const list = await findBookingsByClinicId(clinicId, { limit: 2000 })
+
+  const now = new Date()
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
+  const tomorrowStart = new Date(todayStart)
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1)
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  // Stat counts
+  let todayCount = 0
+  let upcomingCount = 0
+  let pendingCount = 0
+  let completedCount = 0
+  let cancelledCount = 0
+  let monthRevenue = 0
+  let prevMonthRevenue = 0
+  const statusBreakdown: Record<BookingStatus, number> = {
+    pending: 0,
+    confirmed: 0,
+    patient_arrived: 0,
+    in_progress: 0,
+    completed: 0,
+    cancelled: 0,
+  }
+
+  // Weekly series (last 7 days, including today)
+  const weeklyMap = new Map<string, number>()
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(todayStart)
+    d.setDate(d.getDate() - i)
+    weeklyMap.set(dateKey(d), 0)
+  }
+  const weekStart = new Date(todayStart)
+  weekStart.setDate(weekStart.getDate() - 6)
+
+  // Top services / doctors aggregation
+  const serviceCounts = new Map<string, number>()
+  const doctorCounts = new Map<string, number>()
+
+  for (const b of list) {
+    statusBreakdown[b.status] = (statusBreakdown[b.status] ?? 0) + 1
+    if (b.scheduledAt >= todayStart && b.scheduledAt < tomorrowStart && b.status !== "cancelled") {
+      todayCount++
+    }
+    if (b.scheduledAt >= tomorrowStart && b.status !== "cancelled" && b.status !== "completed") {
+      upcomingCount++
+    }
+    if (b.status === "pending") pendingCount++
+    if (b.status === "completed") completedCount++
+    if (b.status === "cancelled") cancelledCount++
+
+    if (b.status === "completed") {
+      if (b.scheduledAt >= monthStart) monthRevenue += priceAmount(b.consultationPrice)
+      else if (b.scheduledAt >= prevMonthStart && b.scheduledAt < prevMonthEnd) {
+        prevMonthRevenue += priceAmount(b.consultationPrice)
+      }
+    }
+
+    if (b.scheduledAt >= weekStart && b.scheduledAt < tomorrowStart) {
+      const k = dateKey(b.scheduledAt)
+      weeklyMap.set(k, (weeklyMap.get(k) ?? 0) + 1)
+    }
+
+    const sId = b.serviceId?.toHexString()
+    if (sId) serviceCounts.set(sId, (serviceCounts.get(sId) ?? 0) + 1)
+    const dId = b.doctorId?.toHexString()
+    if (dId) doctorCounts.set(dId, (doctorCounts.get(dId) ?? 0) + 1)
+  }
+
+  const weeklySeries = Array.from(weeklyMap.entries()).map(([date, count]) => ({ date, count }))
+
+  const topServices = Array.from(serviceCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => {
+      const svc = clinic.services?.find((s) => s._id.toHexString() === id)
+      return { serviceId: id, title: svc?.title ?? "—", count }
+    })
+
+  const topDoctors = Array.from(doctorCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => {
+      const doc = clinic.doctors?.find((d) => d._id.toHexString() === id)
+      return { doctorId: id, name: doc?.fullName ?? "—", count }
+    })
+
+  // Recent bookings (last 8 by creation/scheduledAt)
+  const recentDocs = [...list]
+    .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
+    .slice(0, 8)
+  const patientIds = [...new Set(recentDocs.map((d) => d.userId.toHexString()))].map((id) => new ObjectId(id))
+  const patients = await findPatientsByIds(patientIds)
+  const patientMap = new Map(patients.map((p) => [p._id.toHexString(), p]))
+
+  const recentBookings = recentDocs.map((b) => {
+    const svc = clinic.services?.find((s) => s._id.equals(b.serviceId))
+    const doctor = b.doctorId ? clinic.doctors?.find((d) => d._id.equals(b.doctorId!)) : null
+    const patient = patientMap.get(b.userId.toHexString())
+    return {
+      _id: b._id.toHexString(),
+      scheduledAt: b.scheduledAt.toISOString(),
+      scheduledDate: b.scheduledDate,
+      scheduledTime: b.scheduledTime,
+      status: b.status,
+      serviceTitle: svc?.title ?? "—",
+      doctorName: doctor?.fullName ?? null,
+      patientName: patient?.fullName ?? null,
+      patientPhone: patient?.contacts?.phone ?? null,
+      consultationPrice: b.consultationPrice ?? svc?.price ?? null,
+      createdAt: b.createdAt?.toISOString() ?? null,
+    }
+  })
+
+  const revenueGrowthPct =
+    prevMonthRevenue > 0
+      ? Math.round(((monthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100)
+      : monthRevenue > 0
+        ? 100
+        : 0
+
+  return {
+    todayCount,
+    upcomingCount,
+    pendingCount,
+    completedCount,
+    cancelledCount,
+    totalBookings: list.length,
+    monthRevenue,
+    prevMonthRevenue,
+    revenueCurrency: "UZS",
+    revenueGrowthPct,
+    weeklySeries,
+    statusBreakdown: Object.entries(statusBreakdown).map(([status, count]) => ({
+      status: status as BookingStatus,
+      count,
+    })),
+    topServices,
+    topDoctors,
+    recentBookings,
+    rating: clinic.rating ?? { avg: 0, count: 0 },
+    servicesCount: clinic.stats?.servicesCount ?? clinic.services?.length ?? 0,
+    doctorsCount: clinic.stats?.doctorsCount ?? clinic.doctors?.length ?? 0,
+    branchesCount: clinic.stats?.branchesCount ?? clinic.branches?.length ?? 0,
   }
 }

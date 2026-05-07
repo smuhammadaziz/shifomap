@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
   Share,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +37,8 @@ function resolveImage(url: string): string {
   return getFileUrl(url) ?? url;
 }
 
+const { width: SCREEN_W } = Dimensions.get('window');
+
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -48,6 +53,8 @@ export default function PostDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [imgIndex, setImgIndex] = useState(0);
+  const sliderRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -93,6 +100,13 @@ export default function PostDetailScreen() {
     }
   };
 
+  const imageUrls = post.imageUrls?.length ? post.imageUrls : [post.imageUrl];
+  const goToImage = (next: number) => {
+    const clamped = Math.max(0, Math.min(imageUrls.length - 1, next));
+    sliderRef.current?.scrollTo({ x: clamped * SCREEN_W, animated: true });
+    setImgIndex(clamped);
+  };
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: tokens.colors.background }]}>
@@ -121,7 +135,43 @@ export default function PostDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <Image source={{ uri: resolveImage(post.imageUrl) }} style={styles.image} resizeMode="cover" />
+        <View style={styles.sliderWrap}>
+          {(post.imageUrls?.length ?? 1) > 1 ? (
+            <ScrollView
+              ref={sliderRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+                const x = e.nativeEvent.contentOffset.x;
+                setImgIndex(Math.round(x / SCREEN_W));
+              }}
+            >
+              {(post.imageUrls ?? [post.imageUrl]).map((u, i) => (
+                <Image key={`${u}-${i}`} source={{ uri: resolveImage(u) }} style={styles.image} resizeMode="contain" />
+              ))}
+            </ScrollView>
+          ) : (
+            <Image source={{ uri: resolveImage(post.imageUrl) }} style={styles.image} resizeMode="contain" />
+          )}
+          {(post.imageUrls?.length ?? 1) > 1 ? (
+            <>
+              <TouchableOpacity style={[styles.navBtn, styles.navLeft]} activeOpacity={0.85} onPress={() => goToImage(imgIndex - 1)}>
+                <Ionicons name="chevron-back" size={18} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.navBtn, styles.navRight]} activeOpacity={0.85} onPress={() => goToImage(imgIndex + 1)}>
+                <Ionicons name="chevron-forward" size={18} color="#fff" />
+              </TouchableOpacity>
+            </>
+          ) : null}
+          {(post.imageUrls?.length ?? 1) > 1 ? (
+            <View style={styles.slideDots}>
+              {(post.imageUrls ?? []).map((_, i) => (
+                <View key={i} style={[styles.slideDot, i === imgIndex ? styles.slideDotActive : null]} />
+              ))}
+            </View>
+          ) : null}
+        </View>
 
         <View style={{ padding: 20, gap: 12 }}>
           <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
@@ -196,7 +246,30 @@ export default function PostDetailScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: { paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  image: { width: '100%', aspectRatio: 1 },
+  sliderWrap: { width: SCREEN_W, aspectRatio: 1, backgroundColor: '#000' },
+  image: { width: SCREEN_W, aspectRatio: 1 },
+  slideDots: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  slideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
+  slideDotActive: { width: 18, backgroundColor: '#fff' },
+  navBtn: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navLeft: { left: 10 },
+  navRight: { right: 10 },
   tag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   composer: {
     position: 'absolute',

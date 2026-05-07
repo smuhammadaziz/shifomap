@@ -62,6 +62,15 @@ export async function findPatientById(id: ObjectId): Promise<PatientDoc | null> 
   return db.collection<PatientDoc>(PATIENTS_COLLECTION).findOne({ _id: id, deletedAt: null })
 }
 
+export async function findPatientsByIds(ids: ObjectId[]): Promise<PatientDoc[]> {
+  if (ids.length === 0) return []
+  const db = getDb()
+  return db
+    .collection<PatientDoc>(PATIENTS_COLLECTION)
+    .find({ _id: { $in: ids }, deletedAt: null })
+    .toArray()
+}
+
 export async function updatePatientLastLogin(patientId: ObjectId): Promise<void> {
   const db = getDb()
   const now = new Date()

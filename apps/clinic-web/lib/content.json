@@ -259,7 +259,8 @@
       "stats": "Statistika",
       "analytics": "Tahlillar",
       "clinicInformations": "Klinika ma'lumotlari",
-      "ratingsAndReviews": "Baho va sharhlar"
+      "ratingsAndReviews": "Baho va sharhlar",
+      "discounts": "Chegirmalar"
     },
     "clinicInfo": {
       "title": "Klinika ma'lumotlari",
@@ -768,7 +769,8 @@
       "stats": "Статистика",
       "analytics": "Аналитика",
       "clinicInformations": "Информация о клинике",
-      "ratingsAndReviews": "Оценки и отзывы"
+      "ratingsAndReviews": "Оценки и отзывы",
+      "discounts": "Скидки"
     },
     "ratings": {
       "title": "Оценки и отзывы",

@@ -205,6 +205,91 @@ export interface ServiceSearchResult {
   totalPages: number;
 }
 
+export type DoctorSlotBySpecialty = {
+  clinicId: string;
+  clinicName: string;
+  doctorId: string;
+  doctorName: string;
+  serviceId: string;
+  date: string;
+  time: string;
+};
+
+export type PublicDiscountItem = {
+  _id: string;
+  clinicId: string;
+  clinicName: string;
+  serviceId: string;
+  serviceTitle: string;
+  originalAmount: number;
+  discountedAmount: number;
+  currency: string;
+  expiresAt: string;
+  posterUrl: string | null;
+  title: string | null;
+  percentOff: number;
+};
+
+export type PublicPharmacyItem = {
+  id: string;
+  name: string;
+  city: string;
+  street: string;
+  lat: number;
+  lng: number;
+  photoUrl: string | null;
+  distanceM: number;
+};
+
+export async function getPublicDiscounts(params?: { city?: string; limit?: number }): Promise<PublicDiscountItem[]> {
+  const { data } = await api.get<{ success: boolean; data: { items: PublicDiscountItem[] } }>('/discounts/public', {
+    params: {
+      city: params?.city,
+      limit: params?.limit ?? 12,
+    },
+  });
+  if (!data.success) return [];
+  return data.data.items ?? [];
+}
+
+export async function getNearestPharmacies(params: {
+  lat: number;
+  lng: number;
+  limit?: number;
+}): Promise<PublicPharmacyItem[]> {
+  const { data } = await api.get<{ success: boolean; data: { items: PublicPharmacyItem[] } }>(
+    '/pharmacies/public',
+    {
+      params: {
+        lat: params.lat,
+        lng: params.lng,
+        limit: params.limit ?? 10,
+      },
+    }
+  );
+  if (!data.success) return [];
+  return data.data.items ?? [];
+}
+
+export async function getDoctorSlotsBySpecialty(params: {
+  specialty: string;
+  date: string;
+  limit?: number;
+}): Promise<{ slots: DoctorSlotBySpecialty[] }> {
+  const { data } = await api.get<{ success: boolean; data: { slots: DoctorSlotBySpecialty[] } }>(
+    '/clinics/public/doctors/slots-by-specialty',
+    {
+      params: {
+        specialty: params.specialty,
+        date: params.date,
+        limit: params.limit ?? 5,
+      },
+    }
+  );
+  if (!data.success) throw new Error('Failed to load slots');
+  return data.data;
+}
+
 export interface ServiceDetailResponse {
   service: PublicServiceItem & {
     branchIds: string[];
@@ -455,11 +540,36 @@ export async function setPrescriptionEvent(input: { prescriptionId: string; medi
   return data.data;
 }
 
-export async function getMyNextPill(): Promise<{ prescriptionId: string; time: string; medicineName: string } | null> {
-  const { data } = await api.get<{ success: boolean; data: { prescriptionId: string; time: string; medicineName: string } | null }>(
-    '/prescriptions/me/next'
-  );
+export type NextPillInfo = {
+  prescriptionId: string | null;
+  customReminderId: string | null;
+  medicineKey: string | null;
+  date: string;
+  time: string;
+  medicineName: string;
+};
+
+export async function getMyNextPill(): Promise<NextPillInfo | null> {
+  const { data } = await api.get<{ success: boolean; data: NextPillInfo | null }>('/prescriptions/me/next');
   if (!data.success) throw new Error('Failed to load');
+  return data.data;
+}
+
+export async function submitCustomReminderPillEvent(input: {
+  reminderId: string;
+  action: 'taken' | 'skipped';
+  date: string;
+  time: string;
+}): Promise<{ id: string; reminderId: string; date: string; time: string; action: string; actedAt: string }> {
+  const { data } = await api.post<{ success: boolean; data: { id: string; reminderId: string; date: string; time: string; action: string; actedAt: string } }>(
+    `/prescriptions/me/custom-reminders/${input.reminderId}/event`,
+    {
+      action: input.action,
+      date: input.date,
+      time: input.time,
+    }
+  );
+  if (!data.success) throw new Error('Failed to record');
   return data.data;
 }
 
@@ -561,9 +671,15 @@ export async function submitReview(body: {
   stars: number;
   text?: string | null;
 }): Promise<ReviewItem> {
-  const { data } = await api.post<{ success: boolean; data: ReviewItem }>('/reviews', body);
-  if (!data.success) throw new Error('Failed to submit review');
-  return data.data;
+  try {
+    const { data } = await api.post<{ success: boolean; data: ReviewItem; error?: string }>('/reviews', body);
+    if (!data.success) throw new Error(data.error || 'Failed to submit review');
+    return data.data;
+  } catch (e) {
+    const apiMsg = getApiErrorMessage(e);
+    if (apiMsg) throw new Error(apiMsg);
+    throw e instanceof Error ? e : new Error('Failed to submit review');
+  }
 }
 
 // --- Custom Reminders ---
@@ -589,9 +705,25 @@ export async function addCustomReminder(body: {
   notes?: string | null;
   timesPerDay: number;
 }): Promise<CustomReminder> {
-  const { data } = await api.post<{ success: boolean; data: CustomReminder }>('/prescriptions/me/custom-reminders', body);
-  if (!data.success) throw new Error('Failed to add reminder');
-  return data.data;
+  try {
+    const { data } = await api.post<{ success: boolean; data: CustomReminder; error?: string; details?: unknown }>(
+      '/prescriptions/me/custom-reminders',
+      body
+    );
+    if (!data.success) {
+      const detail =
+        data.details && typeof data.details === 'object'
+          ? JSON.stringify((data.details as Record<string, unknown>).pillName ?? data.details)
+          : data.error;
+      throw new Error(detail || data.error || 'Failed to add reminder');
+    }
+    return data.data;
+  } catch (e) {
+    const apiMsg = getApiErrorMessage(e);
+    if (apiMsg) throw new Error(apiMsg);
+    if (e instanceof Error) throw e;
+    throw new Error(getConnectionErrorMessage(e));
+  }
 }
 
 export async function deleteCustomReminder(id: string): Promise<boolean> {
@@ -751,6 +883,7 @@ export async function sendChatMessage(id: string, text: string, attachments: str
 export interface FeedPost {
   _id: string;
   imageUrl: string;
+  imageUrls?: string[];
   caption: string;
   tags: string[];
   likesCount: number;
@@ -758,6 +891,29 @@ export interface FeedPost {
   likedByMe: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StoryItem {
+  _id: string;
+  title: string;
+  imageUrl: string;
+  order: number;
+  isActive: boolean;
+  expiresAt: string | null;
+  seen: boolean;
+}
+
+export async function listStories(limit = 20): Promise<StoryItem[]> {
+  const { data } = await api.get<{ success: boolean; data: { items: StoryItem[] } }>('/stories/public', {
+    params: { limit },
+  });
+  if (!data.success) return [];
+  return data.data.items ?? [];
+}
+
+export async function markStorySeen(storyId: string): Promise<void> {
+  const { data } = await api.post<{ success: boolean }>(`/stories/${storyId}/seen`);
+  if (!data.success) throw new Error('Failed to mark seen');
 }
 
 export interface FeedResponse {

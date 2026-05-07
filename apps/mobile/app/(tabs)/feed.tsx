@@ -13,8 +13,11 @@ import {
   Modal,
   Share,
   ActivityIndicator,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '../../store/theme-store';
@@ -30,7 +33,7 @@ import {
   type PostComment,
 } from '../../lib/api';
 
-const { height: SCREEN_H } = Dimensions.get('window');
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 
 function resolveImage(url: string): string {
   if (url.startsWith('http')) return url;
@@ -38,9 +41,72 @@ function resolveImage(url: string): string {
   return resolved ?? url;
 }
 
+function PostImageSlider({ imageUrls }: { imageUrls: string[] }) {
+  const safeUrls = imageUrls.filter(Boolean);
+  const [index, setIndex] = useState(0);
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [safeUrls.length]);
+
+  if (safeUrls.length <= 1) {
+    const uri = safeUrls[0] ?? '';
+    return (
+      <View style={{ width: '100%', height: '100%' }}>
+        <Image source={{ uri: resolveImage(uri) }} style={styles.mediaImage} resizeMode="contain" />
+      </View>
+    );
+  }
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const next = Math.round(x / SCREEN_W);
+    if (next !== index) setIndex(next);
+  };
+
+  const goTo = (next: number) => {
+    const clamped = Math.max(0, Math.min(safeUrls.length - 1, next));
+    scrollRef.current?.scrollTo({ x: clamped * SCREEN_W, animated: true });
+    setIndex(clamped);
+  };
+  return (
+    <View style={{ width: '100%', height: '100%' }}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        directionalLockEnabled
+        nestedScrollEnabled
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={onScroll}
+      >
+        {safeUrls.map((u, i) => (
+          <Image key={`${u}-${i}`} source={{ uri: resolveImage(u) }} style={styles.mediaImage} resizeMode="contain" />
+        ))}
+      </ScrollView>
+      <TouchableOpacity style={[styles.navBtn, styles.navLeft]} activeOpacity={0.85} onPress={() => goTo(index - 1)}>
+        <Ionicons name="chevron-back" size={18} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.navBtn, styles.navRight]} activeOpacity={0.85} onPress={() => goTo(index + 1)}>
+        <Ionicons name="chevron-forward" size={18} color="#fff" />
+      </TouchableOpacity>
+      {safeUrls.length > 1 ? (
+        <View style={styles.slideDots}>
+          {safeUrls.map((_, i) => (
+            <View key={i} style={[styles.slideDot, i === index ? styles.slideDotActive : null]} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function FeedScreen() {
   const theme = useThemeStore((s) => s.theme);
   const language = useAuthStore((s) => s.language) ?? 'uz';
+  const insets = useSafeAreaInsets();
   const tokens = getTokens(theme);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -159,15 +225,17 @@ function PostCard({
   onShare: () => void;
   language: string;
 }) {
+  const imageUrls = post.imageUrls?.length ? post.imageUrls : [post.imageUrl];
   return (
     <View style={[styles.card, { height: SCREEN_H }]}>
       <View style={styles.mediaWrap}>
-        <Image source={{ uri: resolveImage(post.imageUrl) }} style={styles.mediaImage} resizeMode="contain" />
+        <PostImageSlider imageUrls={imageUrls} />
       </View>
       <LinearGradient
         colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.85)']}
         locations={[0, 0.55, 1]}
         style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
       />
 
       <View style={styles.actions}>
@@ -181,7 +249,6 @@ function PostCard({
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={onShare} activeOpacity={0.8}>
           <Ionicons name="paper-plane-outline" size={28} color="#fff" />
-          <Text style={styles.actionCount}>{language === 'uz' ? 'Ulash' : 'Поделиться'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -216,6 +283,7 @@ function CommentsModal({
 }) {
   const theme = useThemeStore((s) => s.theme);
   const tokens = getTokens(theme);
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<PostComment[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -272,7 +340,10 @@ function CommentsModal({
               </View>
             )}
           />
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom + 8 : insets.bottom + 16}
+          >
             <View style={[styles.inputRow, { borderTopColor: tokens.colors.border, backgroundColor: tokens.colors.background }]}>
               <TextInput
                 placeholder={language === 'uz' ? 'Fikr yozing...' : 'Написать комментарий...'}
@@ -307,10 +378,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mediaImage: {
-    width: '100%',
-    height: '100%',
+  mediaImage: { width: SCREEN_W, height: '100%' },
+  slideDots: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
+  slideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
+  slideDotActive: { width: 18, backgroundColor: '#fff' },
+  navBtn: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navLeft: { left: 10 },
+  navRight: { right: 10 },
   actions: { position: 'absolute', right: 14, bottom: 160, gap: 22, alignItems: 'center' },
   actionBtn: { alignItems: 'center', gap: 4 },
   actionCount: { color: '#fff', fontSize: 12, fontWeight: '700' },

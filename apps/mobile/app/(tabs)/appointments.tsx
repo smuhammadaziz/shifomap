@@ -21,6 +21,23 @@ import { getColors } from '../../lib/theme';
 
 type TabFilter = 'completed' | 'upcoming' | 'cancelled';
 
+const UPCOMING_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'patient_arrived', 'in_progress'];
+
+function bookingScheduledMs(b: Booking): number {
+  if (b.scheduledAt) {
+    const ms = new Date(b.scheduledAt).getTime();
+    if (!Number.isNaN(ms)) return ms;
+  }
+  const parts = b.scheduledDate.split('-').map((x) => parseInt(x, 10));
+  const y = parts[0] ?? 1970;
+  const m = parts[1] ?? 1;
+  const d = parts[2] ?? 1;
+  const timePart = (b.scheduledTime || '00:00').split(':');
+  const hh = parseInt(timePart[0] ?? '0', 10) || 0;
+  const mm = parseInt(timePart[1] ?? '0', 10) || 0;
+  return new Date(y, m - 1, d, hh, mm, 0, 0).getTime();
+}
+
 const statusToTab: Record<BookingStatus, TabFilter | null> = {
   completed: 'completed',
   confirmed: 'upcoming',
@@ -43,9 +60,6 @@ export default function AppointmentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null);
 
-  const statusFilter: BookingStatus[] =
-    tab === 'completed' ? ['completed'] : tab === 'upcoming' ? ['pending', 'confirmed', 'patient_arrived', 'in_progress'] : ['cancelled'];
-
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -64,7 +78,19 @@ export default function AppointmentsScreen() {
     load();
   }, [load]);
 
-  const filtered = list.filter((b) => statusFilter.includes(b.status));
+  const nowMs = Date.now();
+  const filtered = list.filter((b) => {
+    const t = bookingScheduledMs(b);
+    const isStaleUpcoming = UPCOMING_STATUSES.includes(b.status) && t < nowMs - 60_000;
+
+    if (tab === 'upcoming') {
+      return UPCOMING_STATUSES.includes(b.status) && !isStaleUpcoming;
+    }
+    if (tab === 'cancelled') {
+      return b.status === 'cancelled' || isStaleUpcoming;
+    }
+    return b.status === 'completed';
+  });
 
   const renderItem = ({ item }: { item: Booking }) => {
     const now = new Date();

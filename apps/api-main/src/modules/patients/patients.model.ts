@@ -1,6 +1,15 @@
 import { z } from "zod"
 import type { ObjectId } from "mongodb"
 
+/** Uzbekistan mobile: +998 + valid operator prefix + 7 digits */
+export const UZ_PHONE_REGEX = /^\+998(33|71|88|90|91|92|93|94|95|97|98|99|20)\d{7}$/
+
+const passwordStrength = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/\d/, "Password must contain at least one number")
+
 export type PatientStatus = "active" | "blocked" | "deleted"
 export type AuthType = "google" | "phone"
 export type PatientLanguage = "uz" | "ru" | "en"
@@ -48,13 +57,13 @@ export const authGoogleBodySchema = z.object({
 
 // Validation: Phone auth body
 export const authPhoneBodySchema = z.object({
-  phone: z.string().regex(/^\+998\d{9}$/, "Phone must be +998 followed by 9 digits"),
+  phone: z.string().regex(UZ_PHONE_REGEX, "Invalid Uzbekistan mobile number"),
 })
 
 // Validation: Phone + password auth (login or signup: one field checks or creates password)
 export const authPhonePasswordBodySchema = z.object({
-  phone: z.string().regex(/^\+998\d{9}$/, "Phone must be +998 followed by 9 digits"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  phone: z.string().regex(UZ_PHONE_REGEX, "Invalid Uzbekistan mobile number"),
+  password: passwordStrength,
 })
 
 // Validation: Complete profile after phone signup
@@ -73,7 +82,7 @@ export const updatePatientBodySchema = z.object({
   contacts: z
     .object({
       email: z.string().email().nullable().optional(),
-      phone: z.string().regex(/^\+998\d{9}$/).optional(),
+      phone: z.string().regex(UZ_PHONE_REGEX).optional(),
       telegram: z.string().max(64).nullable().optional(),
     })
     .optional(),
@@ -88,7 +97,7 @@ export const updatePatientBodySchema = z.object({
 
 export const changePatientPasswordBodySchema = z.object({
   oldPassword: z.string().min(8, "Password must be at least 8 characters"),
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  newPassword: passwordStrength,
 })
 
 /** Mobile registers Expo Push token after login */

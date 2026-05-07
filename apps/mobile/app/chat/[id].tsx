@@ -110,7 +110,8 @@ export default function ChatThread() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: tokens.colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom + 8 : insets.bottom + 16}
     >
       <View style={[styles.topBar, { paddingTop: insets.top + 10, backgroundColor: tokens.colors.background, borderBottomColor: tokens.colors.border }]}>
         <IconButton icon="chevron-back" onPress={() => router.back()} />

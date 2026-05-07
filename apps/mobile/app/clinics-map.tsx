@@ -6,25 +6,24 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
-  FlatList,
   Platform,
-  Alert,
   Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
 
 import { useThemeStore } from '../store/theme-store';
 import { useAuthStore } from '../store/auth-store';
 import { getTranslations } from '../lib/translations';
 import { getColors } from '../lib/theme';
-import { getClinicsList, type ClinicListItem } from '../lib/api';
+import { getClinicsList, getNearestPharmacies, type ClinicListItem, type PublicPharmacyItem } from '../lib/api';
 
 const DEFAULT_CLINIC_COVER = 'https://www.shutterstock.com/image-photo/medical-coverage-insurance-concept-hands-260nw-1450246616.jpg';
 
-type ViewMode = 'map' | 'list';
+type EntityTab = 'clinic' | 'pharmacy';
 
 export default function ClinicsMapScreen() {
   const router = useRouter();
@@ -34,27 +33,48 @@ export default function ClinicsMapScreen() {
   const colors = getColors(theme);
   const insets = useSafeAreaInsets();
 
-  const [mode, setMode] = useState<ViewMode>('map');
+  const [entity, setEntity] = useState<EntityTab>('clinic');
   const [clinics, setClinics] = useState<ClinicListItem[]>([]);
+  const [pharmacies, setPharmacies] = useState<PublicPharmacyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMarker, setSelectedMarker] = useState<any>(null);
 
   useEffect(() => {
-    // Fetch all clinics
-    getClinicsList(200)
-      .then((data) => {
-        setClinics(data);
-      })
-      .catch((err) => {
-        Alert.alert('Error', 'Failed to load clinics');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    let mounted = true;
+    (async () => {
+      try {
+        const clinicsData = await getClinicsList(200).catch(() => []);
+        if (mounted) setClinics(clinicsData);
+        const p = await Location.requestForegroundPermissionsAsync();
+        if (p.status !== 'granted') {
+          if (mounted) {
+            setPharmacies([]);
+          }
+          return;
+        }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const rows = await getNearestPharmacies({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          limit: 30,
+        }).catch(() => []);
+        if (mounted) setPharmacies(rows);
+      } catch {
+        if (mounted) {
+          setClinics([]);
+          setPharmacies([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Compute marker data from clinics branches
-  const markersData = useMemo(() => {
+  const clinicMarkersData = useMemo(() => {
     const list: any[] = [];
     clinics.forEach((c) => {
       (c.branches || []).forEach((b) => {
@@ -76,6 +96,27 @@ export default function ClinicsMapScreen() {
     });
     return list;
   }, [clinics]);
+
+  const pharmacyMarkersData = useMemo(
+    () =>
+      pharmacies.map((p) => ({
+        id: p.id,
+        clinicId: p.id,
+        clinicDisplayName: p.name,
+        branchName: [p.city, p.street].filter(Boolean).join(', '),
+        lat: p.lat,
+        lng: p.lng,
+        coverUrl: p.photoUrl || DEFAULT_CLINIC_COVER,
+        ratingAvg: 0,
+        ratingCount: 0,
+        categories: [],
+        servicesCount: 0,
+        isPharmacy: true,
+      })),
+    [pharmacies],
+  );
+
+  const markersData = entity === 'clinic' ? clinicMarkersData : pharmacyMarkersData;
 
   const mapHtml = useMemo(() => {
     return `
@@ -163,69 +204,46 @@ export default function ClinicsMapScreen() {
     }
   };
 
-  const renderClinicListItem = ({ item: c }: { item: ClinicListItem }) => {
-    const coverUri = c.coverUrl || c.logoUrl || DEFAULT_CLINIC_COVER;
-    const catNames = (c.categories || []).map(cat => typeof cat === 'string' ? cat : cat.name);
-    const tagline = catNames.length ? catNames.slice(0, 2).join(' · ') + (catNames.length > 2 ? ' ...' : '') : (c.descriptionShort || '').slice(0, 50);
-    
-    return (
-      <TouchableOpacity
-        style={[styles.listCard, { backgroundColor: colors.backgroundCard, borderBottomColor: colors.border }]}
-        activeOpacity={0.8}
-        onPress={() => router.push({ pathname: '/clinic/[id]', params: { id: c.id } })}
-      >
-        <Image source={{ uri: coverUri }} style={[styles.listCardImage, { backgroundColor: colors.border }]} />
-        <View style={styles.listCardInfo}>
-          <Text style={[styles.listCardTitle, { color: colors.text }]} numberOfLines={1}>{c.clinicDisplayName}</Text>
-          {tagline ? <Text style={[styles.listCardTagline, { color: colors.textSecondary }]} numberOfLines={1}>{tagline}</Text> : null}
-          
-          <View style={styles.listCardMeta}>
-             <View style={[styles.badge, { backgroundColor: colors.primaryBg }]}>
-               <Text style={[styles.badgeText, { color: colors.primaryLight }]}>
-                 {(t.nServices || '{{n}} xizmat').replace('{{n}}', String(c.servicesCount))}
-               </Text>
-             </View>
-             {c.rating?.count > 0 && (
-               <View style={styles.ratingBox}>
-                 <Ionicons name="star" size={14} color="#facc15" />
-                 <Text style={[styles.ratingText, { color: colors.text }]}>{c.rating.avg.toFixed(1)}</Text>
-               </View>
-             )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header with Switcher */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        
-        <View style={[styles.switcher, { backgroundColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+          {language === 'uz' ? 'Xarita' : language === 'ru' ? 'Карта' : 'Map'}
+        </Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <View style={styles.entityTabWrap}>
+        <View style={[styles.entityTabRow, { backgroundColor: colors.border }]}>
           <TouchableOpacity
-            style={[styles.switchBtn, mode === 'map' && [styles.switchBtnActive, { backgroundColor: colors.primary }]]}
-            onPress={() => setMode('map')}
+            style={[styles.entityTabBtn, entity === 'clinic' && [styles.entityTabBtnActive, { backgroundColor: colors.primary }]]}
+            onPress={() => {
+              setEntity('clinic');
+              setSelectedMarker(null);
+            }}
             activeOpacity={0.8}
           >
-            <Text style={[styles.switchBtnText, { color: mode === 'map' ? '#fff' : colors.textSecondary }]}>
-              {t.map || 'Map'}
+            <Text style={[styles.switchBtnText, { color: entity === 'clinic' ? '#fff' : colors.textSecondary }]}>
+              {language === 'uz' ? 'Klinika' : 'Клиники'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.switchBtn, mode === 'list' && [styles.switchBtnActive, { backgroundColor: colors.primary }]]}
-            onPress={() => setMode('list')}
+            style={[styles.entityTabBtn, entity === 'pharmacy' && [styles.entityTabBtnActive, { backgroundColor: colors.primary }]]}
+            onPress={() => {
+              setEntity('pharmacy');
+              setSelectedMarker(null);
+            }}
             activeOpacity={0.8}
           >
-            <Text style={[styles.switchBtnText, { color: mode === 'list' ? '#fff' : colors.textSecondary }]}>
-              {t.list || 'List'}
+            <Text style={[styles.switchBtnText, { color: entity === 'pharmacy' ? '#fff' : colors.textSecondary }]}>
+              {language === 'uz' ? 'Apteka' : 'Аптеки'}
             </Text>
           </TouchableOpacity>
         </View>
-        <View style={{ width: 40 }} />
       </View>
 
       {/* Main Content */}
@@ -237,10 +255,7 @@ export default function ClinicsMapScreen() {
         )}
 
         {!loading && (
-          <View 
-            style={[styles.mapContainer, mode === 'list' && styles.hidden]}
-            pointerEvents={mode === 'list' ? 'none' : 'auto'}
-          >
+          <View style={styles.mapContainer}>
             <WebView
             source={{ html: mapHtml }}
             style={styles.webview}
@@ -256,7 +271,7 @@ export default function ClinicsMapScreen() {
           />
           
           {/* Popup over Map */}
-          {selectedMarker && mode === 'map' && (
+          {selectedMarker && (
             <View style={[styles.popupWrap, { backgroundColor: colors.backgroundCard, borderColor: colors.border, bottom: Math.max(insets.bottom, 20) + 4 }]}>
                <View style={styles.popupHeader}>
                   <Image source={{ uri: selectedMarker.coverUrl }} style={styles.popupImage} />
@@ -268,7 +283,7 @@ export default function ClinicsMapScreen() {
                        {selectedMarker.branchName}
                      </Text>
                      <View style={styles.popupMeta}>
-                       {selectedMarker.ratingCount > 0 ? (
+                      {selectedMarker.ratingCount > 0 ? (
                           <View style={styles.ratingBox}>
                             <Ionicons name="star" size={14} color="#facc15" />
                             <Text style={[styles.ratingText, { color: colors.text }]}>{selectedMarker.ratingAvg.toFixed(1)}</Text>
@@ -283,26 +298,29 @@ export default function ClinicsMapScreen() {
                     <Ionicons name="close" size={24} color={colors.textTertiary} />
                   </TouchableOpacity>
                </View>
-               <TouchableOpacity
-                  style={[styles.popupBtn, { backgroundColor: colors.primary }]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push({ pathname: '/clinic/[id]', params: { id: selectedMarker.clinicId } })}
-               >
-                  <Text style={styles.popupBtnText}>{t.seeServices || 'See Services'}</Text>
-               </TouchableOpacity>
+               {!selectedMarker.isPharmacy ? (
+                 <TouchableOpacity
+                    style={[styles.popupBtn, { backgroundColor: colors.primary }]}
+                    activeOpacity={0.8}
+                    onPress={() => router.push({ pathname: '/clinic/[id]', params: { id: selectedMarker.clinicId } })}
+                 >
+                    <Text style={styles.popupBtnText}>{t.seeServices || 'See Services'}</Text>
+                 </TouchableOpacity>
+               ) : null}
                <TouchableOpacity
                   style={[styles.popupBtn, { backgroundColor: '#34C759', marginTop: 8 }]}
                   activeOpacity={0.8}
                   onPress={() => {
                     const lat = selectedMarker.lat;
                     const lng = selectedMarker.lng;
+                    const yandexUrl = `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`;
                     const googleMapsAppUrl = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
                     const appleMapsUrl = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
                     const webMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
                     Linking.canOpenURL(googleMapsAppUrl)
                       .then((supported) => {
                         if (supported) {
-                          Linking.openURL(googleMapsAppUrl);
+                          Linking.openURL(yandexUrl).catch(() => Linking.openURL(googleMapsAppUrl));
                         } else if (Platform.OS === 'ios') {
                           Linking.openURL(appleMapsUrl);
                         } else {
@@ -322,16 +340,6 @@ export default function ClinicsMapScreen() {
             </View>
           )}
         </View>
-        )}
-
-        {!loading && mode === 'list' && (
-          <FlatList
-            data={clinics}
-            keyExtractor={(item) => item.id}
-            renderItem={renderClinicListItem}
-            contentContainerStyle={[styles.listScroll, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}
-            showsVerticalScrollIndicator={false}
-          />
         )}
       </View>
     </SafeAreaView>
@@ -355,31 +363,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
-  switcher: {
-    flexDirection: 'row',
-    width: 200,
-    height: 36,
-    borderRadius: 18,
-    padding: 2,
-  },
-  switchBtn: {
+  headerTitle: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 16,
-  },
-  switchBtnActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    elevation: 2,
+    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   switchBtnText: {
     fontSize: 14,
     fontWeight: '600',
   },
   content: { flex: 1 },
+  entityTabWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 2 },
+  entityTabRow: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    padding: 2,
+    height: 36,
+  },
+  entityTabBtn: {
+    flex: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  entityTabBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
   loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   mapContainer: { flex: 1, position: 'relative' },
   webview: { flex: 1, backgroundColor: 'transparent' },
@@ -413,26 +428,7 @@ const styles = StyleSheet.create({
   },
   popupBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   directionsBtnContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  
-  listScroll: { padding: 20 },
-  listCard: {
-    flexDirection: 'row',
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  listCardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    marginRight: 16,
-  },
-  listCardInfo: { flex: 1, justifyContent: 'center' },
-  listCardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  listCardTagline: { fontSize: 13, marginBottom: 10 },
-  listCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { fontSize: 11, fontWeight: '600' },
+
   ratingBox: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ratingText: { fontSize: 13, fontWeight: '600' },
-  hidden: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0, zIndex: -1 },
 });

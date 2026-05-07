@@ -90,3 +90,23 @@ export const createCustomReminderSchema = z.object({
 
 export type CreateCustomReminderBody = z.infer<typeof createCustomReminderSchema>
 
+export type PillCheckEventAction = "taken" | "skipped"
+
+export interface PillCheckEventDoc {
+  _id: ObjectId
+  userId: ObjectId
+  reminderId: ObjectId
+  date: string
+  time: string
+  action: PillCheckEventAction
+  actedAt: Date
+  createdAt: Date
+}
+
+export const customReminderPillEventBodySchema = z.object({
+  action: z.enum(["taken", "skipped"]),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}$/),
+})
+export type CustomReminderPillEventBody = z.infer<typeof customReminderPillEventBodySchema>
+

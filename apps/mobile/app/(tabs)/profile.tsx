@@ -20,6 +20,11 @@ import { getTranslations } from '../../lib/translations';
 import { getTokens } from '../../lib/design';
 import { getNextUpcomingBooking, deleteMe, type Booking } from '../../lib/api';
 import { Avatar, Card, Button } from '../../components/ui';
+import type { AppTheme } from '../../store/theme-store';
+
+function menuIconBg(theme: AppTheme, lightTint: string) {
+  return theme === 'dark' ? 'rgba(59, 130, 246, 0.14)' : lightTint;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -86,7 +91,7 @@ export default function ProfileScreen() {
   const menu: Array<{
     icon: keyof typeof Ionicons.glyphMap;
     color: string;
-    bg: string;
+    bgLight: string;
     title: string;
     subtitle?: string;
     onPress: () => void;
@@ -94,7 +99,7 @@ export default function ProfileScreen() {
     {
       icon: 'pulse',
       color: tokens.brand.rose,
-      bg: '#fce7f3',
+      bgLight: '#fce7f3',
       title: language === 'uz' ? 'Kasalliklar tarixi' : 'История заболеваний',
       subtitle: language === 'uz' ? 'Tashxislar va davolanishlar' : 'Диагнозы и лечение',
       onPress: () => router.push('/medical-history'),
@@ -102,7 +107,7 @@ export default function ProfileScreen() {
     {
       icon: 'calendar',
       color: tokens.brand.iris,
-      bg: '#e0e7ff',
+      bgLight: '#e0e7ff',
       title: t.visitHistory,
       subtitle: t.visitHistorySubtitle,
       onPress: () => router.push('/(tabs)/appointments'),
@@ -110,14 +115,14 @@ export default function ProfileScreen() {
     {
       icon: 'chatbubbles',
       color: tokens.brand.sky,
-      bg: '#dbeafe',
+      bgLight: '#dbeafe',
       title: language === 'uz' ? 'Shifokor chatlari' : 'Чаты с врачами',
       onPress: () => router.push('/chat'),
     },
     {
       icon: 'bookmark',
       color: tokens.brand.amber,
-      bg: '#fef3c7',
+      bgLight: '#fef3c7',
       title: language === 'uz' ? 'Saqlangan xizmatlar' : 'Сохранённые услуги',
       onPress: () => router.push('/services-results?saved=1' as never),
     },
@@ -128,25 +133,58 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
         {/* Hero with avatar */}
         <LinearGradient
-          colors={tokens.gradients.soft as [string, string, ...string[]]}
+          colors={
+            theme === 'dark'
+              ? (['#1E1B4B', '#1E3A8A', '#1E40AF'] as [string, string, ...string[]])
+              : (tokens.gradients.soft as [string, string, ...string[]])
+          }
           style={styles.hero}
         >
           <View style={styles.heroRow}>
             <Avatar uri={avatarUri} name={name} size={72} ring />
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]} numberOfLines={1}>
+              <Text
+                style={[
+                  tokens.type.titleLg,
+                  { color: theme === 'dark' ? '#FFFFFF' : tokens.colors.text },
+                ]}
+                numberOfLines={1}
+              >
                 {name}
               </Text>
-              <Text style={{ color: tokens.colors.textSecondary, fontSize: 13, marginTop: 2 }} numberOfLines={1}>
+              <Text
+                style={{
+                  color: theme === 'dark' ? 'rgba(255,255,255,0.78)' : tokens.colors.textSecondary,
+                  fontSize: 13,
+                  marginTop: 2,
+                }}
+                numberOfLines={1}
+              >
                 {patient?.contacts?.phone ?? ''}
               </Text>
               <TouchableOpacity
-                style={styles.editBtn}
+                style={[
+                  styles.editBtn,
+                  {
+                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.16)' : tokens.colors.backgroundCard,
+                    borderColor: theme === 'dark' ? 'rgba(255,255,255,0.22)' : tokens.colors.border,
+                  },
+                ]}
                 onPress={() => router.push('/edit-profile')}
                 activeOpacity={0.8}
               >
-                <Ionicons name="create-outline" size={13} color={tokens.brand.iris} />
-                <Text style={{ color: tokens.brand.iris, fontSize: 12, fontWeight: '700' }}>
+                <Ionicons
+                  name="create-outline"
+                  size={13}
+                  color={theme === 'dark' ? '#FFFFFF' : tokens.brand.iris}
+                />
+                <Text
+                  style={{
+                    color: theme === 'dark' ? '#FFFFFF' : tokens.brand.iris,
+                    fontSize: 12,
+                    fontWeight: '700',
+                  }}
+                >
                   {t.editProfile}
                 </Text>
               </TouchableOpacity>
@@ -188,7 +226,7 @@ export default function ProfileScreen() {
                 onPress={item.onPress}
                 activeOpacity={0.75}
               >
-                <View style={[styles.menuIcon, { backgroundColor: item.bg }]}>
+                <View style={[styles.menuIcon, { backgroundColor: menuIconBg(theme, item.bgLight) }]}>
                   <Ionicons name={item.icon} size={18} color={item.color} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -200,6 +238,43 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={16} color={tokens.colors.textTertiary} />
               </TouchableOpacity>
             ))}
+          </Card>
+        </View>
+
+        {/* Social */}
+        <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+          <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, fontWeight: '800', marginBottom: 8, letterSpacing: 0.5 }}>
+            {language === 'uz' ? 'Ijtimoiy tarmoqlar' : 'Соцсети'}
+          </Text>
+          <Card padding={0} elevated={false}>
+            <TouchableOpacity
+              style={[styles.menuRow, { borderBottomColor: tokens.colors.borderLight, borderBottomWidth: StyleSheet.hairlineWidth }]}
+              onPress={() => Linking.openURL('https://t.me/shifo_yol')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: menuIconBg(theme, '#dbeafe') }]}>
+                <Ionicons name="paper-plane-outline" size={18} color="#0088cc" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>Telegram</Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, marginTop: 2 }}>@shifo_yol</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={tokens.colors.textTertiary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => Linking.openURL('https://instagram.com/shifoyol')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: menuIconBg(theme, '#fce7f3') }]}>
+                <Ionicons name="logo-instagram" size={18} color="#db2777" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>Instagram</Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, marginTop: 2 }}>@shifoyol</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={tokens.colors.textTertiary} />
+            </TouchableOpacity>
           </Card>
         </View>
 
@@ -234,7 +309,7 @@ export default function ProfileScreen() {
               onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}
               activeOpacity={0.75}
             >
-              <View style={[styles.menuIcon, { backgroundColor: '#dbeafe' }]}>
+              <View style={[styles.menuIcon, { backgroundColor: menuIconBg(theme, '#dbeafe') }]}>
                 <Ionicons name="chatbox-ellipses-outline" size={18} color="#0088cc" />
               </View>
               <Text style={{ flex: 1, color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>
@@ -268,7 +343,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     alignSelf: 'flex-start',
-    backgroundColor: '#fff',
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,

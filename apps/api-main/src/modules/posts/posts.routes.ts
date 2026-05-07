@@ -197,9 +197,15 @@ export const postsAdminRoutes = new Elysia({ prefix: "/posts" })
     }
     const db = getDb()
     const now = new Date()
+    const imageUrls =
+      parsed.data.imageUrls && parsed.data.imageUrls.length
+        ? parsed.data.imageUrls
+        : parsed.data.imageUrl
+          ? [parsed.data.imageUrl]
+          : []
     const doc: PostDoc = {
       _id: new ObjectId(),
-      imageUrl: parsed.data.imageUrl,
+      imageUrls,
       caption: parsed.data.caption,
       tags: parsed.data.tags,
       likesCount: 0,
@@ -222,11 +228,16 @@ export const postsAdminRoutes = new Elysia({ prefix: "/posts" })
       return { success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors }
     }
     const db = getDb()
+    const patch: Record<string, unknown> = { ...parsed.data }
+    if (!patch.imageUrls && parsed.data.imageUrl) {
+      patch.imageUrls = [parsed.data.imageUrl]
+    }
+    delete patch.imageUrl
     const result = await db
       .collection<PostDoc>(POSTS_COLLECTION)
       .findOneAndUpdate(
         { _id: toObjectId(params.id), deletedAt: null },
-        { $set: { ...parsed.data, updatedAt: new Date() } },
+        { $set: { ...patch, updatedAt: new Date() } },
         { returnDocument: "after" }
       )
     if (!result) throw notFound("Post not found")

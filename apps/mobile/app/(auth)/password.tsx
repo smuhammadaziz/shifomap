@@ -27,8 +27,18 @@ import {
 import { getTranslations } from '../../lib/translations';
 import { getTokens } from '../../lib/design';
 import { Button } from '../../components/ui';
+import { isValidUzPhone9 } from '../../lib/uz-phone';
 
-const PHONE_REGEX = /^\+?998\d{9}$/;
+function isUzPhoneValid(phone: string): boolean {
+  const d = phone.replace(/\D/g, '');
+  if (d.length !== 12 || !d.startsWith('998')) return false;
+  return isValidUzPhone9(d.slice(3));
+}
+
+const PASSWORD_RULE_MSG_UZ =
+  "Parol kamida 8 ta belgi, kamida 1 katta harf (A–Z) va kamida 1 raqamdan iborat bo'lishi kerak.";
+const PASSWORD_RULE_MSG_RU =
+  'Пароль: минимум 8 символов, минимум 1 заглавная латинская буква (A–Z) и минимум 1 цифра.';
 
 function normalizePhone(raw: string): string {
   const s = raw.replace(/^%2B/, '+').replace(/\s/g, '');
@@ -65,7 +75,7 @@ export default function PasswordScreen() {
   const redirectDone = useRef(false);
 
   const t = getTranslations(language);
-  const hasValidPhone = phone.length > 0 && PHONE_REGEX.test(phone);
+  const hasValidPhone = phone.length > 0 && isUzPhoneValid(phone);
 
   useEffect(() => {
     if (redirectDone.current) return;
@@ -75,7 +85,7 @@ export default function PasswordScreen() {
     }
     const timer = setTimeout(() => {
       const normalized = normalizePhone(params.phone ?? pendingPhone ?? '');
-      const valid = normalized.length > 0 && PHONE_REGEX.test(normalized);
+      const valid = normalized.length > 0 && isUzPhoneValid(normalized);
       if (!valid) {
         redirectDone.current = true;
         setPendingPhone(null);
@@ -89,8 +99,11 @@ export default function PasswordScreen() {
 
   const onSubmit = async () => {
     const pwd = password.trim();
-    if (pwd.length < 8) {
-      setErrorPopover({ title: t.passwordTitle, message: t.passwordError });
+    if (pwd.length < 8 || !/[A-Z]/.test(pwd) || !/\d/.test(pwd)) {
+      setErrorPopover({
+        title: t.passwordTitle,
+        message: language === 'ru' ? PASSWORD_RULE_MSG_RU : PASSWORD_RULE_MSG_UZ,
+      });
       return;
     }
     setLoading(true);
@@ -132,8 +145,9 @@ export default function PasswordScreen() {
     );
   }
 
-  const isValid = password.length >= 8;
-  const phoneDisplay = PHONE_REGEX.test(phone) ? '+998 ' + formatPhoneForDisplay(phone) : phone;
+  const pwd = password.trim();
+  const isValid = pwd.length >= 8 && /[A-Z]/.test(pwd) && /\d/.test(pwd);
+  const phoneDisplay = isUzPhoneValid(phone) ? '+998 ' + formatPhoneForDisplay(phone) : phone;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.background }]} edges={['top', 'bottom']}>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -10,42 +10,186 @@ import { getTokens } from '../lib/design';
 import { Button, Card, IconButton } from '../components/ui';
 import { saveAssessment } from '../lib/api';
 
+type QOption = { label: string; weight: 0 | 1 | 2 };
+type Q = { q: string; options: QOption[] };
+
 type Answer = { question: string; answer: string };
 
-const buildQuestions = (lang: 'uz' | 'ru' | 'en') => {
-  const data = {
-    uz: [
-      { q: 'Umumiy ahvolingiz qanday?', a: ["A'lo", 'Yaxshi', "O'rtacha", 'Yomon'] },
-      { q: 'Bugun tanangizning qaysi qismi ogʻriyapti?', a: ['Bosh', 'Qorin', 'Ko‘krak', 'Orqa', 'Hech qayeri'] },
-      { q: 'Oʻsha ogʻriq qancha kuchli (0-10)?', a: ['0-2', '3-5', '6-8', '9-10'] },
-      { q: 'Tanangiz harorati koʻtarilganmi?', a: ['Yo‘q', '37.0-37.5', '37.6-38.5', '38.6+'] },
-      { q: 'Boshqa simptomlar bormi?', a: ['Yo‘q', 'Yo‘tal', 'Ko‘ngil aynishi', 'Bosh aylanish', 'Charchoq'] },
-      { q: 'Qancha davom etmoqda?', a: ['<24 soat', '1-3 kun', '4-7 kun', '>1 hafta'] },
-      { q: 'Dori ichganmisiz?', a: ['Yo‘q', 'Analgetik', 'Antibiotik', 'Boshqa'] },
-      { q: 'Surunkali kasalligingiz bormi?', a: ['Yo‘q', 'Diabet', 'Gipertoniya', 'Allergiya', 'Boshqa'] },
-    ],
-    ru: [
-      { q: 'Общее состояние?', a: ['Отличное', 'Хорошее', 'Среднее', 'Плохое'] },
-      { q: 'Что болит сегодня?', a: ['Голова', 'Живот', 'Грудь', 'Спина', 'Ничего'] },
-      { q: 'Сила боли (0-10)?', a: ['0-2', '3-5', '6-8', '9-10'] },
-      { q: 'Температура?', a: ['Нет', '37.0-37.5', '37.6-38.5', '38.6+'] },
-      { q: 'Другие симптомы?', a: ['Нет', 'Кашель', 'Тошнота', 'Головокружение', 'Слабость'] },
-      { q: 'Как долго?', a: ['<24ч', '1-3 дня', '4-7 дней', '>1 недели'] },
-      { q: 'Принимали лекарства?', a: ['Нет', 'Анальгетик', 'Антибиотик', 'Другое'] },
-      { q: 'Хронические болезни?', a: ['Нет', 'Диабет', 'Гипертония', 'Аллергия', 'Другое'] },
-    ],
-    en: [
-      { q: 'How do you feel overall?', a: ['Great', 'Good', 'Average', 'Bad'] },
-      { q: 'What hurts today?', a: ['Head', 'Abdomen', 'Chest', 'Back', 'Nothing'] },
-      { q: 'Pain level (0-10)?', a: ['0-2', '3-5', '6-8', '9-10'] },
-      { q: 'Any fever?', a: ['No', '37.0-37.5', '37.6-38.5', '38.6+'] },
-      { q: 'Other symptoms?', a: ['None', 'Cough', 'Nausea', 'Dizziness', 'Fatigue'] },
-      { q: 'How long?', a: ['<24h', '1-3 days', '4-7 days', '>1 week'] },
-      { q: 'Taking meds?', a: ['No', 'Analgesic', 'Antibiotic', 'Other'] },
-      { q: 'Chronic illness?', a: ['None', 'Diabetes', 'Hypertension', 'Allergy', 'Other'] },
-    ],
-  };
-  return data[lang] ?? data.uz;
+function severityFromScore(sum: number): 'low' | 'medium' | 'high' {
+  if (sum <= 6) return 'low';
+  if (sum <= 13) return 'medium';
+  return 'high';
+}
+
+const buildQuestions = (lang: 'uz' | 'ru' | 'en'): Q[] => {
+  const uz: Q[] = [
+    {
+      q: "Sizda bosh og'rig'i qanchalik tez-tez bo'ladi?",
+      options: [
+        { label: "Kamdan-kam (0)", weight: 0 },
+        { label: "Ba'zida (1)", weight: 1 },
+        { label: "Tez-tez (2)", weight: 2 },
+      ],
+    },
+    {
+      q: 'Kun davomida energiya darajangiz qanday?',
+      options: [
+        { label: 'Tetikman (0)', weight: 0 },
+        { label: "Ba'zida charchayman (1)", weight: 1 },
+        { label: 'Doimiy charchoq bor (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Uyqungiz qanday?',
+      options: [
+        { label: 'Yaxshi (0)', weight: 0 },
+        { label: "Ba'zida muammo bo'ladi (1)", weight: 1 },
+        { label: "Yomon / uyqusizlik (2)", weight: 2 },
+      ],
+    },
+    {
+      q: 'Stress darajangiz qanday?',
+      options: [
+        { label: 'Past (0)', weight: 0 },
+        { label: "O'rtacha (1)", weight: 1 },
+        { label: 'Yuqori (2)', weight: 2 },
+      ],
+    },
+    {
+      q: "Tanangizda og'riqlar bormi (bel, bo'yin)?",
+      options: [
+        { label: "Yo'q (0)", weight: 0 },
+        { label: "Ba'zida (1)", weight: 1 },
+        { label: 'Tez-tez (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Ovqat hazm qilish qanday?',
+      options: [
+        { label: 'Hammasi yaxshi (0)', weight: 0 },
+        { label: "Ba'zida noqulaylik bor (1)", weight: 1 },
+        { label: 'Tez-tez muammo bor (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Jismoniy faolligingiz qanday?',
+      options: [
+        { label: 'Muntazam (0)', weight: 0 },
+        { label: "Ba'zida (1)", weight: 1 },
+        { label: 'Juda kam (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Ovqatlanish odatlaringiz qanday?',
+      options: [
+        { label: 'Muvozanatli (0)', weight: 0 },
+        { label: "Ba'zida zararli ovqat yeyman (1)", weight: 1 },
+        { label: "Noto'g'ri / tez ovqat (2)", weight: 2 },
+      ],
+    },
+    {
+      q: 'Kun davomida kayfiyatingiz qanday?',
+      options: [
+        { label: 'Barqaror (0)', weight: 0 },
+        { label: "Ba'zida o'zgaradi (1)", weight: 1 },
+        { label: "Ko'pincha yomon / asabiy (2)", weight: 2 },
+      ],
+    },
+    {
+      q: "Diqqat va e'tiboringiz qanday?",
+      options: [
+        { label: 'Yaxshi (0)', weight: 0 },
+        { label: "Ba'zida jamlash qiyin (1)", weight: 1 },
+        { label: 'Ko\'pincha «miya tuman» holati (2)', weight: 2 },
+      ],
+    },
+  ];
+
+  const ru: Q[] = [
+    {
+      q: 'Как часто у вас болит голова?',
+      options: [
+        { label: 'Редко (0)', weight: 0 },
+        { label: 'Иногда (1)', weight: 1 },
+        { label: 'Часто (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Каков ваш уровень энергии в течение дня?',
+      options: [
+        { label: 'Бодрый (0)', weight: 0 },
+        { label: 'Иногда устаю (1)', weight: 1 },
+        { label: 'Постоянная усталость (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Как у вас со сном?',
+      options: [
+        { label: 'Хорошо (0)', weight: 0 },
+        { label: 'Иногда проблемы (1)', weight: 1 },
+        { label: 'Плохо / бессонница (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Каков уровень стресса?',
+      options: [
+        { label: 'Низкий (0)', weight: 0 },
+        { label: 'Средний (1)', weight: 1 },
+        { label: 'Высокий (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Есть ли боли в теле (поясница, шея)?',
+      options: [
+        { label: 'Нет (0)', weight: 0 },
+        { label: 'Иногда (1)', weight: 1 },
+        { label: 'Часто (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Как пищеварение?',
+      options: [
+        { label: 'Всё хорошо (0)', weight: 0 },
+        { label: 'Иногда дискомфорт (1)', weight: 1 },
+        { label: 'Часто проблемы (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Какая у вас физическая активность?',
+      options: [
+        { label: 'Регулярно (0)', weight: 0 },
+        { label: 'Иногда (1)', weight: 1 },
+        { label: 'Очень мало (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Какие привычи питания?',
+      options: [
+        { label: 'Сбалансированно (0)', weight: 0 },
+        { label: 'Иногда вредная еда (1)', weight: 1 },
+        { label: 'Нерегулярно / фастфуд (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Как настроение в течение дня?',
+      options: [
+        { label: 'Стабильное (0)', weight: 0 },
+        { label: 'Иногда меняется (1)', weight: 1 },
+        { label: 'Часто плохое / раздражительность (2)', weight: 2 },
+      ],
+    },
+    {
+      q: 'Как внимание и концентрация?',
+      options: [
+        { label: 'Хорошо (0)', weight: 0 },
+        { label: 'Иногда сложно сосредоточиться (1)', weight: 1 },
+        { label: 'Часто «туман в голове» (2)', weight: 2 },
+      ],
+    },
+  ];
+
+  if (lang === 'ru') return ru;
+  return uz;
 };
 
 export default function HealthTestScreen() {
@@ -57,13 +201,19 @@ export default function HealthTestScreen() {
   const questions = useMemo(() => buildQuestions(language), [language]);
 
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<(string | null)[]>(() => questions.map(() => null));
+  const [answers, setAnswers] = useState<(QOption | null)[]>(() => questions.map(() => null));
+
+  useEffect(() => {
+    setAnswers(questions.map(() => null));
+    setStep(0);
+    setResult(null);
+  }, [questions]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ condition: string; advice: string; severity: 'low' | 'medium' | 'high' } | null>(null);
 
-  const pick = (value: string) => {
+  const pick = (opt: QOption) => {
     const next = [...answers];
-    next[step] = value;
+    next[step] = opt;
     setAnswers(next);
     setTimeout(() => {
       if (step < questions.length - 1) setStep(step + 1);
@@ -73,11 +223,16 @@ export default function HealthTestScreen() {
   const runAi = async () => {
     setLoading(true);
     try {
-      const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-      const payload: Answer[] = questions.map((q, i) => ({ question: q.q, answer: answers[i] ?? '' }));
+      const score = answers.reduce((s, a) => s + (a?.weight ?? 0), 0);
+      const fallbackSeverity = severityFromScore(score);
+      const payload: Answer[] = questions.map((q, i) => ({
+        question: q.q,
+        answer: answers[i]?.label ?? '',
+      }));
       let ai: { condition: string; advice: string; severity: 'low' | 'medium' | 'high' } | null = null;
+      const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
       if (apiKey) {
-        const prompt = `You are a cautious medical triage assistant. Given the user's answers to 8 health questions (JSON below), return STRICT JSON with keys: condition (short phrase, ${language}), advice (3-5 sentences of practical, safe advice in ${language}), severity ('low'|'medium'|'high'). Encourage seeking a doctor when appropriate. Answers: ${JSON.stringify(payload)}`;
+        const prompt = `You are a cautious wellness triage assistant (not a doctor). The user answered 10 lifestyle/wellness questions; each answer has an implicit stress score 0–2 (higher = more concern). Sum of scores is ${score} (0–20). Return STRICT JSON with keys: condition (short phrase, ${language}), advice (3-5 sentences of practical, safe lifestyle advice in ${language}), severity ('low'|'medium'|'high') — align severity with sum: ~0-6 low, ~7-13 medium, ~14-20 high. Encourage seeing a doctor if appropriate. Answers JSON: ${JSON.stringify(payload)}`;
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -85,7 +240,7 @@ export default function HealthTestScreen() {
             model: 'gpt-4o-mini',
             response_format: { type: 'json_object' },
             messages: [
-              { role: 'system', content: 'You are a cautious medical triage assistant.' },
+              { role: 'system', content: 'You are a cautious wellness triage assistant.' },
               { role: 'user', content: prompt },
             ],
           }),
@@ -95,27 +250,30 @@ export default function HealthTestScreen() {
         try {
           ai = JSON.parse(content);
         } catch {
-          ai = { condition: 'N/A', advice: content, severity: 'low' };
+          ai = { condition: 'N/A', advice: content, severity: fallbackSeverity };
         }
       } else {
         ai = {
           condition: language === 'uz' ? 'Umumiy holat' : language === 'ru' ? 'Общее состояние' : 'General status',
           advice:
             language === 'uz'
-              ? "Javoblaringiz asosida, simptomlaringizni kuzatib boring va agar 48 soat ichida yaxshilanmasa shifokorga murojaat qiling."
+              ? "Javoblaringiz asosida, odatlaringizni kuzatib boring va kerak bo'lsa shifokor yoki dietolog bilan maslahatlashing."
               : language === 'ru'
-              ? 'По вашим ответам: наблюдайте симптомы, обратитесь к врачу если состояние не улучшится за 48 часов.'
-              : 'Monitor your symptoms and consult a doctor if no improvement within 48h.',
-          severity: 'low',
+                ? 'По вашим ответам наблюдайте за привычками; при необходимости обратитесь к врачу или диетологу.'
+                : 'Monitor your habits and consult a doctor if needed.',
+          severity: fallbackSeverity,
         };
       }
-      setResult(ai);
+      const sev =
+        ai?.severity === 'low' || ai?.severity === 'medium' || ai?.severity === 'high' ? ai.severity : fallbackSeverity;
+      const merged = { ...ai!, severity: sev };
+      setResult(merged);
       try {
         await saveAssessment({
           answers: payload,
-          condition: ai?.condition ?? null,
-          advice: ai?.advice ?? null,
-          severity: ai?.severity ?? null,
+          condition: merged.condition ?? null,
+          advice: merged.advice ?? null,
+          severity: merged.severity ?? null,
           aiSummary: null,
         });
       } catch {
@@ -193,11 +351,11 @@ export default function HealthTestScreen() {
         <Text style={[tokens.type.titleXl, { color: tokens.colors.text }]}>{q.q}</Text>
         <View style={{ height: 20 }} />
         <View style={{ gap: 10 }}>
-          {q.a.map((opt) => {
-            const selected = answers[step] === opt;
+          {q.options.map((opt) => {
+            const selected = answers[step]?.label === opt.label && answers[step]?.weight === opt.weight;
             return (
               <TouchableOpacity
-                key={opt}
+                key={`${opt.label}-${opt.weight}`}
                 activeOpacity={0.85}
                 onPress={() => pick(opt)}
                 style={[
@@ -209,7 +367,7 @@ export default function HealthTestScreen() {
                 ]}
               >
                 <Text style={{ color: selected ? '#fff' : tokens.colors.text, fontSize: 15, fontWeight: '700' }}>
-                  {opt}
+                  {opt.label}
                 </Text>
                 {selected ? <Ionicons name="checkmark-circle" size={20} color="#fff" /> : null}
               </TouchableOpacity>
@@ -217,7 +375,12 @@ export default function HealthTestScreen() {
           })}
         </View>
       </ScrollView>
-      <View style={[styles.footer, { backgroundColor: tokens.colors.background, borderTopColor: tokens.colors.border, paddingBottom: insets.bottom + 14 }]}>
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: tokens.colors.background, borderTopColor: tokens.colors.border, paddingBottom: insets.bottom + 14 },
+        ]}
+      >
         {step > 0 ? (
           <Button
             title={language === 'uz' ? 'Orqaga' : language === 'ru' ? 'Назад' : 'Back'}

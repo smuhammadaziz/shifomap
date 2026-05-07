@@ -10,7 +10,9 @@ import {
   RefreshControl,
   Keyboard,
   TouchableWithoutFeedback,
+  Linking,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,14 +28,24 @@ import {
   getNextUpcomingBooking,
   getClinicsList,
   getMyNextPill,
+  submitCustomReminderPillEvent,
+  setPrescriptionEvent,
+  getNearestPharmacies,
+  listStories,
+  type StoryItem,
+  type NextPillInfo,
   searchServicesWithFilters,
   listPatientConversations,
   type PublicServiceItem,
+  type PublicPharmacyItem,
   type Booking,
   type ClinicListItem,
   type ChatConversation,
 } from '../../lib/api';
 import { Avatar, IconButton, SkeletonBlock } from '../../components/ui';
+import FeaturedClinics from '../components/FeaturedClinics';
+import DiscountsSlider from '../components/DiscountsSlider';
+import StoriesRibbon from '../components/StoriesRibbon';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=400&q=80';
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=800&q=80';
@@ -53,20 +65,6 @@ function formatPrice(price: PublicServiceItem['price']): string {
     return `${price.minAmount.toLocaleString()} – ${price.maxAmount.toLocaleString()} ${price.currency}`;
   }
   return price.currency;
-}
-
-function greetingKey(lang: string, name: string | undefined) {
-  const h = new Date().getHours();
-  if (lang === 'ru') {
-    if (h < 6) return `Доброй ночи${name ? ', ' + name : ''}`;
-    if (h < 12) return `Доброе утро${name ? ', ' + name : ''}`;
-    if (h < 18) return `Добрый день${name ? ', ' + name : ''}`;
-    return `Добрый вечер${name ? ', ' + name : ''}`;
-  }
-  if (h < 6) return `Tungi salom${name ? ', ' + name : ''}`;
-  if (h < 12) return `Xayrli tong${name ? ', ' + name : ''}`;
-  if (h < 18) return `Xayrli kun${name ? ', ' + name : ''}`;
-  return `Xayrli kech${name ? ', ' + name : ''}`;
 }
 
 interface Tool {
@@ -93,11 +91,14 @@ export default function HomeScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
-  const [nextPill, setNextPill] = useState<{ time: string; medicineName: string } | null>(null);
+  const [nextPill, setNextPill] = useState<NextPillInfo | null>(null);
   const [clinics, setClinics] = useState<ClinicListItem[]>([]);
   const [clinicsLoading, setClinicsLoading] = useState(true);
   const [featured, setFeatured] = useState<PublicServiceItem[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [stories, setStories] = useState<StoryItem[]>([]);
+  const [nearestPharmacies, setNearestPharmacies] = useState<PublicPharmacyItem[]>([]);
+  const [nearestPharmaciesLoading, setNearestPharmaciesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadChats, setUnreadChats] = useState<ChatConversation[]>([]);
 
@@ -113,17 +114,42 @@ export default function HomeScreen() {
       getClinicsList(6).then(setClinics).catch(() => setClinics([])),
       getNextUpcomingBooking().then(setNextBooking).catch(() => setNextBooking(null)),
       getMyNextPill()
-        .then((p) => (p ? setNextPill({ time: p.time, medicineName: p.medicineName }) : setNextPill(null)))
+        .then((p) => setNextPill(p))
         .catch(() => setNextPill(null)),
       searchServicesWithFilters({}, 1, 30)
         .then((r) => setFeatured(shuffle(r.services ?? []).slice(0, 8)))
         .catch(() => setFeatured([]))
         .finally(() => setFeaturedLoading(false)),
+      listStories(20).then(setStories).catch(() => setStories([])),
       listPatientConversations()
         .then((list) => setUnreadChats(list.filter((c) => c.unread > 0)))
         .catch(() => setUnreadChats([])),
     ]);
     setClinicsLoading(false);
+  }, []);
+
+  const loadNearbyPharmacies = useCallback(async () => {
+    setNearestPharmaciesLoading(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setNearestPharmacies([]);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const rows = await getNearestPharmacies({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        limit: 10,
+      });
+      setNearestPharmacies(rows);
+    } catch {
+      setNearestPharmacies([]);
+    } finally {
+      setNearestPharmaciesLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -138,18 +164,20 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAll();
-    }, [loadAll]),
+      loadNearbyPharmacies();
+    }, [loadAll, loadNearbyPharmacies]),
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await loadAll();
+      await loadNearbyPharmacies();
       await hydrate();
     } finally {
       setRefreshing(false);
     }
-  }, [loadAll, hydrate]);
+  }, [loadAll, loadNearbyPharmacies, hydrate]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -184,7 +212,7 @@ export default function HomeScreen() {
       path: '/ai-chat',
     },
     {
-      title: language === 'uz' ? '8 ta savol' : '8 вопросов',
+      title: language === 'uz' ? '10 ta savol' : '10 вопросов',
       subtitle: language === 'uz' ? 'Holatingizni baholang' : 'Оценка здоровья',
       icon: 'pulse',
       gradient: [tokens.brand.rose, tokens.brand.peach],
@@ -231,12 +259,27 @@ export default function HomeScreen() {
             activeOpacity={0.85}
           >
             <Avatar uri={avatarUri} name={patient?.fullName} size={46} ring />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, fontWeight: '600' }}>
-                {greetingKey(language, patient?.fullName?.split(' ')[0])}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text
+                style={[
+                  tokens.type.overline,
+                  { color: tokens.colors.textTertiary, marginBottom: 2, letterSpacing: 1 },
+                ]}
+                numberOfLines={1}
+              >
+                {language === 'ru' ? 'ПРИВЕТ' : 'SALOM'}
               </Text>
-              <Text style={[tokens.type.title, { color: tokens.colors.text }]} numberOfLines={1}>
-                {language === 'uz' ? "Qanday yordam kerak?" : 'Чем помочь вам сегодня?'}
+              <Text
+                style={{
+                  color: tokens.colors.text,
+                  fontSize: 16,
+                  fontWeight: '700',
+                  lineHeight: 20,
+                }}
+                numberOfLines={1}
+              >
+                {patient?.fullName?.trim()?.split(/\s+/)[0] ||
+                  (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -246,6 +289,8 @@ export default function HomeScreen() {
             badge={unread}
           />
         </View>
+
+        <StoriesRibbon stories={stories} language={language} />
 
         {/* Search */}
         <View style={styles.searchWrap}>
@@ -420,6 +465,12 @@ export default function HomeScreen() {
               </LinearGradient>
             </View>
 
+            <DiscountsSlider
+              theme={theme}
+              language={language}
+              city={patient?.location?.city}
+            />
+
             {/* Unread doctor message alert */}
             {unreadChats.length > 0 ? (
               <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
@@ -490,30 +541,74 @@ export default function HomeScreen() {
             {/* Pill reminder banner */}
             {nextPill ? (
               <View style={{ paddingHorizontal: 20, marginTop: 18 }}>
-                <TouchableOpacity
+                <View
                   style={[
                     styles.pillBanner,
                     { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
                   ]}
-                  onPress={() => router.push('/pill-reminder')}
-                  activeOpacity={0.85}
                 >
-                  <LinearGradient
-                    colors={tokens.gradients.warm as [string, string, ...string[]]}
-                    style={styles.pillIcon}
+                  <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                    onPress={() => router.push('/pill-reminder')}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="medical" size={20} color={tokens.brand.amber} />
-                  </LinearGradient>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, fontWeight: '700', letterSpacing: 0.4 }}>
-                      {language === 'uz' ? 'KEYINGI DORI' : 'СЛЕДУЮЩАЯ ТАБЛЕТКА'}
-                    </Text>
-                    <Text style={{ color: tokens.colors.text, fontSize: 15, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>
-                      {nextPill.medicineName} · {nextPill.time}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={tokens.colors.textTertiary} />
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={tokens.gradients.warm as [string, string, ...string[]]}
+                      style={styles.pillIcon}
+                    >
+                      <Ionicons name="medical" size={20} color={tokens.brand.amber} />
+                    </LinearGradient>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text
+                        style={{
+                          color: tokens.colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          letterSpacing: 0.4,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {language === 'uz' ? 'Doringizni ichdingizmi?' : 'Вы приняли лекарство?'}
+                      </Text>
+                      <Text
+                        style={{ color: tokens.colors.text, fontSize: 15, fontWeight: '700', marginTop: 3 }}
+                        numberOfLines={1}
+                      >
+                        {nextPill.medicineName} · {nextPill.time}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.pillCheckBtn, { backgroundColor: tokens.brand.iris }]}
+                    activeOpacity={0.88}
+                    onPress={async () => {
+                      try {
+                        if (nextPill.customReminderId) {
+                          await submitCustomReminderPillEvent({
+                            reminderId: nextPill.customReminderId,
+                            action: 'taken',
+                            date: nextPill.date,
+                            time: nextPill.time,
+                          });
+                        } else if (nextPill.prescriptionId && nextPill.medicineKey) {
+                          await setPrescriptionEvent({
+                            prescriptionId: nextPill.prescriptionId,
+                            medicineKey: nextPill.medicineKey,
+                            date: nextPill.date,
+                            time: nextPill.time,
+                            action: 'taken',
+                          });
+                        }
+                        const p = await getMyNextPill().catch(() => null);
+                        setNextPill(p);
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                  >
+                    <Ionicons name="checkmark" size={22} color="#fff" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : null}
 
@@ -621,14 +716,26 @@ export default function HomeScreen() {
                           source={{ uri: s.serviceImage || DEFAULT_IMAGE }}
                           style={{ width: '100%', height: 100, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: tokens.colors.border }}
                         />
-                        <View style={{ padding: 12 }}>
-                          <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 13 }} numberOfLines={2}>
+                        <View style={styles.serviceCardBody}>
+                          <Text
+                            style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 13, lineHeight: 17 }}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
                             {s.title}
                           </Text>
-                          <Text style={{ color: tokens.brand.iris, fontWeight: '800', fontSize: 14, marginTop: 6 }}>
+                          <Text
+                            style={{ color: tokens.brand.iris, fontWeight: '800', fontSize: 13, lineHeight: 17, marginTop: 6 }}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
                             {formatPrice(s.price)}
                           </Text>
-                          <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                          <Text
+                            style={{ color: tokens.colors.textTertiary, fontSize: 11, lineHeight: 14, marginTop: 4 }}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
                             {s.clinicDisplayName}
                           </Text>
                         </View>
@@ -637,34 +744,7 @@ export default function HomeScreen() {
               </ScrollView>
             </View>
 
-            {/* Emergency banner */}
-            <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-              <LinearGradient
-                colors={[tokens.brand.rose, '#f43f5e']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.emergency}
-              >
-                <View style={[styles.emergencyIcon]}>
-                  <Ionicons name="call" size={20} color="#fff" />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>
-                    {language === 'uz' ? 'Shoshilinch yordam' : 'Экстренная помощь'}
-                  </Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 }}>
-                    103 · {language === 'uz' ? '24/7 onlayn' : '24/7 онлайн'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.emergencyBtn}
-                  onPress={() => router.push('/first-aid')}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="arrow-forward" size={16} color="#f43f5e" />
-                </TouchableOpacity>
-              </LinearGradient>
-            </View>
+            <FeaturedClinics />
           </View>
         </TouchableWithoutFeedback>
       </ScrollView>
@@ -746,12 +826,20 @@ const styles = StyleSheet.create({
   pillBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
   pillIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pillCheckBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   clinicCard: {
     width: 220,
     borderRadius: 20,
@@ -772,13 +860,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   serviceCard: {
-    width: 180,
+    width: 188,
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
+  serviceCardBody: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
   serviceCardSkeleton: {
-    width: 180,
+    width: 188,
     padding: 6,
   },
   emergency: {

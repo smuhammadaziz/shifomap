@@ -23,6 +23,7 @@ import { getTranslations } from '../../lib/translations';
 import { getTokens } from '../../lib/design';
 import { Button } from '../../components/ui';
 import { promptNotificationPermissionInOnboarding } from '../../lib/pill-local-notifications';
+import * as Location from 'expo-location';
 
 // Healthcare-themed hero imagery (public unsplash CDN) — safe, license-free
 const HERO_IMAGES = [
@@ -44,6 +45,7 @@ export default function OnboardingScreen() {
 
   const [index, setIndex] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const fade = useSharedValue(1);
   const scale = useSharedValue(1);
 
@@ -71,7 +73,7 @@ export default function OnboardingScreen() {
     [language, t],
   );
 
-  const totalSteps = steps.length + 1;
+  const totalSteps = steps.length + 2;
 
   const finishOnboarding = useCallback(async () => {
     await setOnboardingSeen();
@@ -114,13 +116,27 @@ export default function OnboardingScreen() {
     animateToIndex(1);
   }, [animateToIndex]);
 
+  const onAllowLocation = useCallback(async () => {
+    setLocationLoading(true);
+    try {
+      await Location.requestForegroundPermissionsAsync();
+    } finally {
+      setLocationLoading(false);
+    }
+    animateToIndex(2);
+  }, [animateToIndex]);
+
+  const onSkipLocation = useCallback(() => {
+    animateToIndex(2);
+  }, [animateToIndex]);
+
   const imgAnim = useAnimatedStyle(() => ({
     opacity: fade.value,
     transform: [{ scale: scale.value }],
   }));
   const textAnim = useAnimatedStyle(() => ({ opacity: fade.value }));
 
-  const heroIdx = index - 1;
+  const heroIdx = index - 2;
   const heroStep = heroIdx >= 0 ? steps[heroIdx] : null;
   const imgSize = Math.min(screenWidth * 0.82, screenHeight * 0.45);
 
@@ -180,6 +196,41 @@ export default function OnboardingScreen() {
                 }}
               >
                 {t.onboardingNotifSubtitle}
+              </Text>
+            </Animated.View>
+          </>
+        ) : index === 1 ? (
+          <>
+            <Animated.View style={[styles.notifBellWrap, imgAnim]}>
+              <LinearGradient
+                colors={tokens.gradients.soft as [string, string, ...string[]]}
+                style={styles.notifBellBubble}
+              >
+                <View style={[styles.notifBellInner, { backgroundColor: tokens.colors.backgroundCard }]}>
+                  <Ionicons name="location" size={56} color={tokens.brand.iris} />
+                </View>
+              </LinearGradient>
+            </Animated.View>
+            <Animated.View style={[styles.textWrap, textAnim]}>
+              <Text style={[tokens.type.overline, { color: tokens.brand.iris, marginBottom: 8 }]}>
+                {language === 'uz' ? 'GEOLOKATSIYA' : 'ГЕОЛОКАЦИЯ'}
+              </Text>
+              <Text style={[tokens.type.display, { color: tokens.colors.text, textAlign: 'center' }]}>
+                {language === 'uz' ? 'Yaqin aptekalarni ko‘rsatamiz' : 'Покажем аптеки рядом'}
+              </Text>
+              <Text
+                style={{
+                  color: tokens.colors.textSecondary,
+                  fontSize: 15,
+                  lineHeight: 22,
+                  textAlign: 'center',
+                  marginTop: 12,
+                  paddingHorizontal: 8,
+                }}
+              >
+                {language === 'uz'
+                  ? 'Joylashuvga ruxsat bersangiz, yaqin 10 ta aptekani topib beramiz.'
+                  : 'Разрешите доступ к геолокации, и мы покажем 10 ближайших аптек.'}
               </Text>
             </Animated.View>
           </>
@@ -262,6 +313,25 @@ export default function OnboardingScreen() {
               variant="outline"
               size="lg"
               disabled={notifLoading}
+            />
+          </View>
+        ) : index === 1 ? (
+          <View style={styles.notifFooterCol}>
+            <Button
+              title={language === 'uz' ? 'Joylashuvni yoqish' : 'Включить геолокацию'}
+              onPress={() => void onAllowLocation()}
+              variant="gradient"
+              size="lg"
+              loading={locationLoading}
+              disabled={locationLoading}
+              rightIcon="location"
+            />
+            <Button
+              title={language === 'uz' ? 'Keyinroq' : 'Позже'}
+              onPress={onSkipLocation}
+              variant="outline"
+              size="lg"
+              disabled={locationLoading}
             />
           </View>
         ) : (

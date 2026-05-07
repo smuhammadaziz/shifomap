@@ -58,6 +58,7 @@ import {
   publicGetClinicDetails,
   publicListClinics,
   getMyClinicReviews,
+  publicDoctorSlotsBySpecialty,
 } from "./clinics.service"
 import { requireAuth } from "@/common/middleware/auth"
 
@@ -218,6 +219,27 @@ export const clinicsRoutes = new Elysia({ prefix: "/clinics" })
   .get("/public/clinics/:clinicId", async ({ params, set }) => {
     try {
       const data = await publicGetClinicDetails(params.clinicId)
+      set.status = 200
+      return { success: true, data }
+    } catch (error: any) {
+      if (error.statusCode) {
+        set.status = error.statusCode
+        return { success: false, error: error.message, code: error.code }
+      }
+      set.status = 500
+      return { success: false, error: "Internal server error" }
+    }
+  })
+  .get("/public/doctors/slots-by-specialty", async ({ query, set }) => {
+    try {
+      const specialty = ((query.specialty as string) ?? "").trim()
+      const date = ((query.date as string) ?? "").trim()
+      const limit = Math.min(20, Math.max(1, parseInt((query.limit as string) || "5", 10) || 5))
+      if (!specialty || !date) {
+        set.status = 400
+        return { success: false, error: "specialty and date are required" }
+      }
+      const data = await publicDoctorSlotsBySpecialty(specialty, date, limit)
       set.status = 200
       return { success: true, data }
     } catch (error: any) {

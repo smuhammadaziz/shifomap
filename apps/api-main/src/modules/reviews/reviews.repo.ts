@@ -14,16 +14,37 @@ export interface InsertReviewInput {
   text: string | null
 }
 
-export async function insertReview(input: InsertReviewInput): Promise<ReviewDoc> {
+/** One review per patient per target (clinic-only, service, or doctor row). */
+export async function upsertReview(input: InsertReviewInput): Promise<ReviewDoc> {
   const db = getDb()
   const now = new Date()
   const clinicId = toObjectId(input.clinicId)
+  const serviceId = input.serviceId ? toObjectId(input.serviceId) : null
+  const doctorId = input.doctorId ? toObjectId(input.doctorId) : null
+  const patientId = toObjectId(input.patientId)
+
+  const filter = { clinicId, patientId, serviceId, doctorId }
+  const existing = await db.collection<ReviewDoc>(REVIEWS_COLLECTION).findOne(filter)
+
+  if (existing) {
+    await db.collection<ReviewDoc>(REVIEWS_COLLECTION).updateOne(
+      { _id: existing._id },
+      { $set: { stars: input.stars, text: input.text ?? null } }
+    )
+    const updated = await db.collection<ReviewDoc>(REVIEWS_COLLECTION).findOne({ _id: existing._id })
+    if (!updated) throw new Error("Review not found after update")
+    if (!updated.serviceId && !updated.doctorId) {
+      await recalcClinicRating(clinicId)
+    }
+    return updated
+  }
+
   const doc: ReviewDoc = {
     _id: new ObjectId(),
     clinicId,
-    serviceId: input.serviceId ? toObjectId(input.serviceId) : null,
-    doctorId: input.doctorId ? toObjectId(input.doctorId) : null,
-    patientId: toObjectId(input.patientId),
+    serviceId,
+    doctorId,
+    patientId,
     stars: input.stars,
     text: input.text ?? null,
     createdAt: now,

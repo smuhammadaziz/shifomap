@@ -6,7 +6,16 @@ import { useAuthStore } from '../store/auth-store';
 import { useThemeStore } from '../store/theme-store';
 import { getTranslations } from '../lib/translations';
 import { getColors } from '../lib/theme';
-import { getMyPrescriptions, getCustomReminders, addCustomReminder, deleteCustomReminder, type PrescriptionCard, type CustomReminder } from '../lib/api';
+import {
+  getMyPrescriptions,
+  getCustomReminders,
+  addCustomReminder,
+  deleteCustomReminder,
+  submitCustomReminderPillEvent,
+  getApiErrorMessage,
+  type PrescriptionCard,
+  type CustomReminder,
+} from '../lib/api';
 import { syncPillReminderNotifications } from '../lib/pill-local-notifications';
 import { useRouter } from 'expo-router';
 
@@ -62,6 +71,24 @@ const PillReminderScreen = () => {
         }
     }, []);
 
+    const todayStr = () => new Date().toISOString().slice(0, 10);
+
+    const handleIchdim = async (reminderId: string, time: string) => {
+        try {
+            await submitCustomReminderPillEvent({
+                reminderId,
+                action: 'taken',
+                date: todayStr(),
+                time,
+            });
+            load();
+        } catch (err) {
+            const msg =
+                err instanceof Error ? err.message : getApiErrorMessage(err) ?? 'Failed';
+            Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', msg);
+        }
+    };
+
     const handleAdd = async () => {
         if (!pillName.trim()) {
             Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', language === 'uz' ? 'Dori nomi kiritilishi shart' : 'Название лекарства обязательно');
@@ -85,7 +112,9 @@ const PillReminderScreen = () => {
             setPillTime('09:00');
             load();
         } catch (err) {
-            Alert.alert('Error', 'Failed to add reminder');
+            const msg =
+                err instanceof Error ? err.message : getApiErrorMessage(err) ?? 'Failed to add reminder';
+            Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', msg);
         } finally {
             setSubmitting(false);
         }
@@ -180,21 +209,25 @@ const PillReminderScreen = () => {
                         </Text>
                         {customList.map((c, idx) => {
                             const tone = pickReminderColor(idx);
+                            const cardBg = theme === 'dark' ? colors.backgroundCard : tone.bg;
+                            const cardBorder = theme === 'dark' ? colors.border : tone.ring;
+                            const iconBg = theme === 'dark' ? colors.primaryBg : tone.iconBg;
+                            const iconCol = theme === 'dark' ? colors.primary : tone.icon;
                             return (
                             <View
                                 key={c.id}
                                 style={[
                                     styles.card,
                                     {
-                                        backgroundColor: tone.bg,
-                                        borderColor: tone.ring,
+                                        backgroundColor: cardBg,
+                                        borderColor: cardBorder,
                                         borderWidth: 1.2,
                                     },
                                 ]}
                             >
                                 <View style={styles.cardRow}>
-                                    <View style={[styles.iconMini, { backgroundColor: tone.iconBg }]}>
-                                        <Ionicons name="notifications-outline" size={16} color={tone.icon} />
+                                    <View style={[styles.iconMini, { backgroundColor: iconBg }]}>
+                                        <Ionicons name="notifications-outline" size={16} color={iconCol} />
                                     </View>
                                     <View style={styles.cardBody}>
                                         <Text style={[styles.pillName, { color: colors.text }]} numberOfLines={1}>
@@ -204,9 +237,24 @@ const PillReminderScreen = () => {
                                             {language === 'uz' ? "Vaqt" : "Время"}: {c.time}
                                         </Text>
                                     </View>
-                                    <TouchableOpacity onPress={() => handleDelete(c.id)} style={styles.deleteWrap}>
+                                    <View style={styles.cardActions}>
+                                    <TouchableOpacity
+                                        onPress={() => handleIchdim(c.id, c.time)}
+                                        style={[styles.ichdimBtn, { backgroundColor: colors.primary }]}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                                        <Text style={styles.ichdimBtnText}>
+                                            {language === 'uz' ? 'Ichdim' : 'Принял(а)'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => handleDelete(c.id)}
+                                        style={[styles.deleteWrap, { backgroundColor: colors.backgroundSecondary }]}
+                                    >
                                         <Ionicons name="trash-outline" size={17} color="#ef4444" />
                                     </TouchableOpacity>
+                                    </View>
                                 </View>
                                 {c.notes && (
                                     <Text style={[styles.notesText, { color: colors.textSecondary }]} numberOfLines={2}>
@@ -237,6 +285,7 @@ const PillReminderScreen = () => {
             >
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={insets.bottom + 24}
                     style={styles.modalOverlay}
                 >
                     <View style={[styles.modalContent, { backgroundColor: colors.backgroundCard }]}>
@@ -254,18 +303,32 @@ const PillReminderScreen = () => {
                                 {language === 'uz' ? 'Dori nomi' : 'Название лекарства'}
                             </Text>
                             <TextInput
-                                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                                style={[
+                                    styles.input,
+                                    {
+                                        color: colors.text,
+                                        borderColor: colors.border,
+                                        backgroundColor: colors.backgroundInput,
+                                    },
+                                ]}
                                 value={pillName}
                                 onChangeText={setPillName}
                                 placeholder="..."
-                                placeholderTextColor={colors.textTertiary}
+                                placeholderTextColor={colors.textPlaceholder}
                             />
 
                             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                                 {language === 'uz' ? 'Vaqti (m: 09:00)' : 'Время (н: 09:00)'}
                             </Text>
                             <TextInput
-                                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                                style={[
+                                    styles.input,
+                                    {
+                                        color: colors.text,
+                                        borderColor: colors.border,
+                                        backgroundColor: colors.backgroundInput,
+                                    },
+                                ]}
                                 value={pillTime}
                                 onChangeText={(text) => {
                                     const digits = text.replace(/\D/g, '').slice(0, 4);
@@ -276,7 +339,7 @@ const PillReminderScreen = () => {
                                     }
                                 }}
                                 placeholder="09:00"
-                                placeholderTextColor={colors.textTertiary}
+                                placeholderTextColor={colors.textPlaceholder}
                                 keyboardType="number-pad"
                                 maxLength={5}
                             />
@@ -285,12 +348,21 @@ const PillReminderScreen = () => {
                                 {language === 'uz' ? 'Eslatma' : 'Заметка'}
                             </Text>
                             <TextInput
-                                style={[styles.input, { color: colors.text, borderColor: colors.border, height: 80, textAlignVertical: 'top' }]}
+                                style={[
+                                    styles.input,
+                                    {
+                                        color: colors.text,
+                                        borderColor: colors.border,
+                                        backgroundColor: colors.backgroundInput,
+                                        height: 80,
+                                        textAlignVertical: 'top',
+                                    },
+                                ]}
                                 value={pillNotes}
                                 onChangeText={setPillNotes}
                                 multiline
                                 placeholder="..."
-                                placeholderTextColor={colors.textTertiary}
+                                placeholderTextColor={colors.textPlaceholder}
                             />
 
                             <TouchableOpacity 
@@ -398,13 +470,22 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     notesText: { fontSize: 13, marginTop: 12, fontStyle: 'italic', paddingHorizontal: 4 },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    ichdimBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+        borderRadius: 10,
+    },
+    ichdimBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
     deleteWrap: {
         width: 30,
         height: 30,
         borderRadius: 15,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(255,255,255,0.62)',
     },
     fab: {
         position: 'absolute',

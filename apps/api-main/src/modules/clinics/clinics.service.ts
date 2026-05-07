@@ -62,10 +62,14 @@ import type {
   ClinicCategory,
 } from "./clinics.model"
 import { mapDocToPublicClinic, mapDocToDetailedClinic } from "./clinics.model"
-import { conflict, unauthorized, notFound } from "@/common/errors"
+import { conflict, unauthorized, notFound, badRequest } from "@/common/errors"
 import { signToken } from "@/common/middleware/auth"
 import { env } from "@/env"
 import { ObjectId } from "mongodb"
+import { getDb, CLINICS_COLLECTION } from "@/db/mongo"
+import type { ClinicDoc } from "./clinics.model"
+import { getSlotsForDoctorAndDate } from "./clinic-slots.util"
+import { findBookedTimesForDoctorOnDate } from "@/modules/bookings/bookings.repo"
 
 /**
  * Create a new clinic with owner
@@ -948,4 +952,67 @@ export async function getMyClinicReviews(
   const data = await listReviewsWithPatientDetails(filter, skip, limit)
   const rating = await getRatingForTarget(filter)
   return { ...data, rating }
+}
+
+function specialtyMatches(doctorSpec: string, needle: string): boolean {
+  const a = (doctorSpec ?? "").trim().toLowerCase()
+  const b = needle.trim().toLowerCase()
+  if (!b || !a) return false
+  if (a.includes(b) || b.includes(a)) return true
+  return b.split(/\s+/).some((w) => w.length >= 2 && a.includes(w))
+}
+
+/** Public: up to `maxSlots` bookable time rows for doctors whose specialty matches (for AI / home). */
+export async function publicDoctorSlotsBySpecialty(specialty: string, date: string, maxSlots: number) {
+  const cap = Math.min(Math.max(maxSlots, 1), 20)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw badRequest("Invalid date")
+  }
+  const db = getDb()
+  const clinics = await db
+    .collection<ClinicDoc>(CLINICS_COLLECTION)
+    .find({ status: "active", deletedAt: null })
+    .limit(60)
+    .toArray()
+
+  const slots: Array<{
+    clinicId: string
+    clinicName: string
+    doctorId: string
+    doctorName: string
+    serviceId: string
+    date: string
+    time: string
+  }> = []
+
+  for (const clinic of clinics) {
+    if (slots.length >= cap) break
+    const clinicName = clinic.clinicDisplayName ?? "Clinic"
+    for (const doctor of clinic.doctors ?? []) {
+      if (slots.length >= cap) break
+      if (doctor.isActive === false) continue
+      if (!specialtyMatches(doctor.specialty ?? "", specialty)) continue
+      const service = (clinic.services ?? []).find(
+        (s) => s.isActive !== false && (doctor.serviceIds ?? []).some((id) => id.equals(s._id))
+      )
+      if (!service) continue
+      const allSlots = getSlotsForDoctorAndDate(doctor.schedule, service.durationMin, date)
+      const booked = await findBookedTimesForDoctorOnDate(clinic._id, doctor._id, date)
+      const bookedSet = new Set(booked)
+      const free = allSlots.filter((t) => !bookedSet.has(t))
+      for (const time of free) {
+        if (slots.length >= cap) break
+        slots.push({
+          clinicId: clinic._id.toHexString(),
+          clinicName,
+          doctorId: doctor._id.toHexString(),
+          doctorName: doctor.fullName,
+          serviceId: service._id.toHexString(),
+          date,
+          time,
+        })
+      }
+    }
+  }
+  return { slots }
 }

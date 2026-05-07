@@ -10,6 +10,9 @@ import { bookingsManageRoutes } from "@/modules/bookings/bookings.manage.routes"
 import { reviewsRoutes } from "@/modules/reviews/reviews.routes"
 import { landingRoutes } from "@/modules/landing/landing.routes"
 import { prescriptionsRoutes, prescriptionsPatientRoutes } from "@/modules/prescriptions/prescriptions.routes"
+import { discountsRoutes } from "@/modules/discounts/discounts.routes"
+import { pharmaciesRoutes } from "@/modules/pharmacies/pharmacies.routes"
+import { prescriptionsAdminRoutes } from "@/modules/prescriptions/prescriptions.admin.routes"
 import { prescriptionsManageRoutes } from "@/modules/prescriptions/prescriptions.manage.routes"
 import { filesRoutes } from "@/modules/files/files.routes"
 import { medicalHistoryPatientRoutes, medicalHistoryDoctorRoutes } from "@/modules/medical-history/medical-history.routes"
@@ -17,6 +20,7 @@ import { assessmentsRoutes } from "@/modules/assessments/assessments.routes"
 import { chatPatientRoutes, chatDoctorRoutes } from "@/modules/chat/chat.routes"
 import { postsPublicRoutes, postsPatientRoutes, postsAdminRoutes } from "@/modules/posts/posts.routes"
 import { aiChatPatientRoutes, aiChatAdminRoutes } from "@/modules/ai-chat/ai-chat.routes"
+import { storiesRoutes, storiesAdminRoutes } from "@/modules/stories/stories.routes"
 import { AppError } from "@/common/errors"
 
 // V1 API routes
@@ -25,6 +29,8 @@ const v1 = new Elysia({ prefix: "/v1" })
   .use(usersRoutes)
   .use(clinicsRoutes)
   .use(patientsRoutes)
+  .use(discountsRoutes)
+  .use(pharmaciesRoutes)
 .use(bookingsRoutes)
 .use(bookingsManageRoutes)
 .use(reviewsRoutes)
@@ -43,6 +49,9 @@ const v1 = new Elysia({ prefix: "/v1" })
 .use(postsAdminRoutes)
 .use(aiChatPatientRoutes)
 .use(aiChatAdminRoutes)
+.use(storiesRoutes)
+.use(storiesAdminRoutes)
+.use(prescriptionsAdminRoutes)
 
 // Main Elysia app
 export const app = new Elysia()

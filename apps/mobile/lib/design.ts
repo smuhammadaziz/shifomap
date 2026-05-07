@@ -57,16 +57,23 @@ export const type = {
   overline: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.8, textTransform: 'uppercase' as const, lineHeight: 14 },
 } as const;
 
+/** Canonical logo blue — primary CTAs and active states */
+export const brandPrimary = '#0A2FB8' as const;
+export const brandPrimarySoft = '#E0E7FF' as const;
+
 /**
  * Brand palette — accent colors used in gradients, chips, and decorative
- * surfaces. Doesn't depend on theme (same values in dark/light).
+ * surfaces. `iris`/`indigo*` alias primary blue for backward compatibility.
+ * `lilac`/`lilacSoft` stay as soft blue-tint neutrals (not violet).
  */
 export const brand = {
-  indigo: '#4f46e5',
-  indigoDeep: '#312e81',
-  iris: '#6366f1',
-  lilac: '#a78bfa',
-  lilacSoft: '#c4b5fd',
+  primary: brandPrimary,
+  primarySoft: brandPrimarySoft,
+  indigo: '#1E40AF',
+  indigoDeep: '#0A2FB8',
+  iris: brandPrimary,
+  lilac: '#93C5FD',
+  lilacSoft: '#BFDBFE',
   sky: '#38bdf8',
   skySoft: '#bae6fd',
   mint: '#34d399',
@@ -82,8 +89,8 @@ export const brand = {
  * consistent so cards/heroes feel from the same family.
  */
 export const gradients = {
-  hero: ['#6366f1', '#8b5cf6', '#ec4899'] as string[],
-  soft: ['#eef2ff', '#f5f3ff'] as string[],
+  hero: ['#0A2FB8', '#1E40AF', '#3B82F6'] as string[],
+  soft: ['#EEF2FF', '#E0E7FF'] as string[],
   cool: ['#e0e7ff', '#dbeafe'] as string[],
   warm: ['#fef3c7', '#fde68a'] as string[],
   mint: ['#d1fae5', '#a7f3d0'] as string[],

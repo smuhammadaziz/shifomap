@@ -9,6 +9,7 @@ import { ImagePlus, Heart, MessageCircle, Trash2, Pencil, Plus, X } from "lucide
 type Post = {
   _id: string
   imageUrl: string
+  imageUrls?: string[]
   caption: string
   tags: string[]
   likesCount: number
@@ -82,9 +83,14 @@ export default function PostsAdminPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((p) => (
-            <div key={p._id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div key={p._id} className="relative bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={resolveUrl(apiUrl, p.imageUrl)} alt="" className="w-full aspect-square object-cover" />
+              <img src={resolveUrl(apiUrl, p.imageUrls?.[0] || p.imageUrl)} alt="" className="w-full aspect-square object-cover" />
+              {(p.imageUrls?.length ?? 0) > 1 ? (
+                <div className="absolute right-2 top-2 bg-black/65 text-white text-[11px] px-2 py-1 rounded-full">
+                  {p.imageUrls!.length} photos
+                </div>
+              ) : null}
               <div className="p-4">
                 {p.tags?.length ? (
                   <div className="flex flex-wrap gap-1.5 mb-2">
@@ -159,7 +165,9 @@ function PostEditor({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [imageUrl, setImageUrl] = useState(existing?.imageUrl ?? "")
+  const [imageUrls, setImageUrls] = useState<string[]>(
+    existing?.imageUrls?.length ? existing.imageUrls : existing?.imageUrl ? [existing.imageUrl] : []
+  )
   const [caption, setCaption] = useState(existing?.caption ?? "")
   const [tagsText, setTagsText] = useState((existing?.tags ?? []).join(", "))
   const [uploading, setUploading] = useState(false)
@@ -183,7 +191,10 @@ function PostEditor({
       if (!res.ok || !json?.success) {
         throw new Error(json?.error ?? "Upload failed")
       }
-      setImageUrl(json.data.url)
+      setImageUrls((arr) => {
+        if (arr.length >= 10) return arr
+        return [...arr, json.data.url]
+      })
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -193,15 +204,15 @@ function PostEditor({
 
   const save = async () => {
     if (!token) return
-    if (!imageUrl.trim()) {
-      setError("Image is required")
+    if (!imageUrls.length) {
+      setError("At least one image is required")
       return
     }
     setSaving(true)
     setError(null)
     try {
       const body = {
-        imageUrl: imageUrl.trim(),
+        imageUrls: imageUrls.slice(0, 10),
         caption: caption.trim(),
         tags: tagsText
           .split(",")
@@ -235,17 +246,30 @@ function PostEditor({
 
         <div className="p-5 space-y-4">
           <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">Image</label>
-            {imageUrl ? (
-              <div className="relative rounded-xl overflow-hidden border border-slate-200 mb-2 aspect-square">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={resolveUrl(apiUrl, imageUrl)} alt="" className="w-full h-full object-cover" />
-                <button
-                  onClick={() => setImageUrl("")}
-                  className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1.5 hover:bg-black/80"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+            <label className="text-sm font-medium text-slate-700 block mb-2">Images (up to 10)</label>
+            {imageUrls.length ? (
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {imageUrls.map((u, i) => (
+                  <div key={`${u}-${i}`} className="relative rounded-xl overflow-hidden border border-slate-200 aspect-square">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={resolveUrl(apiUrl, u)} alt="" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => setImageUrls((arr) => arr.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {imageUrls.length < 10 ? (
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="aspect-square rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-500 hover:border-slate-400 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <ImagePlus className="h-6 w-6" />
+                  </button>
+                ) : null}
               </div>
             ) : (
               <button
@@ -255,7 +279,7 @@ function PostEditor({
               >
                 <ImagePlus className="h-8 w-8" />
                 <span className="text-sm font-medium">
-                  {uploading ? "Uploading..." : "Click to upload image"}
+                  {uploading ? "Uploading..." : "Click to upload image(s)"}
                 </span>
               </button>
             )}
@@ -270,6 +294,7 @@ function PostEditor({
                 e.target.value = ""
               }}
             />
+            <p className="text-xs text-slate-500 mt-1">{imageUrls.length}/10 images selected</p>
           </div>
 
           <div>

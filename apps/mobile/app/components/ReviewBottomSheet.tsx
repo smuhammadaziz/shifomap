@@ -19,6 +19,7 @@ import { getTranslations } from '../../lib/translations';
 import { useAuthStore } from '../../store/auth-store';
 import { getColors } from '../../lib/theme';
 import { submitReview } from '../../lib/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ReviewTarget = 'clinic' | 'service' | 'doctor';
 
@@ -48,20 +49,24 @@ export default function ReviewBottomSheet({
   const token = useAuthStore((s) => s.token);
   const t = getTranslations(language);
   const colors = getColors(theme);
+  const insets = useSafeAreaInsets();
   const [stars, setStars] = useState(5);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (visible) {
       setStars(5);
       setText('');
+      setSubmitError(null);
     }
   }, [visible]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await submitReview({
         clinicId,
@@ -72,8 +77,8 @@ export default function ReviewBottomSheet({
       });
       onSuccess?.();
       onClose();
-    } catch {
-      // keep sheet open on error
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : String(e));
     } finally {
       setSubmitting(false);
     }
@@ -88,8 +93,7 @@ export default function ReviewBottomSheet({
 
   const sheetBg = colors.backgroundCard ?? '#18181b';
   const sheetBorder = colors.border ?? '#27272a';
-  const inputBg = colors.backgroundSecondary ?? '#27272a';
-  const primaryBtn = colors.primaryLight ?? '#6366f1';
+  const primaryBtn = colors.primaryLight ?? '#0A2FB8';
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
@@ -99,7 +103,7 @@ export default function ReviewBottomSheet({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom + 12 : insets.bottom + 24}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={[styles.sheet, { backgroundColor: sheetBg, borderColor: sheetBorder }]}>
@@ -149,11 +153,11 @@ export default function ReviewBottomSheet({
                 value={text}
                 onChangeText={setText}
                 placeholder={language === 'ru' ? 'Текст отзыва (необязательно)' : "Sharh matni (ixtiyoriy)"}
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={colors.textPlaceholder}
                 style={[
                   styles.input,
                   {
-                    backgroundColor: inputBg,
+                    backgroundColor: colors.backgroundInput,
                     color: colors.text,
                     borderColor: sheetBorder,
                   },
@@ -171,6 +175,9 @@ export default function ReviewBottomSheet({
                   {language === 'ru' ? 'Войдите в аккаунт, чтобы оставить отзыв' : "Sharh yozish uchun hisobingizga kiring"}
                 </Text>
               )}
+              {submitError ? (
+                <Text style={[styles.errorText, { color: colors.error }]}>{submitError}</Text>
+              ) : null}
               <TouchableOpacity
                 style={[styles.submitBtn, { backgroundColor: primaryBtn, opacity: token ? 1 : 0.6 }]}
                 onPress={handleSubmit}
@@ -247,7 +254,8 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   bodyScroll: {
-    maxHeight: 400,
+    flexGrow: 0,
+    maxHeight: '72%',
   },
   label: {
     fontSize: 13,
@@ -274,6 +282,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   loginHint: { fontSize: 13, textAlign: 'center', marginBottom: 12 },
+  errorText: { fontSize: 13, textAlign: 'center', marginBottom: 12, fontWeight: '600' },
   submitBtn: {
     borderRadius: 16,
     paddingVertical: 16,

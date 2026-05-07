@@ -1,6 +1,20 @@
 import { ObjectId } from "mongodb"
-import { getDb, PRESCRIPTIONS_COLLECTION, PRESCRIPTION_EVENTS_COLLECTION, CUSTOM_REMINDERS_COLLECTION } from "@/db/mongo"
-import type { PrescriptionDoc, PrescriptionEventDoc, PrescriptionEventAction, PrescriptionMedicine, CustomReminderDoc } from "./prescriptions.model"
+import {
+  getDb,
+  PRESCRIPTIONS_COLLECTION,
+  PRESCRIPTION_EVENTS_COLLECTION,
+  CUSTOM_REMINDERS_COLLECTION,
+  PILL_CHECK_EVENTS_COLLECTION,
+} from "@/db/mongo"
+import type {
+  PrescriptionDoc,
+  PrescriptionEventDoc,
+  PrescriptionEventAction,
+  PrescriptionMedicine,
+  CustomReminderDoc,
+  PillCheckEventDoc,
+  PillCheckEventAction,
+} from "./prescriptions.model"
 
 export async function findPrescriptionByBookingId(bookingId: ObjectId): Promise<PrescriptionDoc | null> {
   const db = getDb()
@@ -118,5 +132,67 @@ export async function deleteCustomReminder(id: ObjectId, userId: ObjectId): Prom
     { $set: { deletedAt: new Date() } }
   )
   return result.modifiedCount > 0
+}
+
+export async function findCustomReminderByIdForPatient(reminderId: ObjectId, userId: ObjectId): Promise<CustomReminderDoc | null> {
+  const db = getDb()
+  return db
+    .collection<CustomReminderDoc>(CUSTOM_REMINDERS_COLLECTION)
+    .findOne({ _id: reminderId, userId, deletedAt: null })
+}
+
+export async function upsertPillCheckEvent(input: {
+  userId: ObjectId
+  reminderId: ObjectId
+  date: string
+  time: string
+  action: PillCheckEventAction
+}): Promise<PillCheckEventDoc> {
+  const db = getDb()
+  const now = new Date()
+  const result = await db.collection<PillCheckEventDoc>(PILL_CHECK_EVENTS_COLLECTION).findOneAndUpdate(
+    { userId: input.userId, reminderId: input.reminderId, date: input.date, time: input.time },
+    {
+      $set: { action: input.action, actedAt: now },
+      $setOnInsert: { createdAt: now },
+    },
+    { upsert: true, returnDocument: "after" }
+  )
+  if (!result) throw new Error("Upsert pill check event failed")
+  return result
+}
+
+/** Keys `${reminderIdHex}|${time}` for taken doses on a calendar day */
+export async function listPillCheckTakenCustomKeysForDate(userId: ObjectId, date: string): Promise<Set<string>> {
+  const db = getDb()
+  const rows = await db
+    .collection<PillCheckEventDoc>(PILL_CHECK_EVENTS_COLLECTION)
+    .find({ userId, date, action: "taken" })
+    .project({ reminderId: 1, time: 1 })
+    .toArray()
+  const set = new Set<string>()
+  for (const r of rows) {
+    set.add(`${r.reminderId.toHexString()}|${r.time}`)
+  }
+  return set
+}
+
+export async function listPillCheckEventsInRange(from: Date, to: Date, limit = 8000): Promise<PillCheckEventDoc[]> {
+  const db = getDb()
+  return db
+    .collection<PillCheckEventDoc>(PILL_CHECK_EVENTS_COLLECTION)
+    .find({ actedAt: { $gte: from, $lte: to } })
+    .sort({ actedAt: -1 })
+    .limit(limit)
+    .toArray()
+}
+
+export async function findCustomRemindersByIds(ids: ObjectId[]): Promise<CustomReminderDoc[]> {
+  if (ids.length === 0) return []
+  const db = getDb()
+  return db
+    .collection<CustomReminderDoc>(CUSTOM_REMINDERS_COLLECTION)
+    .find({ _id: { $in: ids }, deletedAt: null })
+    .toArray()
 }
 

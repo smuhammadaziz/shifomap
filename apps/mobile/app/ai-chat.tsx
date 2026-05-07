@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,8 @@ import {
   createAiConversation,
   addAiConversationMessage,
   submitAiConversationFeedback,
+  getDoctorSlotsBySpecialty,
+  type DoctorSlotBySpecialty,
 } from '../lib/api';
 
 const SAMPLE_QUESTIONS = [
@@ -54,7 +56,12 @@ type DoctorSuggestion = {
   reviewsCount: number;
 };
 
-type ChatMessageItem = { role: string; content: string; doctors?: DoctorSuggestion[] };
+type ChatMessageItem = {
+  role: string;
+  content: string;
+  doctors?: DoctorSuggestion[];
+  slots?: DoctorSlotBySpecialty[];
+};
 
 export type ChatSession = {
   id: string;
@@ -65,7 +72,6 @@ export type ChatSession = {
 };
 
 const CHAT_HISTORY_KEY = '@shifoyol_chat_history';
-const FEEDBACK_ONCE_KEY = '@shifoyol_ai_feedback_once_v1';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=120&h=120&fit=crop';
 
 function buildAddress(city?: string, street?: string) {
@@ -130,6 +136,31 @@ async function findDoctorSuggestions(query: string, aiAnswer: string): Promise<D
   return [...dedup.values()].slice(0, 8);
 }
 
+function specialtyNeedleForSlots(query: string, aiAnswer: string): string | null {
+  const text = `${query} ${aiAnswer}`.toLowerCase();
+  const specialtyHints: Array<{ rx: RegExp; needle: string }> = [
+    { rx: /(stomatolog|стоматолог|dentist|dental|tish|зуб)/i, needle: 'stomatolog' },
+    { rx: /(lor|лор|otolaringolog|otorhinolaryngolog)/i, needle: 'lor' },
+    { rx: /(nevrolog|невролог|neurolog)/i, needle: 'nevrolog' },
+    { rx: /(kardiolog|кардиолог|cardiolog)/i, needle: 'kardiolog' },
+    { rx: /(ginekolog|гинеколог|gynecolog)/i, needle: 'ginekolog' },
+    { rx: /(pediatr|педиатр|pediatric)/i, needle: 'pediatr' },
+    { rx: /(dermatolog|дерматолог)/i, needle: 'dermatolog' },
+    { rx: /(terapevt|терапевт|therapist|family doctor)/i, needle: 'terapevt' },
+  ];
+  const hit = specialtyHints.find((x) => x.rx.test(text));
+  return hit?.needle ?? null;
+}
+
+function tomorrowDateStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function AiChatScreen() {
   const router = useRouter();
   const theme = useThemeStore((s: any) => s.theme);
@@ -144,10 +175,10 @@ export default function AiChatScreen() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
-  const [feedbackSent, setFeedbackSent] = useState(false);
-  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackText, setFeedbackText] = useState('');
   const [pendingFeedbackConversationId, setPendingFeedbackConversationId] = useState<string | null>(null);
+  const feedbackShownForConvId = useRef<string | null>(null);
 
   const isUz = language === 'uz';
 
@@ -157,12 +188,8 @@ export default function AiChatScreen() {
 
   const loadSessions = async () => {
     try {
-      const [data, feedbackOnce] = await Promise.all([
-        AsyncStorage.getItem(CHAT_HISTORY_KEY),
-        AsyncStorage.getItem(FEEDBACK_ONCE_KEY),
-      ]);
+      const data = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
       if (data) setSessions(JSON.parse(data));
-      setFeedbackSent(feedbackOnce === '1');
     } catch {}
   };
 
@@ -179,39 +206,33 @@ export default function AiChatScreen() {
     setHistoryModalVisible(false);
   };
 
-  const markFeedbackHandled = async () => {
-    setFeedbackSent(true);
-    try {
-      await AsyncStorage.setItem(FEEDBACK_ONCE_KEY, '1');
-    } catch {}
-  };
-
   const onCloseFeedback = async () => {
     if (!pendingFeedbackConversationId) {
       setFeedbackModalVisible(false);
       return;
     }
     try {
-      await submitAiConversationFeedback(pendingFeedbackConversationId, { dismissed: true });
-      await markFeedbackHandled();
+      await submitAiConversationFeedback(pendingFeedbackConversationId, {
+        rating: 5,
+        dismissed: true,
+      });
     } catch {}
     setFeedbackModalVisible(false);
     setPendingFeedbackConversationId(null);
   };
 
   const onSubmitFeedback = async () => {
-    if (!pendingFeedbackConversationId || feedbackRating < 1) return;
+    if (!pendingFeedbackConversationId) return;
     try {
       await submitAiConversationFeedback(pendingFeedbackConversationId, {
-        rating: feedbackRating,
+        rating: feedbackRating < 1 ? 5 : feedbackRating,
         feedbackText: feedbackText.trim() || undefined,
       });
-      await markFeedbackHandled();
     } catch {}
     setFeedbackModalVisible(false);
     setPendingFeedbackConversationId(null);
     setFeedbackText('');
-    setFeedbackRating(0);
+    setFeedbackRating(5);
   };
 
   const loadPastChat = (session: ChatSession) => {
@@ -298,7 +319,21 @@ export default function AiChatScreen() {
       if (data.choices && data.choices[0]) {
         const answer = String(data.choices[0].message.content ?? '');
         const doctors = await findDoctorSuggestions(val, answer).catch(() => []);
-        finalMessages = [...newMessages, { role: 'assistant', content: answer, doctors }];
+        let slots: DoctorSlotBySpecialty[] = [];
+        const needle = specialtyNeedleForSlots(val, answer);
+        if (needle) {
+          try {
+            const res = await getDoctorSlotsBySpecialty({
+              specialty: needle,
+              date: tomorrowDateStr(),
+              limit: 5,
+            });
+            slots = res.slots ?? [];
+          } catch {
+            slots = [];
+          }
+        }
+        finalMessages = [...newMessages, { role: 'assistant', content: answer, doctors, slots }];
         if (currentSessions[sessionIndex]?.backendConversationId) {
           addAiConversationMessage(currentSessions[sessionIndex].backendConversationId as string, 'assistant', answer).catch(() => null);
         }
@@ -314,9 +349,16 @@ export default function AiChatScreen() {
          saveSessions(updatedList);
          const userMessageCount = finalMessages.filter((x) => x.role === 'user').length;
          const conversationId = updatedList[idx].backendConversationId ?? null;
-         if (conversationId && !feedbackSent && userMessageCount >= 3) {
+         if (
+           conversationId &&
+           userMessageCount >= 3 &&
+           feedbackShownForConvId.current !== conversationId
+         ) {
+           feedbackShownForConvId.current = conversationId;
+           setFeedbackRating(5);
+           setFeedbackText('');
            setPendingFeedbackConversationId(conversationId);
-           setFeedbackModalVisible(true);
+           setTimeout(() => setFeedbackModalVisible(true), 400);
          }
       }
 
@@ -352,7 +394,7 @@ export default function AiChatScreen() {
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
@@ -444,6 +486,46 @@ export default function AiChatScreen() {
                             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
                           </TouchableOpacity>
                         ))}
+                      </View>
+                    ) : null}
+                    {msg.role === 'assistant' && msg.slots && msg.slots.length > 0 ? (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={[styles.suggestedTitle, { color: colors.text }]}>
+                          {isUz ? 'Ertaga bo‘sh vaqtlar' : 'Свободные слоты на завтра'}
+                        </Text>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ gap: 10, paddingVertical: 4 }}
+                        >
+                          {msg.slots.map((s) => (
+                            <TouchableOpacity
+                              key={`${s.clinicId}:${s.serviceId}:${s.doctorId}:${s.date}:${s.time}`}
+                              style={[styles.slotChip, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                              activeOpacity={0.85}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/book',
+                                  params: {
+                                    clinicId: s.clinicId,
+                                    serviceId: s.serviceId,
+                                    doctorId: s.doctorId,
+                                    date: s.date,
+                                    time: s.time,
+                                  },
+                                })
+                              }
+                            >
+                              <Text style={styles.slotChipTime}>{s.time}</Text>
+                              <Text style={styles.slotChipName} numberOfLines={1}>
+                                {s.doctorName}
+                              </Text>
+                              <Text style={styles.slotChipClinic} numberOfLines={1}>
+                                {s.clinicName}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
                       </View>
                     ) : null}
                   </View>
@@ -591,8 +673,7 @@ export default function AiChatScreen() {
               maxLength={240}
             />
             <TouchableOpacity
-              style={[styles.feedbackSubmitBtn, { backgroundColor: feedbackRating > 0 ? colors.primary : colors.border }]}
-              disabled={feedbackRating < 1}
+              style={[styles.feedbackSubmitBtn, { backgroundColor: colors.primary }]}
               onPress={onSubmitFeedback}
             >
               <Text style={styles.feedbackSubmitText}>{isUz ? 'Yuborish' : 'Отправить'}</Text>
@@ -762,6 +843,17 @@ const styles = StyleSheet.create({
   docMetaText: { fontSize: 12, fontWeight: '600' },
   docClinic: { marginTop: 4, fontSize: 13, fontWeight: '600' },
   docAddr: { marginTop: 2, fontSize: 12 },
+  slotChip: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 132,
+    maxWidth: 200,
+  },
+  slotChipTime: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  slotChipName: { color: 'rgba(255,255,255,0.95)', fontSize: 13, fontWeight: '600', marginTop: 4 },
+  slotChipClinic: { color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 2 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
