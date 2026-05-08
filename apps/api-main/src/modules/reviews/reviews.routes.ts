@@ -1,6 +1,10 @@
 import { Elysia } from "elysia"
 import { createReviewBodySchema } from "./reviews.model"
-import { upsertReview, listReviews, getRatingForTarget } from "./reviews.repo"
+import {
+  upsertReview,
+  listReviewsWithPatientDetails,
+  getRatingForTarget,
+} from "./reviews.repo"
 import { requirePatientAuth } from "@/common/middleware/auth"
 import { toObjectId } from "@/common/utils/id"
 import { getDb, CLINICS_COLLECTION } from "@/db/mongo"
@@ -18,10 +22,17 @@ export const reviewsRoutes = new Elysia({ prefix: "/reviews" })
         set.status = 400
         return { success: false, error: "clinicId is required" }
       }
-      const data = await listReviews({ clinicId, serviceId, doctorId }, skip, limit)
+      const data = await listReviewsWithPatientDetails(
+        { clinicId, serviceId, doctorId },
+        skip,
+        limit,
+      )
       const rating = await getRatingForTarget({ clinicId, serviceId, doctorId })
       set.status = 200
-      return { success: true, data: { ...data, rating } }
+      // Strip the private `patient` object (phone/email/city) and only expose
+      // `patientName` + `patientAvatar` to the public.
+      const reviews = data.reviews.map(({ patient: _p, ...r }) => r)
+      return { success: true, data: { reviews, total: data.total, rating } }
     } catch (e: unknown) {
       const err = e as { statusCode?: number; message?: string }
       if (err.statusCode) {

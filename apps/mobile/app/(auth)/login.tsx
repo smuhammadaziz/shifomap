@@ -89,7 +89,16 @@ export default function Login() {
                 </Text>
               </View>
 
-              <View style={[styles.pillStat, { backgroundColor: tokens.colors.backgroundCard }]}>
+              <View
+                style={[
+                  styles.pillStat,
+                  {
+                    backgroundColor: tokens.colors.backgroundCard,
+                    borderColor: tokens.colors.border,
+                    borderWidth: theme === 'dark' ? StyleSheet.hairlineWidth : 0,
+                  },
+                ]}
+              >
                 <View style={[styles.pillDot, { backgroundColor: tokens.brand.mint }]} />
                 <Text style={{ color: tokens.colors.textSecondary, fontSize: 12, fontWeight: '600' }}>
                   {language === 'uz' ? '1000+ shifokor onlayn' : '1000+ врачей онлайн'}

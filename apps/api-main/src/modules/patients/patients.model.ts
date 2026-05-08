@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { ObjectId } from "mongodb"
 
 /** Uzbekistan mobile: +998 + valid operator prefix + 7 digits */
-export const UZ_PHONE_REGEX = /^\+998(33|71|88|90|91|92|93|94|95|97|98|99|20)\d{7}$/
+export const UZ_PHONE_REGEX = /^\+998(33|71|77|89|88|90|91|92|93|94|95|97|98|99|20)\d{7}$/
 
 const passwordStrength = z
   .string()

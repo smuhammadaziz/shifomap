@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -75,6 +75,96 @@ interface Tool {
   path: string;
 }
 
+// Static "quick category" filter chips. Each one gets a signature gradient and
+// a list of keywords used as the server `q` query when picked. Designed to be
+// the most-tapped specialties in Uzbekistan medical apps.
+type QuickCategoryIcon =
+  | { lib: 'ion'; name: keyof typeof Ionicons.glyphMap }
+  | { lib: 'mci'; name: keyof typeof MaterialCommunityIcons.glyphMap };
+
+interface QuickCategory {
+  key: string;
+  uz: string;
+  ru: string;
+  icon: QuickCategoryIcon;
+  gradient: [string, string];
+  keywords: string[];
+}
+
+const QUICK_CATEGORIES: QuickCategory[] = [
+  {
+    key: 'stomatolog',
+    uz: 'Tish',
+    ru: 'Стомат.',
+    icon: { lib: 'mci', name: 'tooth-outline' },
+    gradient: ['#06b6d4', '#3b82f6'],
+    keywords: ['stomatolog', 'стоматолог', 'tish', 'зуб'],
+  },
+  {
+    key: 'kardiolog',
+    uz: 'Yurak',
+    ru: 'Кардио',
+    icon: { lib: 'ion', name: 'heart' },
+    gradient: ['#ef4444', '#f97316'],
+    keywords: ['kardiolog', 'кардиолог', 'yurak', 'сердц'],
+  },
+  {
+    key: 'pediatr',
+    uz: 'Bolalar',
+    ru: 'Дети',
+    icon: { lib: 'ion', name: 'happy' },
+    gradient: ['#f59e0b', '#fb7185'],
+    keywords: ['pediatr', 'педиатр', 'bola', 'дет'],
+  },
+  {
+    key: 'oftalmolog',
+    uz: "Ko'z",
+    ru: 'Глаза',
+    icon: { lib: 'ion', name: 'eye' },
+    gradient: ['#6366f1', '#a855f7'],
+    keywords: ['oftalmolog', 'офтальмолог', 'окулист', "ko'z", 'глаз'],
+  },
+  {
+    key: 'nevrolog',
+    uz: 'Asab',
+    ru: 'Невро',
+    icon: { lib: 'mci', name: 'brain' },
+    gradient: ['#8b5cf6', '#ec4899'],
+    keywords: ['nevrolog', 'невролог', 'asab', 'нерв'],
+  },
+  {
+    key: 'dermatolog',
+    uz: 'Teri',
+    ru: 'Кожа',
+    icon: { lib: 'mci', name: 'leaf' },
+    gradient: ['#10b981', '#34d399'],
+    keywords: ['dermatolog', 'дерматолог', 'teri', 'кож'],
+  },
+  {
+    key: 'ginekolog',
+    uz: 'Ayollar',
+    ru: 'Жен.',
+    icon: { lib: 'ion', name: 'female' },
+    gradient: ['#ec4899', '#f472b6'],
+    keywords: ['ginekolog', 'гинеколог'],
+  },
+];
+
+function QuickCategoryIconView({
+  icon,
+  size,
+  color,
+}: {
+  icon: QuickCategoryIcon;
+  size: number;
+  color: string;
+}) {
+  if (icon.lib === 'mci') {
+    return <MaterialCommunityIcons name={icon.name} size={size} color={color} />;
+  }
+  return <Ionicons name={icon.name} size={size} color={color} />;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const language = useAuthStore((s) => s.language) ?? 'uz';
@@ -101,6 +191,10 @@ export default function HomeScreen() {
   const [nearestPharmaciesLoading, setNearestPharmaciesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadChats, setUnreadChats] = useState<ChatConversation[]>([]);
+
+  const [quickCategory, setQuickCategory] = useState<string | null>(null);
+  const [quickResults, setQuickResults] = useState<PublicServiceItem[]>([]);
+  const [quickLoading, setQuickLoading] = useState(false);
 
   const { getUnreadCount, hydrated, hydrate } = useNotificationStore();
   const unread = getUnreadCount();
@@ -202,6 +296,58 @@ export default function HomeScreen() {
     }, 380);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!quickCategory) {
+      setQuickResults([]);
+      setQuickLoading(false);
+      return;
+    }
+    const cat = QUICK_CATEGORIES.find((c) => c.key === quickCategory);
+    if (!cat) return;
+    let cancelled = false;
+    setQuickLoading(true);
+
+    const tryQueries = async () => {
+      const seen = new Set<string>();
+      const collected: PublicServiceItem[] = [];
+      for (const kw of cat.keywords) {
+        if (cancelled || collected.length >= 12) break;
+        try {
+          const res = await searchServicesWithFilters({ q: kw }, 1, 12);
+          for (const s of res.services ?? []) {
+            if (seen.has(s._id)) continue;
+            seen.add(s._id);
+            collected.push(s);
+            if (collected.length >= 12) break;
+          }
+        } catch {
+          /* try next keyword */
+        }
+      }
+      // Last resort: filter the already-loaded `featured` services by category
+      // name to guarantee at least *something* shows up.
+      if (!cancelled && collected.length === 0) {
+        const fallback = featured.filter((s) =>
+          cat.keywords.some((k) => (s.categoryName ?? '').toLowerCase().includes(k.toLowerCase())),
+        );
+        for (const s of fallback) {
+          if (!seen.has(s._id)) {
+            seen.add(s._id);
+            collected.push(s);
+          }
+        }
+      }
+      if (!cancelled) {
+        setQuickResults(collected);
+        setQuickLoading(false);
+      }
+    };
+    tryQueries();
+    return () => {
+      cancelled = true;
+    };
+  }, [quickCategory, featured]);
 
   const tools: Tool[] = [
     {
@@ -322,12 +468,38 @@ export default function HomeScreen() {
               >
                 <Ionicons name="close-circle" size={18} color={tokens.colors.textTertiary} />
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity hitSlop={8} onPress={() => router.push('/clinics-map')}>
-                <Ionicons name="options" size={18} color={tokens.colors.textSecondary} />
-              </TouchableOpacity>
-            )}
+            ) : null}
           </View>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/clinics-map')}
+            style={[
+              styles.mapShortcut,
+              { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
+            ]}
+          >
+            <View style={[styles.mapShortcutIcon, { backgroundColor: tokens.brand.iris + '18' }]}>
+              <Ionicons name="map" size={18} color={tokens.brand.iris} />
+            </View>
+            <View style={styles.mapShortcutText}>
+              <Text style={[styles.mapShortcutTitle, { color: tokens.colors.text }]} numberOfLines={1}>
+                {language === 'ru'
+                  ? 'Поиск на карте'
+                  : language === 'en'
+                    ? 'Search on map'
+                    : 'Xaritadan qidirish'}
+              </Text>
+              <Text style={[styles.mapShortcutSubtitle, { color: tokens.colors.textTertiary }]} numberOfLines={1}>
+                {language === 'ru'
+                  ? 'Ближайшие клиники и аптеки'
+                  : language === 'en'
+                    ? 'Nearby clinics and pharmacies'
+                    : 'Yaqin atrofdagi klinika va aptekalar'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={tokens.colors.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         {showSuggestions && searchQuery.trim() ? (
@@ -612,6 +784,220 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
+            {/* Quick category filter — morphing chips with signature colors */}
+            <View style={{ marginTop: 24 }}>
+              <View style={[styles.rowBetween, { paddingHorizontal: 20, marginBottom: 14 }]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]}>
+                    {language === 'uz' ? "Yo'nalish bo'yicha" : 'По направлениям'}
+                  </Text>
+                  <Text
+                    style={{
+                      color: tokens.colors.textTertiary,
+                      fontSize: 12,
+                      marginTop: 2,
+                      fontWeight: '500',
+                    }}
+                    numberOfLines={1}
+                  >
+                    {language === 'uz'
+                      ? 'Mutaxassislik tanlang va xizmatlarni darhol toping'
+                      : 'Выберите специальность и найдите услуги мгновенно'}
+                  </Text>
+                </View>
+                {quickCategory ? (
+                  <TouchableOpacity hitSlop={10} onPress={() => setQuickCategory(null)}>
+                    <Text style={{ color: tokens.brand.iris, fontWeight: '700', fontSize: 13 }}>
+                      {language === 'uz' ? 'Tozalash' : 'Сбросить'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingRight: 24, gap: 10 }}
+              >
+                {QUICK_CATEGORIES.map((cat) => {
+                  const active = quickCategory === cat.key;
+                  const label = language === 'ru' ? cat.ru : cat.uz;
+                  const tintBg = cat.gradient[0] + '14';
+                  return (
+                    <TouchableOpacity
+                      key={cat.key}
+                      activeOpacity={0.85}
+                      onPress={() => setQuickCategory(active ? null : cat.key)}
+                      style={[
+                        styles.qcChipShell,
+                        active
+                          ? styles.qcChipShellActive
+                          : {
+                              backgroundColor: tokens.colors.backgroundCard,
+                              borderColor: tokens.colors.border,
+                            },
+                      ]}
+                    >
+                      {active ? (
+                        <LinearGradient
+                          colors={cat.gradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFill}
+                        />
+                      ) : null}
+                      <View
+                        style={[
+                          styles.qcIconTile,
+                          {
+                            backgroundColor: active ? 'rgba(255,255,255,0.22)' : tintBg,
+                            transform: [{ rotate: active ? '0deg' : '-8deg' }],
+                          },
+                        ]}
+                      >
+                        <QuickCategoryIconView
+                          icon={cat.icon}
+                          size={18}
+                          color={active ? '#fff' : cat.gradient[0]}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.qcChipLabel,
+                          { color: active ? '#fff' : tokens.colors.text },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {quickCategory ? (
+                <View style={{ marginTop: 16 }}>
+                  {quickLoading ? (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingHorizontal: 20, paddingRight: 24, gap: 12 }}
+                    >
+                      {[1, 2, 3].map((i) => (
+                        <View
+                          key={i}
+                          style={[
+                            styles.serviceCard,
+                            { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
+                          ]}
+                        >
+                          <SkeletonBlock width="100%" height={108} radius={0} />
+                          <View style={{ padding: 12, gap: 6 }}>
+                            <SkeletonBlock width="80%" height={14} />
+                            <SkeletonBlock width="55%" height={12} />
+                            <SkeletonBlock width="40%" height={12} />
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  ) : quickResults.length === 0 ? (
+                    <View
+                      style={{
+                        marginHorizontal: 20,
+                        padding: 18,
+                        borderRadius: 18,
+                        backgroundColor: tokens.colors.backgroundCard,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: tokens.colors.border,
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Ionicons
+                        name="search-outline"
+                        size={26}
+                        color={tokens.colors.textTertiary}
+                      />
+                      <Text style={{ color: tokens.colors.text, fontSize: 14, fontWeight: '700' }}>
+                        {language === 'uz' ? 'Hozircha xizmat topilmadi' : 'Услуги пока не найдены'}
+                      </Text>
+                      <Text
+                        style={{
+                          color: tokens.colors.textTertiary,
+                          fontSize: 12,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {language === 'uz'
+                          ? 'Boshqa yo\'nalishni tanlab ko\'ring'
+                          : 'Попробуйте выбрать другое направление'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingHorizontal: 20, paddingRight: 24, gap: 12 }}
+                    >
+                      {quickResults.map((s) => {
+                        const cat = QUICK_CATEGORIES.find((c) => c.key === quickCategory);
+                        const accent = cat?.gradient[0] ?? tokens.brand.iris;
+                        return (
+                          <TouchableOpacity
+                            key={s._id}
+                            activeOpacity={0.88}
+                            onPress={() => router.push({ pathname: '/service/[id]', params: { id: s._id } })}
+                            style={[
+                              styles.serviceCard,
+                              { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
+                            ]}
+                          >
+                            <View style={{ height: 4, backgroundColor: accent }} />
+                            <Image
+                              source={{ uri: s.serviceImage || DEFAULT_IMAGE }}
+                              style={{ width: '100%', height: 104, backgroundColor: tokens.colors.border }}
+                            />
+                            <View style={styles.serviceCardBody}>
+                              <Text
+                                style={{ color: tokens.colors.text, fontSize: 14, fontWeight: '700' }}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {s.title}
+                              </Text>
+                              <Text
+                                style={{
+                                  color: tokens.colors.textTertiary,
+                                  fontSize: 12,
+                                  marginTop: 2,
+                                }}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {s.clinicDisplayName}
+                              </Text>
+                              <Text
+                                style={{
+                                  color: accent,
+                                  fontWeight: '800',
+                                  fontSize: 13,
+                                  marginTop: 6,
+                                }}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {formatPrice(s.price)}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+                </View>
+              ) : null}
+            </View>
+
             {/* Top doctors / clinics rail */}
             <View style={{ marginTop: 26 }}>
               <View style={[styles.rowBetween, { paddingHorizontal: 20, marginBottom: 12 }]}>
@@ -762,7 +1148,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     gap: 10,
   },
-  searchWrap: { paddingHorizontal: 20, marginTop: 14 },
+  searchWrap: { paddingHorizontal: 20, marginTop: 14, gap: 10 },
   searchBox: {
     height: 52,
     borderRadius: 18,
@@ -773,6 +1159,25 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   searchInput: { flex: 1, fontSize: 14, fontWeight: '500' },
+  mapShortcut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  mapShortcutIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapShortcutText: { flex: 1, gap: 2, minWidth: 0 },
+  mapShortcutTitle: { fontSize: 14, fontWeight: '700', letterSpacing: -0.1 },
+  mapShortcutSubtitle: { fontSize: 12, fontWeight: '500' },
   suggestions: {
     marginHorizontal: 20,
     marginTop: 8,
@@ -858,6 +1263,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
+  },
+  qcChipShell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingLeft: 8,
+    paddingRight: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1.2,
+    overflow: 'hidden',
+    minHeight: 44,
+  },
+  qcChipShellActive: {
+    borderColor: 'transparent',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  qcIconTile: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qcChipLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
   serviceCard: {
     width: 188,

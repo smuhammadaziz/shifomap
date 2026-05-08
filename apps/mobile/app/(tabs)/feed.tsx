@@ -270,6 +270,66 @@ function PostCard({
   );
 }
 
+function commentDisplayName(c: PostComment, language: string): string {
+  const name = c.patientName?.trim();
+  if (name) return name;
+  const phone = c.patientPhone?.trim();
+  if (phone) {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length >= 4) return `+${digits.slice(0, -4)} ··· ${digits.slice(-4)}`.replace(/^\+\s/, '+');
+    return phone;
+  }
+  return language === 'uz' ? 'Foydalanuvchi' : language === 'ru' ? 'Пользователь' : 'User';
+}
+
+function commentTimeAgo(iso: string, language: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const diffSec = Math.max(1, Math.floor((Date.now() - then) / 1000));
+  if (language === 'ru') {
+    if (diffSec < 60) return 'только что';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} мин`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ч`;
+    if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} д`;
+    return `${Math.floor(diffSec / 604800)} нед`;
+  }
+  if (diffSec < 60) return 'hozir';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} daq`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} soat`;
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} kun`;
+  return `${Math.floor(diffSec / 604800)} hafta`;
+}
+
+function CommentRow({ item, language, tokens }: { item: PostComment; language: string; tokens: ReturnType<typeof getTokens> }) {
+  const name = commentDisplayName(item, language);
+  const initial = (name[0] ?? '?').toUpperCase();
+  const avatar = item.patientAvatar ? resolveImage(item.patientAvatar) : null;
+  return (
+    <View style={styles.commentRow}>
+      {avatar ? (
+        <Image source={{ uri: avatar }} style={styles.commentAvatar} />
+      ) : (
+        <View style={[styles.commentAvatar, { backgroundColor: tokens.brand.iris, alignItems: 'center', justifyContent: 'center' }]}>
+          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>{initial}</Text>
+        </View>
+      )}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+          <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={{ color: tokens.colors.textTertiary, fontSize: 11 }}>
+            {commentTimeAgo(item.createdAt, language)}
+          </Text>
+        </View>
+        <Text style={{ color: tokens.colors.text, fontSize: 14, marginTop: 2, lineHeight: 19 }}>
+          {item.text}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function CommentsModal({
   post,
   onClose,
@@ -315,55 +375,89 @@ function CommentsModal({
 
   return (
     <Modal visible={!!post} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalOverlay}
+        keyboardVerticalOffset={0}
+      >
         <TouchableOpacity style={{ flex: 1 }} onPress={onClose} activeOpacity={1} />
         <View style={[styles.modalSheet, { backgroundColor: tokens.colors.background }]}>
           <View style={styles.modalHandle} />
-          <Text style={[tokens.type.titleLg, { color: tokens.colors.text, marginBottom: 14, paddingHorizontal: 20 }]}>
-            {language === 'uz' ? 'Fikrlar' : 'Комментарии'} · {items.length}
-          </Text>
+          <View style={styles.modalHeader}>
+            <Text style={[tokens.type.titleLg, { color: tokens.colors.text }]}>
+              {language === 'uz' ? 'Fikrlar' : 'Комментарии'} · {items.length}
+            </Text>
+          </View>
           <FlatList
             data={items}
             keyExtractor={(i) => i._id}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             ListEmptyComponent={
-              <Text style={{ color: tokens.colors.textTertiary, textAlign: 'center', padding: 20 }}>
-                {language === 'uz' ? 'Hozircha fikrlar yo‘q' : 'Пока нет комментариев'}
-              </Text>
-            }
-            renderItem={({ item }) => (
-              <View style={{ paddingVertical: 10 }}>
-                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 13 }}>
-                  {item.patientName ?? '—'}
+              <View style={{ alignItems: 'center', padding: 28 }}>
+                <View style={{
+                  width: 56, height: 56, borderRadius: 18,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: tokens.colors.backgroundSecondary,
+                }}>
+                  <Ionicons name="chatbubble-outline" size={24} color={tokens.brand.iris} />
+                </View>
+                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14, marginTop: 12 }}>
+                  {language === 'uz' ? 'Hozircha fikrlar yo‘q' : 'Пока нет комментариев'}
                 </Text>
-                <Text style={{ color: tokens.colors.textSecondary, fontSize: 13, marginTop: 2 }}>{item.text}</Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                  {language === 'uz' ? 'Birinchi bo‘lib fikr bildiring' : 'Будьте первым, кто оставит комментарий'}
+                </Text>
               </View>
-            )}
+            }
+            renderItem={({ item }) => <CommentRow item={item} language={language} tokens={tokens} />}
           />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom + 8 : insets.bottom + 16}
+          <View
+            style={[
+              styles.inputRow,
+              {
+                borderTopColor: tokens.colors.border,
+                backgroundColor: tokens.colors.background,
+                paddingBottom: 10 + (Platform.OS === 'ios' ? insets.bottom : 0),
+              },
+            ]}
           >
-            <View style={[styles.inputRow, { borderTopColor: tokens.colors.border, backgroundColor: tokens.colors.background }]}>
-              <TextInput
-                placeholder={language === 'uz' ? 'Fikr yozing...' : 'Написать комментарий...'}
-                value={text}
-                onChangeText={setText}
-                style={[styles.inputField, { backgroundColor: tokens.colors.backgroundInput, color: tokens.colors.text }]}
-                placeholderTextColor={tokens.colors.textPlaceholder ?? tokens.colors.textTertiary}
-                editable={!sending}
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, { backgroundColor: tokens.brand.iris, opacity: text.trim() && !sending ? 1 : 0.5 }]}
-                onPress={send}
-                disabled={!text.trim() || sending}
-              >
+            <TextInput
+              placeholder={language === 'uz' ? 'Fikr yozing...' : 'Написать комментарий...'}
+              value={text}
+              onChangeText={setText}
+              style={[
+                styles.inputField,
+                {
+                  backgroundColor: tokens.colors.backgroundInput,
+                  color: tokens.colors.text,
+                  borderColor: tokens.colors.border,
+                },
+              ]}
+              placeholderTextColor={tokens.colors.textPlaceholder ?? tokens.colors.textTertiary}
+              editable={!sending}
+              multiline
+              maxLength={500}
+              returnKeyType="send"
+              blurOnSubmit
+              onSubmitEditing={send}
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, { backgroundColor: tokens.brand.iris, opacity: text.trim() && !sending ? 1 : 0.5 }]}
+              onPress={send}
+              disabled={!text.trim() || sending}
+              activeOpacity={0.85}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
                 <Ionicons name="send" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -416,9 +510,58 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalSheet: { height: '70%', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8 },
-  modalHandle: { width: 44, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginBottom: 10 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, borderTopWidth: StyleSheet.hairlineWidth },
-  inputField: { flex: 1, height: 44, borderRadius: 22, paddingHorizontal: 16, fontSize: 14 },
+  modalSheet: {
+    height: '75%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 8,
+    overflow: 'hidden',
+  },
+  modalHandle: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#d1d5db',
+    alignSelf: 'center',
+    marginBottom: 6,
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(150,150,150,0.18)',
+    marginBottom: 4,
+  },
+  commentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 10,
+  },
+  commentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1422AE',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  inputField: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 120,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 });

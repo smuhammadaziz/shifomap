@@ -95,7 +95,8 @@ export interface ReviewListItem {
   serviceId: string | null
   doctorId: string | null
   patientId: string
-  patientName?: string
+  patientName?: string | null
+  patientAvatar?: string | null
   patient?: {
     fullName: string
     phone: string
@@ -164,8 +165,12 @@ export async function listReviewsWithPatientDetails(
   const patientMap = new Map(patientDocs.map((p) => [p._id.toHexString(), p]))
   const enriched: ReviewListItem[] = reviews.map((r) => {
     const patient = patientMap.get(r.patientId)
+    const fullName = patient?.fullName?.trim() ? patient.fullName : null
+    const avatar = patient?.avatarUrl?.trim() ? patient.avatarUrl : null
     return {
       ...r,
+      patientName: fullName,
+      patientAvatar: avatar,
       patient: patient
         ? {
             fullName: patient.fullName,

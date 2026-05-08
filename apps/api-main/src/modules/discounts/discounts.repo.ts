@@ -36,6 +36,45 @@ export async function listActiveDiscounts(limit: number): Promise<DiscountDoc[]>
     .toArray()
 }
 
+/**
+ * Returns the currently active (non-expired, non-deleted) discount for a
+ * service if one exists. If multiple are active, the one with the lowest
+ * discounted price is returned (best deal for the user).
+ */
+export async function findActiveDiscountForService(serviceId: ObjectId): Promise<DiscountDoc | null> {
+  const db = getDb()
+  const now = new Date()
+  return db
+    .collection<DiscountDoc>(DISCOUNTS_COLLECTION)
+    .find({ serviceId, deletedAt: null, expiresAt: { $gt: now } })
+    .sort({ discountedAmount: 1 })
+    .limit(1)
+    .next()
+}
+
+/**
+ * Bulk lookup: returns active discounts for multiple service ids keyed by
+ * service id hex string. Used to enrich service lists with discount info.
+ */
+export async function findActiveDiscountsForServices(
+  serviceIds: ObjectId[],
+): Promise<Map<string, DiscountDoc>> {
+  const out = new Map<string, DiscountDoc>()
+  if (serviceIds.length === 0) return out
+  const db = getDb()
+  const now = new Date()
+  const docs = await db
+    .collection<DiscountDoc>(DISCOUNTS_COLLECTION)
+    .find({ serviceId: { $in: serviceIds }, deletedAt: null, expiresAt: { $gt: now } })
+    .sort({ discountedAmount: 1 })
+    .toArray()
+  for (const d of docs) {
+    const key = d.serviceId.toHexString()
+    if (!out.has(key)) out.set(key, d)
+  }
+  return out
+}
+
 export async function updateDiscount(id: ObjectId, clinicId: ObjectId, patch: Partial<DiscountDoc>): Promise<DiscountDoc | null> {
   const db = getDb()
   const now = new Date()

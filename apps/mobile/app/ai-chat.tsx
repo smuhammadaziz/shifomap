@@ -78,26 +78,44 @@ function buildAddress(city?: string, street?: string) {
   return [city, street].filter(Boolean).join(', ');
 }
 
-async function findDoctorSuggestions(query: string, aiAnswer: string): Promise<DoctorSuggestion[]> {
+// Patterns that indicate the user wants to see a doctor / book / take tests, even
+// when no specific specialty is mentioned. In that case we fall back to terapevt.
+const GENERIC_DOCTOR_RX =
+  /(врач(а|у|ом)?|доктор(а|у)?|приём|прием|записаться|записат|записываться|клиник|поликлиник|медцентр|больниц|медицинск|лаборатор|анализ|обследован|консультац|осмотр|check[- ]?up|appointment|book|doctor|clinic|hospital|test|lab|shifokor|qabul|tibbiy|tahlil|tekshir|bron|navbat|maslahat)/i;
+
+const SPECIALTY_HINTS: Array<{ key: string; rx: RegExp; aliases: string[] }> = [
+  { key: 'stomatolog', rx: /(stomatolog|стоматолог|dentist|dental|tish|зуб)/i, aliases: ['stomatolog', 'стоматолог', 'dentist', 'dental', 'tish', 'зуб'] },
+  { key: 'lor', rx: /(\blor\b|\bлор\b|otolaringolog|otorhinolaryngolog|ent doctor|ear,? nose|tomoq|quloq)/i, aliases: ['lor', 'лор', 'отоларинголог', 'otolaringolog'] },
+  { key: 'nevrolog', rx: /(nevrolog|невролог|neurolog|asab|нерв)/i, aliases: ['nevrolog', 'невролог', 'neurolog'] },
+  { key: 'kardiolog', rx: /(kardiolog|кардиолог|cardiolog|yurak|сердц|heart)/i, aliases: ['kardiolog', 'кардиолог', 'cardiolog'] },
+  { key: 'ginekolog', rx: /(ginekolog|гинеколог|gynecolog|gynaecolog)/i, aliases: ['ginekolog', 'гинеколог', 'gynecolog'] },
+  { key: 'pediatr', rx: /(pediatr|педиатр|pediatric|bola(lar)?)/i, aliases: ['pediatr', 'педиатр', 'pediatric'] },
+  { key: 'dermatolog', rx: /(dermatolog|дерматолог|dermatolog|teri)/i, aliases: ['dermatolog', 'дерматолог'] },
+  { key: 'oftalmolog', rx: /(oftalmolog|офтальмолог|окулист|ophthalmolog|ko'z|глаз|eye)/i, aliases: ['oftalmolog', 'офтальмолог', 'окулист', 'ophthalmolog', "ko'z", 'глаз'] },
+  { key: 'urolog', rx: /(urolog|уролог|urolog)/i, aliases: ['urolog', 'уролог'] },
+  { key: 'endokrinolog', rx: /(endokrinolog|эндокринолог|endocrinolog|qand|сахар|diabet)/i, aliases: ['endokrinolog', 'эндокринолог', 'endocrinolog'] },
+  { key: 'gastroenterolog', rx: /(gastroenterolog|гастроэнтеролог|gastroenterolog|oshqozon|желуд)/i, aliases: ['gastroenterolog', 'гастроэнтеролог'] },
+  { key: 'travmatolog', rx: /(travmatolog|травматолог|orthopedi|ортопед|сустав|kostochka)/i, aliases: ['travmatolog', 'травматолог', 'ортопед', 'orthopedi'] },
+  { key: 'psixolog', rx: /(psixolog|психолог|psycholog|psychiat)/i, aliases: ['psixolog', 'психолог', 'psycholog', 'психиат'] },
+  { key: 'terapevt', rx: /(terapevt|терапевт|therapist|family doctor|общий врач|общая практик)/i, aliases: ['terapevt', 'терапевт', 'therapist', 'family'] },
+];
+
+function pickSpecialty(query: string, aiAnswer: string): { key: string; aliases: string[] } | null {
   const text = `${query} ${aiAnswer}`.toLowerCase();
-  const asksForDoctor =
-    /(doktor|doctor|shifokor|врач|лор|lor|невр|nevrolog|kardiolog|кардиолог|ginekolog|гинеколог|pediatr|педиатр)/i.test(text);
+  // 1) Try to find a concrete specialty mentioned anywhere.
+  const concrete = SPECIALTY_HINTS.find((x) => x.rx.test(text));
+  if (concrete) return { key: concrete.key, aliases: concrete.aliases };
+  // 2) Otherwise, if the user is clearly asking to see a doctor / book / take tests,
+  //    fall back to a general practitioner (terapevt) so we still surface options.
+  if (GENERIC_DOCTOR_RX.test(text)) {
+    const fallback = SPECIALTY_HINTS.find((x) => x.key === 'terapevt');
+    return fallback ? { key: fallback.key, aliases: fallback.aliases } : null;
+  }
+  return null;
+}
 
-  if (!asksForDoctor) return [];
-
-  const specialtyHints: Array<{ key: string; rx: RegExp; aliases: string[] }> = [
-    { key: 'stomatolog', rx: /(stomatolog|стоматолог|dentist|dental|tish|зуб)/i, aliases: ['stomatolog', 'dentist', 'dental', 'tish', 'зуб'] },
-    { key: 'lor', rx: /(lor|лор|otolaringolog|otorhinolaryngolog)/i, aliases: ['lor', 'otolaringolog', 'отоларинголог'] },
-    { key: 'nevrolog', rx: /(nevrolog|невролог|neurolog)/i, aliases: ['nevrolog', 'невролог', 'neurolog'] },
-    { key: 'kardiolog', rx: /(kardiolog|кардиолог|cardiolog)/i, aliases: ['kardiolog', 'кардиолог', 'cardiolog'] },
-    { key: 'ginekolog', rx: /(ginekolog|гинеколог|gynecolog)/i, aliases: ['ginekolog', 'гинеколог', 'gynecolog'] },
-    { key: 'pediatr', rx: /(pediatr|педиатр|pediatric)/i, aliases: ['pediatr', 'педиатр', 'pediatric'] },
-    { key: 'dermatolog', rx: /(dermatolog|дерматолог|dermatolog)/i, aliases: ['dermatolog', 'дерматолог'] },
-    { key: 'terapevt', rx: /(terapevt|терапевт|therapist|family doctor)/i, aliases: ['terapevt', 'терапевт', 'therapist', 'family'] },
-  ];
-  const wanted = specialtyHints.find((x) => x.rx.test(text)) ?? null;
-
-  // If user asks for a doctor but specialty is unclear, don't show unrelated doctors.
+async function findDoctorSuggestions(query: string, aiAnswer: string): Promise<DoctorSuggestion[]> {
+  const wanted = pickSpecialty(query, aiAnswer);
   if (!wanted) return [];
 
   const clinics = await getClinicsList(80);
@@ -133,32 +151,44 @@ async function findDoctorSuggestions(query: string, aiAnswer: string): Promise<D
     const key = `${item.clinicId}:${item.doctorId}`;
     if (!dedup.has(key)) dedup.set(key, item);
   }
-  return [...dedup.values()].slice(0, 8);
+  // Sort by rating so best clinics surface first when we fall back to terapevt.
+  const sorted = [...dedup.values()].sort((a, b) => (b.ratingAvg ?? 0) - (a.ratingAvg ?? 0));
+  return sorted.slice(0, 8);
 }
 
 function specialtyNeedleForSlots(query: string, aiAnswer: string): string | null {
-  const text = `${query} ${aiAnswer}`.toLowerCase();
-  const specialtyHints: Array<{ rx: RegExp; needle: string }> = [
-    { rx: /(stomatolog|стоматолог|dentist|dental|tish|зуб)/i, needle: 'stomatolog' },
-    { rx: /(lor|лор|otolaringolog|otorhinolaryngolog)/i, needle: 'lor' },
-    { rx: /(nevrolog|невролог|neurolog)/i, needle: 'nevrolog' },
-    { rx: /(kardiolog|кардиолог|cardiolog)/i, needle: 'kardiolog' },
-    { rx: /(ginekolog|гинеколог|gynecolog)/i, needle: 'ginekolog' },
-    { rx: /(pediatr|педиатр|pediatric)/i, needle: 'pediatr' },
-    { rx: /(dermatolog|дерматолог)/i, needle: 'dermatolog' },
-    { rx: /(terapevt|терапевт|therapist|family doctor)/i, needle: 'terapevt' },
-  ];
-  const hit = specialtyHints.find((x) => x.rx.test(text));
-  return hit?.needle ?? null;
+  return pickSpecialty(query, aiAnswer)?.key ?? null;
+}
+
+function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function tomorrowDateStr(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return formatDate(d);
+}
+
+function todayDateStr(): string {
+  return formatDate(new Date());
+}
+
+// Pick the date the user is asking about. Falls back to tomorrow.
+function pickSlotDate(query: string, aiAnswer: string): string {
+  const text = `${query} ${aiAnswer}`.toLowerCase();
+  if (/(сегодня|bugun|today)/i.test(text)) return todayDateStr();
+  if (/(завтра|ertaga|tomorrow)/i.test(text)) return tomorrowDateStr();
+  // Day-after-tomorrow ("indinga", "послезавтра", etc.)
+  if (/(послезавтра|indinga|day after tomorrow)/i.test(text)) {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return formatDate(d);
+  }
+  return tomorrowDateStr();
 }
 
 export default function AiChatScreen() {
@@ -297,12 +327,22 @@ export default function AiChatScreen() {
         return;
       }
 
+      const systemPrompt =
+        'You are a helpful AI medical assistant for ShifoYol (a Uzbek medical booking app). ' +
+        'Answer clearly and concisely in ' + (isUz ? 'Uzbek' : 'Russian') + '. ' +
+        'When the user is describing symptoms or asking who to see, ALWAYS recommend a concrete specialty by name ' +
+        '(use one of: terapevt, stomatolog, lor, nevrolog, kardiolog, ginekolog, pediatr, dermatolog, ' +
+        'oftalmolog, urolog, endokrinolog, gastroenterolog, travmatolog, psixolog). ' +
+        'If the user wants to see a doctor or take tests but does not specify a specialty, recommend a "terapevt" ' +
+        '(general practitioner) and explain that they can be referred to a specialist. ' +
+        'Mention the recommended specialty word explicitly in your answer so the app can show open slots.';
+
       const payload = {
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a helpful AI medical assistant for ShifoYol. Answer clearly and concisely in ' + (isUz ? 'Uzbek' : 'Russian') },
-          ...newMessages
-        ]
+          { role: 'system', content: systemPrompt },
+          ...newMessages,
+        ],
       };
 
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -322,11 +362,12 @@ export default function AiChatScreen() {
         let slots: DoctorSlotBySpecialty[] = [];
         const needle = specialtyNeedleForSlots(val, answer);
         if (needle) {
+          const slotDate = pickSlotDate(val, answer);
           try {
             const res = await getDoctorSlotsBySpecialty({
               specialty: needle,
-              date: tomorrowDateStr(),
-              limit: 5,
+              date: slotDate,
+              limit: 8,
             });
             slots = res.slots ?? [];
           } catch {
@@ -491,7 +532,20 @@ export default function AiChatScreen() {
                     {msg.role === 'assistant' && msg.slots && msg.slots.length > 0 ? (
                       <View style={{ marginTop: 12 }}>
                         <Text style={[styles.suggestedTitle, { color: colors.text }]}>
-                          {isUz ? 'Ertaga bo‘sh vaqtlar' : 'Свободные слоты на завтра'}
+                          {(() => {
+                            const slotDate = msg.slots[0]?.date;
+                            const today = todayDateStr();
+                            const tomorrow = tomorrowDateStr();
+                            const dayLabel =
+                              slotDate === today
+                                ? isUz ? 'Bugun' : 'сегодня'
+                                : slotDate === tomorrow
+                                ? isUz ? 'Ertaga' : 'завтра'
+                                : slotDate ?? '';
+                            return isUz
+                              ? `${dayLabel} bo‘sh vaqtlar`
+                              : `Свободные слоты на ${dayLabel}`;
+                          })()}
                         </Text>
                         <ScrollView
                           horizontal

@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Keyboard,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeStore } from '../../store/theme-store';
@@ -34,6 +35,97 @@ export interface ReviewBottomSheetProps {
   entityName: string;
 }
 
+type Lang = 'uz' | 'ru' | 'en';
+type StarKey = 1 | 2 | 3 | 4 | 5;
+
+const SAMPLE_REVIEWS: Record<StarKey, Record<Lang, string[]>> = {
+  5: {
+    uz: [
+      'Juda mamnun qoldim, hammasi a\u2019lo darajada.',
+      'Professional yondashuv, tavsiya qilaman.',
+      'Tez va sifatli xizmat, katta rahmat!',
+    ],
+    ru: [
+      'Очень доволен, всё на высшем уровне.',
+      'Профессиональный подход, рекомендую.',
+      'Быстро и качественно, спасибо большое!',
+    ],
+    en: [
+      'Very satisfied, everything was top-notch.',
+      'Professional approach, highly recommend.',
+      'Fast and quality service, thank you!',
+    ],
+  },
+  4: {
+    uz: [
+      'Yaxshi, lekin biroz kutishga to\u2019g\u2019ri keldi.',
+      'Umuman olganda mamnunman, sifatli xizmat.',
+      'Yaxshi tajriba, kichik kamchiliklar bor.',
+    ],
+    ru: [
+      'Хорошо, но пришлось немного подождать.',
+      'В целом доволен, качественный сервис.',
+      'Хороший опыт, есть небольшие замечания.',
+    ],
+    en: [
+      'Good, but had to wait a little.',
+      'Overall satisfied, quality service.',
+      'Good experience with minor things to improve.',
+    ],
+  },
+  3: {
+    uz: [
+      'O\u2019rtacha tajriba, kutganimdan past.',
+      'Yomon emas, lekin yaxshilashlar kerak.',
+      'Mos keldi, ammo hayratlanarli emas.',
+    ],
+    ru: [
+      'Средний опыт, ожидал большего.',
+      'Неплохо, но есть что улучшить.',
+      'Нормально, но без особых впечатлений.',
+    ],
+    en: [
+      'Average experience, expected more.',
+      'Not bad, but room for improvement.',
+      'It was okay, nothing special.',
+    ],
+  },
+  2: {
+    uz: [
+      'Kutganimga to\u2019g\u2019ri kelmadi.',
+      'Xizmatdan ko\u2019ngil to\u2019lmadi.',
+      'Bir nechta jihatlarni yaxshilash kerak.',
+    ],
+    ru: [
+      'Не оправдало ожиданий.',
+      'Сервис разочаровал.',
+      'Нужно многое улучшать.',
+    ],
+    en: [
+      'Did not meet my expectations.',
+      'Service was disappointing.',
+      'Several things need improvement.',
+    ],
+  },
+  1: {
+    uz: [
+      'Tavsiya qilmayman.',
+      'Juda yomon tajriba bo\u2019ldi.',
+      'Bu yerga qaytmasligimga aminman.',
+    ],
+    ru: [
+      'Не рекомендую.',
+      'Очень плохой опыт.',
+      'Больше не вернусь сюда.',
+    ],
+    en: [
+      'Would not recommend.',
+      'Very poor experience.',
+      'Definitely won\u2019t come back.',
+    ],
+  },
+};
+
 export default function ReviewBottomSheet({
   visible,
   onClose,
@@ -55,6 +147,12 @@ export default function ReviewBottomSheet({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  const lang: Lang = language === 'ru' ? 'ru' : language === 'en' ? 'en' : 'uz';
+  const starKey: StarKey = (Math.min(5, Math.max(1, stars)) as StarKey);
+  const samples = SAMPLE_REVIEWS[starKey][lang] ?? [];
+  const suggestionsTitle =
+    lang === 'ru' ? 'Готовые варианты' : lang === 'en' ? 'Quick suggestions' : 'Tayyor namunalar';
 
   useEffect(() => {
     if (visible) {
@@ -94,6 +192,8 @@ export default function ReviewBottomSheet({
   const sheetBg = colors.backgroundCard ?? '#18181b';
   const sheetBorder = colors.border ?? '#27272a';
   const primaryBtn = colors.primaryLight ?? '#0A2FB8';
+  const screenHeight = Dimensions.get('window').height;
+  const bodyMaxHeight = Math.round(screenHeight * 0.72);
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
@@ -124,7 +224,7 @@ export default function ReviewBottomSheet({
 
             <ScrollView
               ref={scrollRef}
-              style={styles.bodyScroll}
+              style={[styles.bodyScroll, { maxHeight: bodyMaxHeight }]}
               contentContainerStyle={styles.body}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -146,6 +246,48 @@ export default function ReviewBottomSheet({
                     />
                   </TouchableOpacity>
                 ))}
+              </View>
+
+              <View style={styles.suggestionsBlock}>
+                <Text style={[styles.suggestionsLabel, { color: colors.textTertiary }]}>
+                  {suggestionsTitle}
+                </Text>
+                <View style={styles.suggestionsList}>
+                  {samples.map((sample) => {
+                    const selected = text.trim() === sample;
+                    return (
+                      <TouchableOpacity
+                        key={sample}
+                        activeOpacity={0.85}
+                        onPress={() => setText(sample)}
+                        style={[
+                          styles.suggestionChip,
+                          {
+                            backgroundColor: selected
+                              ? colors.primaryBg
+                              : colors.backgroundSecondary,
+                            borderColor: selected ? primaryBtn : sheetBorder,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={selected ? 'checkmark-circle' : 'add-circle-outline'}
+                          size={14}
+                          color={selected ? primaryBtn : colors.textTertiary}
+                        />
+                        <Text
+                          style={[
+                            styles.suggestionText,
+                            { color: selected ? primaryBtn : colors.text },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {sample}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
 
               <Text style={[styles.label, { color: colors.textSecondary }]}>{t.reviewText}</Text>
@@ -255,7 +397,6 @@ const styles = StyleSheet.create({
   },
   bodyScroll: {
     flexGrow: 0,
-    maxHeight: '72%',
   },
   label: {
     fontSize: 13,
@@ -268,10 +409,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    marginBottom: 24,
+    marginBottom: 18,
   },
   starBtn: {
     padding: 6,
+  },
+  suggestionsBlock: {
+    marginBottom: 18,
+  },
+  suggestionsLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  suggestionsList: {
+    gap: 8,
+  },
+  suggestionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   input: {
     borderRadius: 16,

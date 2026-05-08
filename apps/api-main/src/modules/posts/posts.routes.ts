@@ -110,8 +110,52 @@ export const postsPublicRoutes = new Elysia({ prefix: "/posts" })
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray()
+
+    // Enrich with up-to-date patient name/avatar (also backfills older comments
+    // that were saved with null because of the old profile.* path bug).
+    const patientIds = Array.from(new Set(docs.map((d) => d.patientId.toHexString())))
+      .map((id) => toObjectId(id))
+    const patientMap = new Map<
+      string,
+      { fullName: string | null; avatarUrl: string | null; phone: string | null }
+    >()
+    if (patientIds.length > 0) {
+      const patients = (await db
+        .collection(PATIENTS_COLLECTION)
+        .find(
+          { _id: { $in: patientIds } },
+          { projection: { fullName: 1, avatarUrl: 1, "contacts.phone": 1 } },
+        )
+        .toArray()) as Array<{
+          _id: ObjectId
+          fullName?: string | null
+          avatarUrl?: string | null
+          contacts?: { phone?: string | null }
+        }>
+      patients.forEach((p) => {
+        patientMap.set(p._id.toHexString(), {
+          fullName: p.fullName ?? null,
+          avatarUrl: p.avatarUrl ?? null,
+          phone: p.contacts?.phone ?? null,
+        })
+      })
+    }
+
     set.status = 200
-    return { success: true, data: docs.map(mapCommentToPublic) }
+    return {
+      success: true,
+      data: docs.map((d) => {
+        const base = mapCommentToPublic(d)
+        const fresh = patientMap.get(d.patientId.toHexString())
+        if (!fresh) return base
+        return {
+          ...base,
+          patientName: fresh.fullName?.trim() ? fresh.fullName : base.patientName,
+          patientAvatar: fresh.avatarUrl?.trim() ? fresh.avatarUrl : base.patientAvatar,
+          patientPhone: fresh.phone,
+        }
+      }),
+    }
   })
 
 export const postsPatientRoutes = new Elysia({ prefix: "/posts" })
@@ -166,14 +210,20 @@ export const postsPatientRoutes = new Elysia({ prefix: "/posts" })
     const patient = (await db
       .collection(PATIENTS_COLLECTION)
       .findOne({ _id: toObjectId(auth.sub) })) as
-      | { profile?: { fullName?: string | null; avatarUrl?: string | null } }
+      | {
+          fullName?: string | null
+          avatarUrl?: string | null
+          contacts?: { phone?: string | null }
+        }
       | null
+    const phone = patient?.contacts?.phone ?? null
+    const fullName = patient?.fullName?.trim() ? patient.fullName : null
     const doc: PostCommentDoc = {
       _id: new ObjectId(),
       postId,
       patientId: toObjectId(auth.sub),
-      patientName: patient?.profile?.fullName ?? null,
-      patientAvatar: patient?.profile?.avatarUrl ?? null,
+      patientName: fullName,
+      patientAvatar: patient?.avatarUrl ?? null,
       text: parsed.data.text,
       createdAt: new Date(),
       deletedAt: null,
@@ -183,7 +233,10 @@ export const postsPatientRoutes = new Elysia({ prefix: "/posts" })
       .collection<PostDoc>(POSTS_COLLECTION)
       .updateOne({ _id: postId }, { $inc: { commentsCount: 1 } })
     set.status = 201
-    return { success: true, data: mapCommentToPublic(doc) }
+    return {
+      success: true,
+      data: { ...mapCommentToPublic(doc), patientPhone: phone },
+    }
   })
 
 export const postsAdminRoutes = new Elysia({ prefix: "/posts" })
@@ -256,4 +309,82 @@ export const postsAdminRoutes = new Elysia({ prefix: "/posts" })
       )
     set.status = 200
     return { success: true, data: { _id: params.id } }
+  })
+  .get("/:id/comments-admin", async ({ auth, params, query, set }) => {
+    if (!isAdmin(auth.role)) throw unauthorized("Admin only")
+    if (!ObjectId.isValid(params.id)) throw badRequest("Invalid id")
+    const db = getDb()
+    const limit = Math.min(500, Math.max(1, parseInt((query.limit as string) || "200", 10)))
+    const docs = await db
+      .collection<PostCommentDoc>(POST_COMMENTS_COLLECTION)
+      .find({ postId: toObjectId(params.id), deletedAt: null })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray()
+
+    const patientIds = Array.from(new Set(docs.map((d) => d.patientId.toHexString())))
+      .map((id) => toObjectId(id))
+    const patientMap = new Map<
+      string,
+      { fullName: string | null; avatarUrl: string | null; phone: string | null }
+    >()
+    if (patientIds.length > 0) {
+      const patients = (await db
+        .collection(PATIENTS_COLLECTION)
+        .find(
+          { _id: { $in: patientIds } },
+          { projection: { fullName: 1, avatarUrl: 1, "contacts.phone": 1 } },
+        )
+        .toArray()) as Array<{
+          _id: ObjectId
+          fullName?: string | null
+          avatarUrl?: string | null
+          contacts?: { phone?: string | null }
+        }>
+      patients.forEach((p) => {
+        patientMap.set(p._id.toHexString(), {
+          fullName: p.fullName ?? null,
+          avatarUrl: p.avatarUrl ?? null,
+          phone: p.contacts?.phone ?? null,
+        })
+      })
+    }
+
+    set.status = 200
+    return {
+      success: true,
+      data: docs.map((d) => {
+        const base = mapCommentToPublic(d)
+        const fresh = patientMap.get(d.patientId.toHexString())
+        return {
+          ...base,
+          patientName: fresh?.fullName?.trim() ? fresh.fullName : base.patientName,
+          patientAvatar: fresh?.avatarUrl?.trim() ? fresh.avatarUrl : base.patientAvatar,
+          patientPhone: fresh?.phone ?? null,
+        }
+      }),
+    }
+  })
+  .delete("/:id/comments/:commentId", async ({ auth, params, set }) => {
+    if (!isAdmin(auth.role)) throw unauthorized("Admin only")
+    if (!ObjectId.isValid(params.id) || !ObjectId.isValid(params.commentId)) {
+      throw badRequest("Invalid id")
+    }
+    const db = getDb()
+    const postId = toObjectId(params.id)
+    const commentId = toObjectId(params.commentId)
+    const result = await db
+      .collection<PostCommentDoc>(POST_COMMENTS_COLLECTION)
+      .updateOne(
+        { _id: commentId, postId, deletedAt: null },
+        { $set: { deletedAt: new Date() } },
+      )
+    if (result.matchedCount === 0) throw notFound("Comment not found")
+    if (result.modifiedCount > 0) {
+      await db
+        .collection<PostDoc>(POSTS_COLLECTION)
+        .updateOne({ _id: postId }, { $inc: { commentsCount: -1 } })
+    }
+    set.status = 200
+    return { success: true, data: { _id: params.commentId } }
   })

@@ -86,9 +86,11 @@ export const brand = {
 
 /**
  * Gradient pairs consumed by `PrimaryGradient`. Keep them subtle and
- * consistent so cards/heroes feel from the same family.
+ * consistent so cards/heroes feel from the same family. Light-mode pairs
+ * use pastel tints, dark-mode pairs use deep navy/charcoal tints so light
+ * pastel surfaces don't punch through the dark theme.
  */
-export const gradients = {
+const lightGradients = {
   hero: ['#0A2FB8', '#1E40AF', '#3B82F6'] as string[],
   soft: ['#EEF2FF', '#E0E7FF'] as string[],
   cool: ['#e0e7ff', '#dbeafe'] as string[],
@@ -98,6 +100,28 @@ export const gradients = {
   night: ['#0f172a', '#1e1b4b'] as string[],
 } as const;
 
+const darkGradients = {
+  // Vibrant CTAs stay vibrant in dark mode — these are foreground surfaces.
+  hero: ['#0A2FB8', '#1E40AF', '#3B82F6'] as string[],
+  // Background-style gradients are flipped to deep charcoal/navy so they
+  // blend into the dark UI instead of looking like a bright "pastel island".
+  soft: ['#101225', '#0d1126'] as string[],
+  cool: ['#11142a', '#0e1024'] as string[],
+  warm: ['#2a1f10', '#1a1207'] as string[],
+  mint: ['#0c2620', '#06231a'] as string[],
+  rose: ['#2a1019', '#1a0810'] as string[],
+  night: ['#0f172a', '#1e1b4b'] as string[],
+} as const;
+
+export type GradientSet = typeof lightGradients;
+
+export function getGradients(theme: AppTheme): GradientSet {
+  return theme === 'dark' ? darkGradients : lightGradients;
+}
+
+/** @deprecated Prefer `tokens.gradients` from `getTokens(theme)`. */
+export const gradients = lightGradients;
+
 export interface Tokens {
   colors: ThemeColors;
   radii: typeof radii;
@@ -105,7 +129,7 @@ export interface Tokens {
   shadows: typeof shadows;
   type: typeof type;
   brand: typeof brand;
-  gradients: typeof gradients;
+  gradients: GradientSet;
 }
 
 export function getTokens(theme: AppTheme): Tokens {
@@ -116,6 +140,6 @@ export function getTokens(theme: AppTheme): Tokens {
     shadows,
     type,
     brand,
-    gradients,
+    gradients: getGradients(theme),
   };
 }

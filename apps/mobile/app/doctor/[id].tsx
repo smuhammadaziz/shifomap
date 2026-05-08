@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,6 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getClinicDetail,
   getReviews,
+  getApiErrorMessage,
+  openConversationWithDoctor,
   type ClinicDoctorPublic,
   type ReviewItem,
 } from '../../lib/api';
@@ -24,7 +27,8 @@ import { getTranslations } from '../../lib/translations';
 import { getTokens } from '../../lib/design';
 import { Button, Card, SkeletonBlock, IconButton } from '../../components/ui';
 import ReviewBottomSheet from '../components/ReviewBottomSheet';
-import { formatWorkingHoursSummary } from '../../lib/formatWorkingHours';
+import ReviewerHeader from '../components/ReviewerHeader';
+import WorkingHoursList from '../components/WorkingHoursList';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&q=80';
 
@@ -46,6 +50,8 @@ export default function DoctorDetailScreen() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsLoadMore, setReviewsLoadMore] = useState(false);
   const [doctorRating, setDoctorRating] = useState<{ avg: number; count: number } | null>(null);
+  const [chatOpening, setChatOpening] = useState(false);
+  const token = useAuthStore((s) => s.token);
 
   useEffect(() => {
     if (!doctorId || !clinicId) {
@@ -98,13 +104,56 @@ export default function DoctorDetailScreen() {
   };
 
   const openChat = async () => {
-    if (!clinicId || !doctorId) return;
+    if (chatOpening) return;
+
+    if (!clinicId || !doctorId) {
+      Alert.alert(
+        language === 'ru' ? 'Ошибка' : language === 'en' ? 'Error' : 'Xatolik',
+        language === 'ru'
+          ? 'Не удалось определить врача. Попробуйте ещё раз.'
+          : language === 'en'
+            ? 'Could not identify the doctor. Please try again.'
+            : 'Shifokorni aniqlab bo\u2018lmadi. Qayta urinib ko\u2018ring.',
+      );
+      return;
+    }
+
+    if (!token) {
+      Alert.alert(
+        language === 'ru' ? 'Войдите в аккаунт' : language === 'en' ? 'Sign in required' : 'Hisobga kiring',
+        language === 'ru'
+          ? 'Чтобы написать врачу, войдите в свой аккаунт.'
+          : language === 'en'
+            ? 'Please sign in to message the doctor.'
+            : 'Shifokorga yozish uchun avval hisobingizga kiring.',
+        [
+          { text: language === 'ru' ? 'Отмена' : language === 'en' ? 'Cancel' : 'Bekor qilish', style: 'cancel' },
+          {
+            text: language === 'ru' ? 'Войти' : language === 'en' ? 'Sign in' : 'Kirish',
+            onPress: () => router.push('/(auth)/login'),
+          },
+        ],
+      );
+      return;
+    }
+
+    setChatOpening(true);
     try {
-      const { openConversationWithDoctor } = await import('../../lib/api');
       const conv = await openConversationWithDoctor(clinicId, doctorId);
       router.push({ pathname: '/chat/[id]', params: { id: conv._id } });
-    } catch {
-      /* noop */
+    } catch (e) {
+      const apiMsg = getApiErrorMessage(e);
+      Alert.alert(
+        language === 'ru' ? 'Не удалось открыть чат' : language === 'en' ? 'Could not open chat' : 'Chatni ochib bo\u2018lmadi',
+        apiMsg ||
+          (language === 'ru'
+            ? 'Проверьте подключение к интернету и попробуйте ещё раз.'
+            : language === 'en'
+              ? 'Please check your connection and try again.'
+              : 'Internet ulanishini tekshirib, qayta urinib ko\u2018ring.'),
+      );
+    } finally {
+      setChatOpening(false);
     }
   };
 
@@ -134,10 +183,7 @@ export default function DoctorDetailScreen() {
     );
   }
 
-  const scheduleText =
-    doctor.schedule?.weekly?.length
-      ? formatWorkingHoursSummary(doctor.schedule.weekly, language === 'ru' ? 'ru' : 'uz')
-      : null;
+  const hasSchedule = !!doctor.schedule?.weekly?.length;
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.colors.background }]}>
@@ -218,12 +264,23 @@ export default function DoctorDetailScreen() {
             </Card>
           ) : null}
 
-          {scheduleText ? (
+          {hasSchedule ? (
             <Card>
-              <Text style={[tokens.type.caption, { color: tokens.colors.textTertiary, marginBottom: 6 }]}>
-                {language === 'uz' ? "Ish jadvali" : 'График'}
-              </Text>
-              <Text style={{ color: tokens.colors.text, fontSize: 13, lineHeight: 20 }}>{scheduleText}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Ionicons name="calendar-outline" size={14} color={tokens.brand.iris} />
+                <Text style={[tokens.type.caption, { color: tokens.colors.textTertiary }]}>
+                  {language === 'uz' ? 'Ish jadvali' : language === 'en' ? 'Working hours' : 'График работы'}
+                </Text>
+              </View>
+              <WorkingHoursList
+                weekly={doctor.schedule?.weekly}
+                language={language}
+                textColor={tokens.colors.text}
+                secondaryColor={tokens.colors.textTertiary}
+                borderColor={tokens.colors.borderLight}
+                accentColor={tokens.brand.iris}
+                accentBg={tokens.colors.backgroundSecondary}
+              />
             </Card>
           ) : null}
 
@@ -243,22 +300,19 @@ export default function DoctorDetailScreen() {
                   key={r._id}
                   style={[styles.reviewRow, { borderBottomColor: tokens.colors.borderLight }]}
                 >
-                  <View style={{ flexDirection: 'row', gap: 2, marginBottom: 4 }}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Ionicons
-                        key={s}
-                        name={s <= r.stars ? 'star' : 'star-outline'}
-                        size={13}
-                        color={tokens.brand.amber}
-                      />
-                    ))}
-                  </View>
+                  <ReviewerHeader
+                    review={r}
+                    language={language}
+                    textColor={tokens.colors.text}
+                    secondaryColor={tokens.colors.textTertiary}
+                    starColor={tokens.brand.amber}
+                    size="sm"
+                  />
                   {r.text ? (
-                    <Text style={{ color: tokens.colors.text, fontSize: 13, lineHeight: 18 }}>{r.text}</Text>
+                    <Text style={{ color: tokens.colors.text, fontSize: 13, lineHeight: 18, marginTop: 8 }}>
+                      {r.text}
+                    </Text>
                   ) : null}
-                  <Text style={{ color: tokens.colors.textTertiary, fontSize: 11, marginTop: 4 }}>
-                    {new Date(r.createdAt).toLocaleDateString()}
-                  </Text>
                 </View>
               ))
             )}
@@ -292,10 +346,12 @@ export default function DoctorDetailScreen() {
 
       <View style={[styles.ctaBar, { backgroundColor: tokens.colors.background, borderTopColor: tokens.colors.border, paddingBottom: insets.bottom + 10 }]}>
         <Button
-          title={language === 'uz' ? 'Yozish' : 'Написать'}
+          title={language === 'uz' ? 'Yozish' : language === 'en' ? 'Write' : 'Написать'}
           variant="outline"
           leftIcon="chatbubble-ellipses-outline"
           onPress={openChat}
+          loading={chatOpening}
+          disabled={chatOpening}
           fullWidth={false}
           style={{ flex: 1 }}
           size="md"

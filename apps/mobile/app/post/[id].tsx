@@ -33,8 +33,39 @@ import {
 } from '../../lib/api';
 
 function resolveImage(url: string): string {
+  if (!url) return '';
   if (url.startsWith('http')) return url;
   return getFileUrl(url) ?? url;
+}
+
+function commentDisplayName(c: PostComment, language: 'uz' | 'ru' | 'en'): string {
+  const name = c.patientName?.trim();
+  if (name) return name;
+  const phone = c.patientPhone?.trim();
+  if (phone) {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length >= 4) return `+${digits.slice(0, -4)} ··· ${digits.slice(-4)}`.replace(/^\+\s/, '+');
+    return phone;
+  }
+  return language === 'uz' ? 'Foydalanuvchi' : language === 'ru' ? 'Пользователь' : 'User';
+}
+
+function commentTimeAgo(iso: string, language: 'uz' | 'ru' | 'en'): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const diffSec = Math.max(1, Math.floor((Date.now() - then) / 1000));
+  if (language === 'ru') {
+    if (diffSec < 60) return 'только что';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} мин`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ч`;
+    if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} д`;
+    return `${Math.floor(diffSec / 604800)} нед`;
+  }
+  if (diffSec < 60) return 'hozir';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} daq`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} soat`;
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} kun`;
+  return `${Math.floor(diffSec / 604800)} hafta`;
 }
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -212,12 +243,35 @@ export default function PostDetailScreen() {
               {tr('Birinchi bo‘lib fikr bildiring', 'Оставьте первый комментарий', 'Be the first to comment')}
             </Text>
           ) : (
-            comments.map((c) => (
-              <View key={c._id} style={{ paddingVertical: 8 }}>
-                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 13 }}>{c.patientName ?? '—'}</Text>
-                <Text style={{ color: tokens.colors.textSecondary, fontSize: 13, marginTop: 2 }}>{c.text}</Text>
-              </View>
-            ))
+            comments.map((c) => {
+              const name = commentDisplayName(c, language);
+              const initial = (name[0] ?? '?').toUpperCase();
+              const avatar = c.patientAvatar ? resolveImage(c.patientAvatar) : null;
+              return (
+                <View key={c._id} style={styles.commentRow}>
+                  {avatar ? (
+                    <Image source={{ uri: avatar }} style={styles.commentAvatar} />
+                  ) : (
+                    <View style={[styles.commentAvatar, { backgroundColor: tokens.brand.iris, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>{initial}</Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                      <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>
+                        {name}
+                      </Text>
+                      <Text style={{ color: tokens.colors.textTertiary, fontSize: 11 }}>
+                        {commentTimeAgo(c.createdAt, language)}
+                      </Text>
+                    </View>
+                    <Text style={{ color: tokens.colors.text, fontSize: 14, marginTop: 2, lineHeight: 19 }}>
+                      {c.text}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -283,4 +337,16 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, height: 44, borderRadius: 22, paddingHorizontal: 16, fontSize: 14, borderWidth: StyleSheet.hairlineWidth },
   sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  commentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 10,
+  },
+  commentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1422AE',
+  },
 });

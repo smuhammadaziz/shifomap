@@ -230,13 +230,77 @@ export default function PasswordScreen() {
                 <Ionicons name={secure ? 'eye-off' : 'eye'} size={20} color={tokens.colors.textTertiary} />
               </TouchableOpacity>
             </View>
-            {password.length > 0 && password.length < 8 ? (
-              <Text style={{ color: tokens.colors.error, fontSize: 12, marginTop: 8, marginLeft: 4 }}>
-                {t.passwordError}
-              </Text>
-            ) : null}
+            <View style={styles.rulesWrap}>
+              {(
+                [
+                  {
+                    key: 'length',
+                    ok: pwd.length >= 8,
+                    label:
+                      language === 'ru'
+                        ? 'Минимум 8 символов'
+                        : language === 'en'
+                          ? 'At least 8 characters'
+                          : "Kamida 8 ta belgi",
+                  },
+                  {
+                    key: 'upper',
+                    ok: /[A-Z]/.test(pwd),
+                    label:
+                      language === 'ru'
+                        ? 'Хотя бы 1 заглавная буква (A–Z)'
+                        : language === 'en'
+                          ? 'At least 1 uppercase letter (A–Z)'
+                          : "Kamida 1 ta katta harf (A–Z)",
+                  },
+                  {
+                    key: 'digit',
+                    ok: /\d/.test(pwd),
+                    label:
+                      language === 'ru'
+                        ? 'Хотя бы 1 цифра (0–9)'
+                        : language === 'en'
+                          ? 'At least 1 number (0–9)'
+                          : "Kamida 1 ta raqam (0–9)",
+                  },
+                ] as const
+              ).map((rule) => {
+                const inactive = pwd.length === 0;
+                const tone = inactive
+                  ? tokens.colors.textTertiary
+                  : rule.ok
+                    ? tokens.colors.success
+                    : tokens.colors.error;
+                const bg = inactive
+                  ? tokens.colors.backgroundSecondary
+                  : rule.ok
+                    ? tokens.colors.successBg
+                    : tokens.colors.errorBg;
+                return (
+                  <View key={rule.key} style={styles.ruleRow}>
+                    <View style={[styles.ruleDot, { backgroundColor: bg }]}>
+                      <Ionicons
+                        name={inactive ? 'ellipse-outline' : rule.ok ? 'checkmark' : 'close'}
+                        size={12}
+                        color={tone}
+                      />
+                    </View>
+                    <Text
+                      style={{
+                        color: inactive ? tokens.colors.textSecondary : tone,
+                        fontSize: 12,
+                        fontWeight: '600',
+                        flex: 1,
+                      }}
+                    >
+                      {rule.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
 
-            <View style={{ height: 24 }} />
+            <View style={{ height: 18 }} />
             <Button
               title={t.passwordContinue}
               variant="gradient"
@@ -323,6 +387,23 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   input: { flex: 1, fontSize: 15, fontWeight: '600' },
+  rulesWrap: {
+    marginTop: 14,
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  ruleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ruleDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   popoverOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',

@@ -290,6 +290,17 @@ export async function getDoctorSlotsBySpecialty(params: {
   return data.data;
 }
 
+export interface ActiveDiscountInfo {
+  _id: string;
+  originalAmount: number;
+  discountedAmount: number;
+  currency: string;
+  expiresAt: string;
+  percentOff: number;
+  title: string | null;
+  posterUrl: string | null;
+}
+
 export interface ServiceDetailResponse {
   service: PublicServiceItem & {
     branchIds: string[];
@@ -298,6 +309,7 @@ export interface ServiceDetailResponse {
     doctorNames?: string[];
   };
   clinic: { _id: string; clinicDisplayName: string; clinicUniqueName: string };
+  activeDiscount?: ActiveDiscountInfo | null;
 }
 
 export interface UnifiedSearchResult {
@@ -632,7 +644,8 @@ export interface ReviewItem {
   serviceId: string | null;
   doctorId: string | null;
   patientId: string;
-  patientName?: string;
+  patientName?: string | null;
+  patientAvatar?: string | null;
   stars: number;
   text: string | null;
   createdAt: string;
@@ -927,6 +940,7 @@ export interface PostComment {
   patientId: string;
   patientName: string | null;
   patientAvatar: string | null;
+  patientPhone?: string | null;
   text: string;
   createdAt: string;
 }

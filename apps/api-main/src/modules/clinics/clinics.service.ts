@@ -871,6 +871,42 @@ export async function publicGetServiceFilters() {
 export async function publicGetServiceById(serviceId: string) {
   const result = await getServiceByIdPublic(serviceId)
   if (!result) throw notFound("Service not found")
+
+  // Attach active discount, if any. We import lazily to avoid a circular
+  // import between clinics ↔ discounts modules.
+  try {
+    const { findActiveDiscountForService } = await import("@/modules/discounts/discounts.repo")
+    const { ObjectId: ObjId } = await import("mongodb")
+    const sId = new ObjId(serviceId)
+    const discount = await findActiveDiscountForService(sId)
+    if (discount) {
+      const pct =
+        discount.originalAmount > 0
+          ? Math.max(
+              0,
+              Math.min(
+                100,
+                Math.round((1 - discount.discountedAmount / discount.originalAmount) * 100),
+              ),
+            )
+          : 0
+      ;(result as any).activeDiscount = {
+        _id: discount._id.toHexString(),
+        originalAmount: discount.originalAmount,
+        discountedAmount: discount.discountedAmount,
+        currency: discount.currency,
+        expiresAt: discount.expiresAt.toISOString(),
+        percentOff: pct,
+        title: discount.title,
+        posterUrl: discount.posterUrl,
+      }
+    } else {
+      ;(result as any).activeDiscount = null
+    }
+  } catch {
+    ;(result as any).activeDiscount = null
+  }
+
   return result
 }
 

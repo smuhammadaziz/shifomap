@@ -11,6 +11,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,8 @@ import { getTranslations } from '../../lib/translations';
 import { getColors } from '../../lib/theme';
 import Skeleton from '../components/Skeleton';
 import ReviewBottomSheet from '../components/ReviewBottomSheet';
+import ReviewerHeader from '../components/ReviewerHeader';
+import WorkingHoursList from '../components/WorkingHoursList';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 300;
@@ -46,6 +49,34 @@ function formatPrice(price: ClinicServicePublic['price']): string {
   return price.currency;
 }
 
+function normalizeTelegram(input: string): { url: string; display: string } {
+  const trimmed = input.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    const handle = trimmed.replace(/^https?:\/\/(t\.me|telegram\.me)\//i, '@');
+    return { url: trimmed, display: handle.startsWith('@') ? handle : `@${handle}` };
+  }
+  const handle = trimmed.replace(/^@/, '');
+  return { url: `https://t.me/${handle}`, display: `@${handle}` };
+}
+
+function openDirections(lat: number, lng: number) {
+  const yandexUrl = `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`;
+  const googleAppUrl = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+  const appleUrl = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
+  const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  Linking.canOpenURL(googleAppUrl)
+    .then((supported) => {
+      if (supported) {
+        Linking.openURL(yandexUrl).catch(() => Linking.openURL(googleAppUrl));
+      } else if (Platform.OS === 'ios') {
+        Linking.openURL(appleUrl);
+      } else {
+        Linking.openURL(webUrl);
+      }
+    })
+    .catch(() => Linking.openURL(webUrl));
+}
+
 
 export default function ClinicDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -66,7 +97,6 @@ export default function ClinicDetailScreen() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsLoadMore, setReviewsLoadMore] = useState(false);
   const [reviewSheetVisible, setReviewSheetVisible] = useState(false);
-  const token = useAuthStore((s) => s.token);
 
   useEffect(() => {
     if (!id) return;
@@ -122,8 +152,8 @@ export default function ClinicDetailScreen() {
         <View style={[styles.heroBox, { backgroundColor: colors.border }]}>
           <Skeleton width={SCREEN_WIDTH} height={HERO_HEIGHT} borderRadius={0} />
         </View>
-        <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <View style={styles.clinicHeaderRow}>
+        <View style={[styles.card, { backgroundColor: colors.backgroundCard }]}>
+          <View style={styles.loadingHeaderRow}>
             <Skeleton width={LOGO_SIZE} height={LOGO_SIZE} borderRadius={16} />
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Skeleton width="80%" height={22} style={{ marginBottom: 8 }} />
@@ -208,188 +238,377 @@ export default function ClinicDetailScreen() {
         </View>
 
         {/* Info card */}
-        <View style={[styles.card, { backgroundColor: colors.backgroundCard, borderColor: colors.border }]}>
-          <View style={styles.clinicHeaderRow}>
+        <View style={[styles.card, { backgroundColor: colors.backgroundCard }]}>
+          {/* Identity */}
+          <View style={styles.identityRow}>
             <Image source={{ uri: logoUri }} style={[styles.clinicLogo, { backgroundColor: colors.border }]} />
-            <View style={styles.clinicNameWrap}>
-              <Text style={[styles.clinicName, { color: colors.text }]} numberOfLines={2}>{clinic.clinicDisplayName}</Text>
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.info} />
+            <View style={styles.identityText}>
+              <View style={styles.nameLine}>
+                <Text style={[styles.clinicName, { color: colors.text }]} numberOfLines={2}>
+                  {clinic.clinicDisplayName}
+                </Text>
+                <Ionicons name="checkmark-circle" size={20} color={colors.info} style={{ marginLeft: 6 }} />
               </View>
+              {locationText ? (
+                <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {locationText}
+                </Text>
+              ) : null}
             </View>
           </View>
-          {(locationText || openUntil) && (
-            <View style={styles.metaRow}>
-              {locationText ? (
-                <>
-                  <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[styles.metaText, { color: colors.textSecondary }]}>{locationText}</Text>
-                </>
-              ) : null}
-              {locationText && openUntil ? <Text style={[styles.metaDot, { color: colors.textTertiary }]}>•</Text> : null}
-              {openUntil ? (
-                <>
-                  <Ionicons name="time-outline" size={16} color={colors.success} />
-                  <Text style={[styles.metaText, { color: colors.success }]}>{openUntil}</Text>
-                </>
-              ) : null}
-            </View>
-          )}
-          {(clinic.rating?.count ?? 0) > 0 && (
-            <View style={[styles.ratingBox, { backgroundColor: colors.backgroundSecondary }]}>
-              <View>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={18} color={colors.warning} />
-                  <Text style={[styles.ratingValue, { color: colors.text }]}>{clinic.rating.avg.toFixed(1)} / 5.0</Text>
+
+          {/* Inline meta — no boxes, just text separated by dots */}
+          <View style={styles.inlineMeta}>
+            {(clinic.rating?.count ?? 0) > 0 ? (
+              <View style={styles.metaItem}>
+                <Ionicons name="star" size={13} color={colors.warning} />
+                <Text style={[styles.metaStrong, { color: colors.text }]}>{clinic.rating.avg.toFixed(1)}</Text>
+                <Text style={[styles.metaMuted, { color: colors.textTertiary }]}>
+                  ({clinic.rating.count})
+                </Text>
+              </View>
+            ) : null}
+            {(clinic.rating?.count ?? 0) > 0 && activeDoctors.length > 0 ? (
+              <Text style={[styles.metaSep, { color: colors.textTertiary }]}>·</Text>
+            ) : null}
+            {activeDoctors.length > 0 ? (
+              <Text style={[styles.metaPlain, { color: colors.textSecondary }]}>
+                {activeDoctors.length} {language === 'ru' ? 'врачей' : language === 'en' ? 'doctors' : 'shifokor'}
+              </Text>
+            ) : null}
+            {activeDoctors.length > 0 && activeServices.length > 0 ? (
+              <Text style={[styles.metaSep, { color: colors.textTertiary }]}>·</Text>
+            ) : null}
+            {activeServices.length > 0 ? (
+              <Text style={[styles.metaPlain, { color: colors.textSecondary }]}>
+                {activeServices.length} {language === 'ru' ? 'услуг' : language === 'en' ? 'services' : 'xizmat'}
+              </Text>
+            ) : null}
+            {openUntil ? (
+              <>
+                <Text style={[styles.metaSep, { color: colors.textTertiary }]}>·</Text>
+                <View style={styles.metaItem}>
+                  <View style={[styles.openDot, { backgroundColor: colors.success }]} />
+                  <Text style={[styles.metaStrong, { color: colors.success }]} numberOfLines={1}>
+                    {openUntil}
+                  </Text>
                 </View>
-                <Text style={[styles.ratingReviews, { color: colors.textTertiary }]}>{(t.basedOnReviews || '{{n}}').replace('{{n}}', String(clinic.rating.count))}</Text>
-              </View>
-              <View style={[styles.topRatedPill, { backgroundColor: colors.success }]}>
-                <Text style={styles.topRatedText}>{t.topRated}</Text>
-              </View>
-            </View>
-          )}
-          {(clinic.description?.full || clinic.description?.short) && (
-            <View style={styles.aboutSection}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.about}</Text>
+              </>
+            ) : null}
+          </View>
+
+          {(clinic.description?.full || clinic.description?.short) ? (
+            <View style={styles.block}>
+              <Text style={[styles.blockHeading, { color: colors.text }]}>
+                {language === 'ru' ? 'О клинике' : language === 'en' ? 'About' : 'Klinika haqida'}
+              </Text>
               <Text style={[styles.aboutText, { color: colors.textSecondary }]} numberOfLines={6}>
                 {clinic.description.full || clinic.description.short || ''}
               </Text>
             </View>
-          )}
+          ) : null}
+
+          {/* Working hours */}
+          {firstBranch?.workingHours?.length ? (
+            <View style={styles.block}>
+              <Text style={[styles.blockHeading, { color: colors.text }]}>
+                {language === 'ru' ? 'Часы работы' : language === 'en' ? 'Working hours' : 'Ish vaqti'}
+              </Text>
+              <View style={[styles.dividerHairline, { backgroundColor: colors.border }]} />
+              <WorkingHoursList
+                weekly={firstBranch.workingHours}
+                language={language ?? 'uz'}
+                textColor={colors.text}
+                secondaryColor={colors.textTertiary}
+                borderColor={colors.border}
+                accentColor={colors.primaryLight}
+                accentBg={colors.primaryBg}
+              />
+            </View>
+          ) : null}
+
+          {/* Contacts */}
+          {(() => {
+            const phone = (clinic.contacts?.phone || firstBranch?.phone || '').trim();
+            const email = (clinic.contacts?.email || '').trim();
+            const tg = (clinic.contacts?.telegram || '').trim();
+            if (!phone && !email && !tg) return null;
+            const tgInfo = tg ? normalizeTelegram(tg) : null;
+            return (
+              <View style={styles.block}>
+                <Text style={[styles.blockHeading, { color: colors.text }]}>
+                  {language === 'ru' ? 'Контакты' : language === 'en' ? 'Contacts' : 'Aloqa'}
+                </Text>
+                <View style={[styles.dividerHairline, { backgroundColor: colors.border }]} />
+                {phone ? (
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    activeOpacity={0.6}
+                    onPress={() => Linking.openURL(`tel:${phone.replace(/\s/g, '')}`)}
+                  >
+                    <View style={[styles.contactIcon, { backgroundColor: colors.backgroundSecondary }]}>
+                      <Ionicons name="call-outline" size={16} color={colors.primaryLight} />
+                    </View>
+                    <View style={styles.contactInfo}>
+                      <Text style={[styles.contactLabel, { color: colors.textTertiary }]}>
+                        {language === 'ru' ? 'Телефон' : language === 'en' ? 'Phone' : 'Telefon'}
+                      </Text>
+                      <Text style={[styles.contactValue, { color: colors.text }]} numberOfLines={1}>{phone}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                ) : null}
+                {phone && (email || tgInfo) ? (
+                  <View style={[styles.rowDivider, { backgroundColor: colors.border, marginLeft: 50 }]} />
+                ) : null}
+                {email ? (
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    activeOpacity={0.6}
+                    onPress={() => Linking.openURL(`mailto:${email}`)}
+                  >
+                    <View style={[styles.contactIcon, { backgroundColor: colors.backgroundSecondary }]}>
+                      <Ionicons name="mail-outline" size={16} color={colors.primaryLight} />
+                    </View>
+                    <View style={styles.contactInfo}>
+                      <Text style={[styles.contactLabel, { color: colors.textTertiary }]}>
+                        {language === 'ru' ? 'Эл. почта' : language === 'en' ? 'Email' : 'Email'}
+                      </Text>
+                      <Text style={[styles.contactValue, { color: colors.text }]} numberOfLines={1}>{email}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                ) : null}
+                {email && tgInfo ? (
+                  <View style={[styles.rowDivider, { backgroundColor: colors.border, marginLeft: 50 }]} />
+                ) : null}
+                {tgInfo ? (
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    activeOpacity={0.6}
+                    onPress={() => Linking.openURL(tgInfo.url)}
+                  >
+                    <View style={[styles.contactIcon, { backgroundColor: colors.backgroundSecondary }]}>
+                      <Ionicons name="paper-plane-outline" size={16} color={colors.primaryLight} />
+                    </View>
+                    <View style={styles.contactInfo}>
+                      <Text style={[styles.contactLabel, { color: colors.textTertiary }]}>Telegram</Text>
+                      <Text style={[styles.contactValue, { color: colors.text }]} numberOfLines={1}>{tgInfo.display}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            );
+          })()}
+
+          {/* Address */}
+          {firstBranch ? (() => {
+            const addr = `${firstBranch.address?.city ?? ''} ${firstBranch.address?.street ?? ''}`.trim();
+            if (!addr) return null;
+            const lat = firstBranch.address?.geo?.lat;
+            const lng = firstBranch.address?.geo?.lng;
+            const hasGeo = typeof lat === 'number' && typeof lng === 'number' && (lat !== 0 || lng !== 0);
+            return (
+              <View style={styles.block}>
+                <View style={styles.blockHeader}>
+                  <Text style={[styles.blockHeading, { color: colors.text }]}>
+                    {language === 'ru' ? 'Адрес' : language === 'en' ? 'Address' : 'Manzil'}
+                  </Text>
+                  {hasGeo ? (
+                    <TouchableOpacity
+                      onPress={() => openDirections(lat as number, lng as number)}
+                      hitSlop={8}
+                      activeOpacity={0.6}
+                    >
+                      <Text style={[styles.seeAllLink, { color: colors.primaryLight }]}>
+                        {language === 'ru' ? 'Маршрут' : language === 'en' ? 'Directions' : 'Yo‘nalish'} →
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <View style={[styles.dividerHairline, { backgroundColor: colors.border }]} />
+                <View style={styles.contactRow}>
+                  <View style={[styles.contactIcon, { backgroundColor: colors.backgroundSecondary }]}>
+                    <Ionicons name="location-outline" size={16} color={colors.primaryLight} />
+                  </View>
+                  <View style={styles.contactInfo}>
+                    {firstBranch.name ? (
+                      <Text style={[styles.contactLabel, { color: colors.textTertiary }]} numberOfLines={1}>
+                        {firstBranch.name}
+                      </Text>
+                    ) : null}
+                    <Text style={[styles.contactValue, { color: colors.text }]} numberOfLines={3}>{addr}</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })() : null}
 
           {/* Doctors */}
           {activeDoctors.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.ourDoctors}</Text>
-              {visibleDoctors.map((doctor) => (
-                <TouchableOpacity
-                  key={doctor._id}
-                  style={[styles.doctorRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push({ pathname: '/doctor/[id]', params: { id: doctor._id, clinicId: id as string } })}
-                >
-                  <Image
-                    source={{ uri: doctor.avatarUrl || DEFAULT_AVATAR }}
-                    style={[styles.doctorAvatar, { backgroundColor: colors.border }]}
-                  />
-                  <View style={styles.doctorInfo}>
-                    <Text style={[styles.doctorName, { color: colors.text }]}>{doctor.fullName}</Text>
-                    <Text style={[styles.doctorSpecialty, { color: colors.textSecondary }]}>{doctor.specialty}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-                </TouchableOpacity>
+            <View style={styles.block}>
+              <View style={styles.blockHeader}>
+                <Text style={[styles.blockHeading, { color: colors.text }]}>{t.ourDoctors}</Text>
+                {hasMoreDoctors ? (
+                  <TouchableOpacity onPress={toggleDoctorsExpand} hitSlop={8} activeOpacity={0.6}>
+                    <Text style={[styles.seeAllLink, { color: colors.primaryLight }]}>
+                      {showAllDoctors
+                        ? language === 'ru' ? 'Свернуть' : language === 'en' ? 'Show less' : 'Yopish'
+                        : `${language === 'ru' ? 'Все' : language === 'en' ? 'All' : 'Barchasi'} (${activeDoctors.length}) →`}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <View style={[styles.dividerHairline, { backgroundColor: colors.border }]} />
+              {visibleDoctors.map((doctor, idx) => (
+                <React.Fragment key={doctor._id}>
+                  <TouchableOpacity
+                    style={styles.doctorRow}
+                    activeOpacity={0.6}
+                    onPress={() => router.push({ pathname: '/doctor/[id]', params: { id: doctor._id, clinicId: id as string } })}
+                  >
+                    <Image
+                      source={{ uri: doctor.avatarUrl || DEFAULT_AVATAR }}
+                      style={[styles.doctorAvatar, { backgroundColor: colors.border }]}
+                    />
+                    <View style={styles.doctorInfo}>
+                      <Text style={[styles.doctorName, { color: colors.text }]} numberOfLines={1}>{doctor.fullName}</Text>
+                      <Text style={[styles.doctorSpecialty, { color: colors.textTertiary }]} numberOfLines={1}>
+                        {doctor.specialty}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                  {idx < visibleDoctors.length - 1 ? (
+                    <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+                  ) : null}
+                </React.Fragment>
               ))}
-              {hasMoreDoctors && (
-                <TouchableOpacity
-                  style={[styles.seeMoreDoctorsBtn, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}
-                  activeOpacity={0.85}
-                  onPress={toggleDoctorsExpand}
-                >
-                  <Ionicons
-                    name={showAllDoctors ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={colors.primaryLight}
-                  />
-                  <Text style={[styles.seeMoreDoctorsText, { color: colors.primaryLight }]}>
-                    {showAllDoctors ? t.seeLessDoctors : t.seeMoreDoctors}
-                    {!showAllDoctors && (
-                      <Text style={[styles.seeMoreDoctorsCount, { color: colors.primaryLight }]}> (+{activeDoctors.length - INITIAL_DOCTORS_COUNT})</Text>
-                    )}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           )}
 
           {/* Services */}
           {activeServices.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.viewClinicServices}</Text>
-              {visibleServices.map((svc) => (
-                <TouchableOpacity
-                  key={svc._id}
-                  style={[styles.serviceRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push({ pathname: '/service/[id]', params: { id: svc._id } })}
-                >
-                  <Image
-                    source={{ uri: svc.serviceImage || 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=100&h=100&fit=crop' }}
-                    style={[styles.serviceThumb, { backgroundColor: colors.border }]}
-                  />
-                  <View style={styles.serviceInfo}>
-                    <Text style={[styles.serviceTitle, { color: colors.text }]} numberOfLines={2}>{svc.title}</Text>
-                    <Text style={[styles.servicePrice, { color: colors.primaryLight }]}>{formatPrice(svc.price)}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-                </TouchableOpacity>
-              ))}
-              {hasMoreServices && (
-                <TouchableOpacity
-                  style={[styles.seeMoreDoctorsBtn, { backgroundColor: colors.primaryBg, borderColor: colors.primary }]}
-                  activeOpacity={0.85}
-                  onPress={toggleServicesExpand}
-                >
-                  <Ionicons
-                    name={showAllServices ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={colors.primaryLight}
-                  />
-                  <Text style={[styles.seeMoreDoctorsText, { color: colors.primaryLight }]}>
-                    {showAllServices ? t.seeLessServices : t.seeMoreServices}
-                    {!showAllServices && (
-                      <Text style={[styles.seeMoreDoctorsCount, { color: colors.primaryLight }]}> (+{activeServices.length - INITIAL_SERVICES_COUNT})</Text>
-                    )}
-                  </Text>
-                </TouchableOpacity>
-              )}
+            <View style={styles.block}>
+              <View style={styles.blockHeader}>
+                <Text style={[styles.blockHeading, { color: colors.text }]}>{t.viewClinicServices}</Text>
+                {hasMoreServices ? (
+                  <TouchableOpacity onPress={toggleServicesExpand} hitSlop={8} activeOpacity={0.6}>
+                    <Text style={[styles.seeAllLink, { color: colors.primaryLight }]}>
+                      {showAllServices
+                        ? language === 'ru' ? 'Свернуть' : language === 'en' ? 'Show less' : 'Yopish'
+                        : `${language === 'ru' ? 'Все' : language === 'en' ? 'All' : 'Barchasi'} (${activeServices.length}) →`}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <View style={[styles.dividerHairline, { backgroundColor: colors.border }]} />
+              {visibleServices.map((svc, idx) => {
+                const monogram = (svc.title?.[0] ?? '?').toUpperCase();
+                return (
+                  <React.Fragment key={svc._id}>
+                    <TouchableOpacity
+                      style={styles.serviceRow}
+                      activeOpacity={0.6}
+                      onPress={() => router.push({ pathname: '/service/[id]', params: { id: svc._id } })}
+                    >
+                      {svc.serviceImage ? (
+                        <Image
+                          source={{ uri: svc.serviceImage }}
+                          style={[styles.serviceThumb, { backgroundColor: colors.border }]}
+                        />
+                      ) : (
+                        <View style={[styles.serviceMonogram, { backgroundColor: colors.backgroundSecondary }]}>
+                          <Text style={[styles.serviceMonogramText, { color: colors.primaryLight }]}>{monogram}</Text>
+                        </View>
+                      )}
+                      <View style={styles.serviceInfo}>
+                        <Text style={[styles.serviceTitle, { color: colors.text }]} numberOfLines={1}>{svc.title}</Text>
+                        {svc.durationMin > 0 ? (
+                          <Text style={[styles.serviceDuration, { color: colors.textTertiary }]}>
+                            {svc.durationMin} {language === 'ru' ? 'мин' : language === 'en' ? 'min' : 'daqiqa'}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text style={[styles.servicePriceText, { color: colors.text }]} numberOfLines={1}>
+                        {formatPrice(svc.price)}
+                      </Text>
+                    </TouchableOpacity>
+                    {idx < visibleServices.length - 1 ? (
+                      <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
             </View>
           )}
 
           {/* Reviews */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.reviews}</Text>
+          <View style={styles.block}>
+            <View style={styles.blockHeader}>
+              <Text style={[styles.blockHeading, { color: colors.text }]}>{t.reviews}</Text>
+              {id && clinic ? (
+                <TouchableOpacity onPress={() => setReviewSheetVisible(true)} hitSlop={8} activeOpacity={0.6}>
+                  <Text style={[styles.seeAllLink, { color: colors.primaryLight }]}>
+                    {t.writeReview} →
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <View style={[styles.dividerHairline, { backgroundColor: colors.border }]} />
             {reviewsLoading && reviews.length === 0 ? (
-              <View style={styles.reviewRow}>
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                 <ActivityIndicator size="small" color={colors.primaryLight} />
               </View>
+            ) : reviews.length === 0 ? (
+              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+                {language === 'ru'
+                  ? 'Пока нет отзывов. Будьте первым.'
+                  : language === 'en'
+                    ? 'No reviews yet. Be the first.'
+                    : 'Hozircha sharhlar yo‘q. Birinchi bo‘ling.'}
+              </Text>
             ) : (
               <>
-                {reviews.map((r) => (
-                  <View key={r._id} style={[styles.reviewRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
-                    <View style={styles.reviewStarsRow}>
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Ionicons key={s} name={s <= r.stars ? 'star' : 'star-outline'} size={14} color={colors.warning} />
-                      ))}
+                {reviews.map((r, idx) => (
+                  <React.Fragment key={r._id}>
+                    <View style={styles.reviewBlock}>
+                      <ReviewerHeader
+                        review={r}
+                        language={language}
+                        textColor={colors.text}
+                        secondaryColor={colors.textTertiary}
+                        starColor={colors.warning}
+                      />
+                      {r.text ? (
+                        <Text style={[styles.reviewText, { color: colors.textSecondary, marginTop: 8 }]}>
+                          {r.text}
+                        </Text>
+                      ) : null}
                     </View>
-                    {r.text ? <Text style={[styles.reviewText, { color: colors.textSecondary }]}>{r.text}</Text> : null}
-                    <Text style={[styles.reviewDate, { color: colors.textTertiary }]}>{new Date(r.createdAt).toLocaleDateString()}</Text>
-                  </View>
+                    {idx < reviews.length - 1 ? (
+                      <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+                    ) : null}
+                  </React.Fragment>
                 ))}
                 {reviewsTotal > reviews.length && (
                   <TouchableOpacity
-                    style={[styles.loadMoreReviewsBtn, { borderColor: colors.border }]}
                     onPress={onLoadMoreReviews}
                     disabled={reviewsLoadMore}
+                    style={{ paddingVertical: 14, alignItems: 'center' }}
+                    activeOpacity={0.6}
                   >
                     {reviewsLoadMore ? (
                       <ActivityIndicator size="small" color={colors.primaryLight} />
                     ) : (
-                      <Text style={[styles.loadMoreReviewsText, { color: colors.primaryLight }]}>{t.loadMoreReviews}</Text>
+                      <Text style={[styles.seeAllLink, { color: colors.primaryLight }]}>
+                        {t.loadMoreReviews} ↓
+                      </Text>
                     )}
                   </TouchableOpacity>
                 )}
               </>
-            )}
-            {id && clinic && (
-              <TouchableOpacity
-                style={[styles.leaveReviewBtn, { backgroundColor: colors.primaryBg, borderColor: colors.primaryLight }]}
-                onPress={() => setReviewSheetVisible(true)}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="star-outline" size={22} color={colors.primaryLight} />
-                <Text style={[styles.leaveReviewBtnText, { color: colors.primaryLight }]}>{t.writeReview}</Text>
-              </TouchableOpacity>
             )}
           </View>
 
@@ -435,12 +654,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   heroBackBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -454,80 +671,92 @@ const styles = StyleSheet.create({
   },
   card: {
     marginTop: -32,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    borderWidth: 1,
-    borderBottomWidth: 0,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 22,
   },
-  clinicHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  clinicLogo: {
-    width: 74,
-    height: 74,
-    borderRadius: 20,
-  },
-  clinicLogoPlaceholder: { justifyContent: 'center', alignItems: 'center' },
-  clinicNameWrap: { flex: 1, marginLeft: 14, justifyContent: 'center' },
-  clinicName: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
-  verifiedBadge: { marginTop: 4, alignSelf: 'flex-start' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
-  metaText: { fontSize: 13 },
-  metaDot: { fontSize: 13 },
-  ratingBox: {
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  clinicLogo: { width: 64, height: 64, borderRadius: 18 },
+  identityText: { flex: 1, gap: 4 },
+  nameLine: { flexDirection: 'row', alignItems: 'center' },
+  clinicName: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4, lineHeight: 27, flexShrink: 1 },
+  locationText: { fontSize: 13, fontWeight: '500' },
+  inlineMeta: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
+    flexWrap: 'wrap',
+    rowGap: 6,
+    columnGap: 8,
+    marginTop: 16,
+    marginBottom: 4,
   },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ratingValue: { fontSize: 18, fontWeight: '700' },
-  ratingReviews: { fontSize: 12, marginTop: 4 },
-  topRatedPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  topRatedText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  aboutSection: { marginBottom: 16 },
-  sectionTitle: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
-  aboutText: { fontSize: 15, lineHeight: 22 },
-  section: { marginBottom: 14 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaStrong: { fontSize: 13, fontWeight: '700' },
+  metaMuted: { fontSize: 13, fontWeight: '500' },
+  metaPlain: { fontSize: 13, fontWeight: '500' },
+  metaSep: { fontSize: 13, fontWeight: '700' },
+  openDot: { width: 6, height: 6, borderRadius: 3 },
+  block: { marginTop: 28 },
+  blockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  blockHeading: { fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
+  seeAllLink: { fontSize: 13, fontWeight: '600' },
+  dividerHairline: { height: StyleSheet.hairlineWidth, marginBottom: 4 },
+  rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 64 },
   doctorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 8,
-    borderWidth: 1,
+    paddingVertical: 14,
   },
   doctorAvatar: { width: 52, height: 52, borderRadius: 26 },
-  doctorInfo: { flex: 1, marginLeft: 14 },
-  doctorName: { fontSize: 16, fontWeight: '600' },
-  doctorSpecialty: { fontSize: 13, marginTop: 2 },
-  seeMoreDoctorsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 11,
-    marginTop: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  seeMoreDoctorsText: { fontSize: 15, fontWeight: '600' },
-  seeMoreDoctorsCount: { fontSize: 14, fontWeight: '500', opacity: 0.9 },
+  doctorInfo: { flex: 1, marginLeft: 14, gap: 3 },
+  doctorName: { fontSize: 15, fontWeight: '600', letterSpacing: -0.1 },
+  doctorSpecialty: { fontSize: 13, fontWeight: '500' },
   serviceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 8,
-    borderWidth: 1,
+    paddingVertical: 14,
+    gap: 14,
   },
-  serviceThumb: { width: 48, height: 48, borderRadius: 12 },
-  serviceInfo: { flex: 1, marginLeft: 12 },
-  serviceTitle: { fontSize: 15, fontWeight: '500' },
-  servicePrice: { fontSize: 13, fontWeight: '600', marginTop: 4 },
+  serviceThumb: { width: 50, height: 50, borderRadius: 12 },
+  serviceMonogram: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceMonogramText: { fontSize: 18, fontWeight: '700' },
+  serviceInfo: { flex: 1, gap: 3 },
+  serviceTitle: { fontSize: 15, fontWeight: '600', letterSpacing: -0.1 },
+  serviceDuration: { fontSize: 12, fontWeight: '500' },
+  servicePriceText: { fontSize: 14, fontWeight: '700' },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 14,
+  },
+  contactIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactInfo: { flex: 1, gap: 2 },
+  contactLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase' },
+  contactValue: { fontSize: 15, fontWeight: '600' },
+  reviewBlock: { paddingVertical: 14 },
+  reviewText: { fontSize: 14, lineHeight: 21 },
+  aboutText: { fontSize: 14, lineHeight: 22, marginTop: 4 },
+  emptyText: { fontSize: 14, lineHeight: 22, paddingVertical: 14, fontStyle: 'italic' },
+  loadingHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   stickyFooter: {
     position: 'absolute',
     bottom: 0,

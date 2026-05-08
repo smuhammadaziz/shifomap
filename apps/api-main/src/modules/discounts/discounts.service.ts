@@ -71,23 +71,43 @@ function mapDocToPublic(doc: DiscountDoc, clinicName: string, serviceTitle: stri
 
 export async function listPublicDiscounts(city: string | undefined, limit: number): Promise<PublicDiscountRow[]> {
   const cap = Math.min(50, Math.max(1, limit))
-  const docs = await listActiveDiscounts(cap * 4)
+  // Pull a generous pool so we can sort by city-match and still fill the cap.
+  const docs = await listActiveDiscounts(cap * 6)
   const needle = (city ?? "").trim().toLowerCase()
-  const out: PublicDiscountRow[] = []
+
+  type Row = PublicDiscountRow & { __cityMatch: number; __expiresAt: number }
+  const rows: Row[] = []
+
+  // Cache clinic lookups so we don't refetch the same clinic for multiple discounts.
+  const clinicCache = new Map<string, Awaited<ReturnType<typeof findClinicById>>>()
 
   for (const d of docs) {
-    if (out.length >= cap) break
-    const clinic = await findClinicById(d.clinicId)
-    if (!clinic || clinic.status !== "active" || clinic.deletedAt) continue
-    if (needle) {
-      const c = clinicCity(clinic)
-      if (!c.includes(needle) && !needle.includes(c)) continue
+    const clinicKey = d.clinicId.toHexString()
+    let clinic = clinicCache.get(clinicKey)
+    if (clinic === undefined) {
+      clinic = await findClinicById(d.clinicId)
+      clinicCache.set(clinicKey, clinic)
     }
+    if (!clinic || clinic.status !== "active" || clinic.deletedAt) continue
     const svc = (clinic.services ?? []).find((s) => s._id.equals(d.serviceId) && s.isActive !== false)
     if (!svc) continue
-    out.push(mapDocToPublic(d, clinic.clinicDisplayName ?? "Clinic", svc.title))
+    const c = clinicCity(clinic)
+    const matches = needle && c ? c.includes(needle) || needle.includes(c) ? 1 : 0 : 0
+    rows.push({
+      ...mapDocToPublic(d, clinic.clinicDisplayName ?? "Clinic", svc.title),
+      __cityMatch: matches,
+      __expiresAt: d.expiresAt.getTime(),
+    })
   }
-  return out
+
+  // Always show every active discount; if a city was provided, surface local
+  // ones first, then the rest by soonest-expiring.
+  rows.sort((a, b) => {
+    if (a.__cityMatch !== b.__cityMatch) return b.__cityMatch - a.__cityMatch
+    return a.__expiresAt - b.__expiresAt
+  })
+
+  return rows.slice(0, cap).map(({ __cityMatch: _m, __expiresAt: _e, ...row }) => row)
 }
 
 export async function listMyDiscounts(auth: { role?: string; clinicId?: string; sub: string }) {

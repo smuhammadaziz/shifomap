@@ -26,81 +26,81 @@ const buildQuestions = (lang: 'uz' | 'ru' | 'en'): Q[] => {
     {
       q: "Sizda bosh og'rig'i qanchalik tez-tez bo'ladi?",
       options: [
-        { label: "Kamdan-kam (0)", weight: 0 },
-        { label: "Ba'zida (1)", weight: 1 },
-        { label: "Tez-tez (2)", weight: 2 },
+        { label: "Kamdan-kam", weight: 0 },
+        { label: "Ba'zida", weight: 1 },
+        { label: "Tez-tez", weight: 2 },
       ],
     },
     {
       q: 'Kun davomida energiya darajangiz qanday?',
       options: [
-        { label: 'Tetikman (0)', weight: 0 },
-        { label: "Ba'zida charchayman (1)", weight: 1 },
-        { label: 'Doimiy charchoq bor (2)', weight: 2 },
+        { label: 'Tetikman', weight: 0 },
+        { label: "Ba'zida charchayman", weight: 1 },
+        { label: 'Doimiy charchoq bor', weight: 2 },
       ],
     },
     {
       q: 'Uyqungiz qanday?',
       options: [
-        { label: 'Yaxshi (0)', weight: 0 },
-        { label: "Ba'zida muammo bo'ladi (1)", weight: 1 },
-        { label: "Yomon / uyqusizlik (2)", weight: 2 },
+        { label: 'Yaxshi', weight: 0 },
+        { label: "Ba'zida muammo bo'ladi", weight: 1 },
+        { label: "Yomon / uyqusizlik", weight: 2 },
       ],
     },
     {
       q: 'Stress darajangiz qanday?',
       options: [
-        { label: 'Past (0)', weight: 0 },
-        { label: "O'rtacha (1)", weight: 1 },
-        { label: 'Yuqori (2)', weight: 2 },
+        { label: 'Past', weight: 0 },
+        { label: "O'rtacha", weight: 1 },
+        { label: 'Yuqori', weight: 2 },
       ],
     },
     {
       q: "Tanangizda og'riqlar bormi (bel, bo'yin)?",
       options: [
-        { label: "Yo'q (0)", weight: 0 },
-        { label: "Ba'zida (1)", weight: 1 },
-        { label: 'Tez-tez (2)', weight: 2 },
+        { label: "Yo'q", weight: 0 },
+        { label: "Ba'zida", weight: 1 },
+        { label: 'Tez-tez', weight: 2 },
       ],
     },
     {
       q: 'Ovqat hazm qilish qanday?',
       options: [
-        { label: 'Hammasi yaxshi (0)', weight: 0 },
-        { label: "Ba'zida noqulaylik bor (1)", weight: 1 },
-        { label: 'Tez-tez muammo bor (2)', weight: 2 },
+        { label: 'Hammasi yaxshi', weight: 0 },
+        { label: "Ba'zida noqulaylik bor", weight: 1 },
+        { label: 'Tez-tez muammo bor', weight: 2 },
       ],
     },
     {
       q: 'Jismoniy faolligingiz qanday?',
       options: [
-        { label: 'Muntazam (0)', weight: 0 },
-        { label: "Ba'zida (1)", weight: 1 },
-        { label: 'Juda kam (2)', weight: 2 },
+        { label: 'Muntazam', weight: 0 },
+        { label: "Ba'zida", weight: 1 },
+        { label: 'Juda kam', weight: 2 },
       ],
     },
     {
       q: 'Ovqatlanish odatlaringiz qanday?',
       options: [
-        { label: 'Muvozanatli (0)', weight: 0 },
-        { label: "Ba'zida zararli ovqat yeyman (1)", weight: 1 },
-        { label: "Noto'g'ri / tez ovqat (2)", weight: 2 },
+        { label: 'Muvozanatli', weight: 0 },
+        { label: "Ba'zida zararli ovqat yeyman", weight: 1 },
+        { label: "Noto'g'ri / tez ovqat", weight: 2 },
       ],
     },
     {
       q: 'Kun davomida kayfiyatingiz qanday?',
       options: [
-        { label: 'Barqaror (0)', weight: 0 },
-        { label: "Ba'zida o'zgaradi (1)", weight: 1 },
-        { label: "Ko'pincha yomon / asabiy (2)", weight: 2 },
+        { label: 'Barqaror', weight: 0 },
+        { label: "Ba'zida o'zgaradi", weight: 1 },
+        { label: "Ko'pincha yomon / asabiy", weight: 2 },
       ],
     },
     {
       q: "Diqqat va e'tiboringiz qanday?",
       options: [
-        { label: 'Yaxshi (0)', weight: 0 },
-        { label: "Ba'zida jamlash qiyin (1)", weight: 1 },
-        { label: 'Ko\'pincha «miya tuman» holati (2)', weight: 2 },
+        { label: 'Yaxshi', weight: 0 },
+        { label: "Ba'zida jamlash qiyin", weight: 1 },
+        { label: 'Ko\'pincha «miya tuman» holati', weight: 2 },
       ],
     },
   ];
@@ -109,81 +109,81 @@ const buildQuestions = (lang: 'uz' | 'ru' | 'en'): Q[] => {
     {
       q: 'Как часто у вас болит голова?',
       options: [
-        { label: 'Редко (0)', weight: 0 },
-        { label: 'Иногда (1)', weight: 1 },
-        { label: 'Часто (2)', weight: 2 },
+        { label: 'Редко', weight: 0 },
+        { label: 'Иногда', weight: 1 },
+        { label: 'Часто', weight: 2 },
       ],
     },
     {
       q: 'Каков ваш уровень энергии в течение дня?',
       options: [
-        { label: 'Бодрый (0)', weight: 0 },
-        { label: 'Иногда устаю (1)', weight: 1 },
-        { label: 'Постоянная усталость (2)', weight: 2 },
+        { label: 'Бодрый', weight: 0 },
+        { label: 'Иногда устаю', weight: 1 },
+        { label: 'Постоянная усталость', weight: 2 },
       ],
     },
     {
       q: 'Как у вас со сном?',
       options: [
-        { label: 'Хорошо (0)', weight: 0 },
-        { label: 'Иногда проблемы (1)', weight: 1 },
-        { label: 'Плохо / бессонница (2)', weight: 2 },
+        { label: 'Хорошо', weight: 0 },
+        { label: 'Иногда проблемы', weight: 1 },
+        { label: 'Плохо / бессонница', weight: 2 },
       ],
     },
     {
       q: 'Каков уровень стресса?',
       options: [
-        { label: 'Низкий (0)', weight: 0 },
-        { label: 'Средний (1)', weight: 1 },
-        { label: 'Высокий (2)', weight: 2 },
+        { label: 'Низкий', weight: 0 },
+        { label: 'Средний', weight: 1 },
+        { label: 'Высокий', weight: 2 },
       ],
     },
     {
       q: 'Есть ли боли в теле (поясница, шея)?',
       options: [
-        { label: 'Нет (0)', weight: 0 },
-        { label: 'Иногда (1)', weight: 1 },
-        { label: 'Часто (2)', weight: 2 },
+        { label: 'Нет', weight: 0 },
+        { label: 'Иногда', weight: 1 },
+        { label: 'Часто', weight: 2 },
       ],
     },
     {
       q: 'Как пищеварение?',
       options: [
-        { label: 'Всё хорошо (0)', weight: 0 },
-        { label: 'Иногда дискомфорт (1)', weight: 1 },
-        { label: 'Часто проблемы (2)', weight: 2 },
+        { label: 'Всё хорошо', weight: 0 },
+        { label: 'Иногда дискомфорт', weight: 1 },
+        { label: 'Часто проблемы', weight: 2 },
       ],
     },
     {
       q: 'Какая у вас физическая активность?',
       options: [
-        { label: 'Регулярно (0)', weight: 0 },
-        { label: 'Иногда (1)', weight: 1 },
-        { label: 'Очень мало (2)', weight: 2 },
+        { label: 'Регулярно', weight: 0 },
+        { label: 'Иногда', weight: 1 },
+        { label: 'Очень мало', weight: 2 },
       ],
     },
     {
       q: 'Какие привычи питания?',
       options: [
-        { label: 'Сбалансированно (0)', weight: 0 },
-        { label: 'Иногда вредная еда (1)', weight: 1 },
-        { label: 'Нерегулярно / фастфуд (2)', weight: 2 },
+        { label: 'Сбалансированно', weight: 0 },
+        { label: 'Иногда вредная еда', weight: 1 },
+        { label: 'Нерегулярно / фастфуд', weight: 2 },
       ],
     },
     {
       q: 'Как настроение в течение дня?',
       options: [
-        { label: 'Стабильное (0)', weight: 0 },
-        { label: 'Иногда меняется (1)', weight: 1 },
-        { label: 'Часто плохое / раздражительность (2)', weight: 2 },
+        { label: 'Стабильное', weight: 0 },
+        { label: 'Иногда меняется', weight: 1 },
+        { label: 'Часто плохое / раздражительность', weight: 2 },
       ],
     },
     {
       q: 'Как внимание и концентрация?',
       options: [
-        { label: 'Хорошо (0)', weight: 0 },
-        { label: 'Иногда сложно сосредоточиться (1)', weight: 1 },
-        { label: 'Часто «туман в голове» (2)', weight: 2 },
+        { label: 'Хорошо', weight: 0 },
+        { label: 'Иногда сложно сосредоточиться', weight: 1 },
+        { label: 'Часто «туман в голове»', weight: 2 },
       ],
     },
   ];

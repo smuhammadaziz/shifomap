@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Cookies from "js-cookie"
 import { getApiUrl } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { ImagePlus, Heart, MessageCircle, Trash2, Pencil, Plus, X } from "lucide-react"
+import { ImagePlus, Heart, MessageCircle, Trash2, Pencil, Plus, X, Search, MessagesSquare, Loader2 } from "lucide-react"
 
 type Post = {
   _id: string
@@ -15,6 +15,36 @@ type Post = {
   likesCount: number
   commentsCount: number
   createdAt: string
+}
+
+type AdminComment = {
+  _id: string
+  postId: string
+  patientId: string
+  patientName: string | null
+  patientAvatar: string | null
+  patientPhone?: string | null
+  text: string
+  createdAt: string
+}
+
+function commentDisplayName(c: AdminComment): string {
+  const name = c.patientName?.trim()
+  if (name) return name
+  const phone = c.patientPhone?.trim()
+  if (phone) return phone
+  return "User"
+}
+
+function timeAgoShort(iso: string): string {
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return ""
+  const diffSec = Math.max(1, Math.floor((Date.now() - then) / 1000))
+  if (diffSec < 60) return "just now"
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d`
+  return new Date(iso).toLocaleDateString()
 }
 
 function resolveUrl(apiUrl: string, url: string): string {
@@ -31,6 +61,7 @@ export default function PostsAdminPage() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Post | null>(null)
+  const [viewingComments, setViewingComments] = useState<Post | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -111,16 +142,25 @@ export default function PostsAdminPage() {
                     <Heart className="h-3.5 w-3.5" />
                     {p.likesCount}
                   </span>
-                  <span className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewingComments(p)}
+                    className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
+                    title="View comments"
+                  >
                     <MessageCircle className="h-3.5 w-3.5" />
                     {p.commentsCount}
-                  </span>
+                  </button>
                   <span className="ml-auto">{new Date(p.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="flex gap-2 mt-3">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditing(p)}>
                     <Pencil className="h-3.5 w-3.5 mr-1.5" />
                     Edit
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingComments(p)}>
+                    <MessagesSquare className="h-3.5 w-3.5 mr-1.5" />
+                    Comments
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onDelete(p._id)}>
                     <Trash2 className="h-3.5 w-3.5 text-rose-600" />
@@ -148,6 +188,242 @@ export default function PostsAdminPage() {
           }}
         />
       ) : null}
+
+      {viewingComments ? (
+        <CommentsViewer
+          token={token}
+          apiUrl={apiUrl}
+          post={viewingComments}
+          onClose={() => setViewingComments(null)}
+          onCommentDeleted={() => {
+            setItems((arr) =>
+              arr.map((p) =>
+                p._id === viewingComments._id
+                  ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) }
+                  : p,
+              ),
+            )
+          }}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function CommentsViewer({
+  token,
+  apiUrl,
+  post,
+  onClose,
+  onCommentDeleted,
+}: {
+  token: string | null
+  apiUrl: string
+  post: Post
+  onClose: () => void
+  onCommentDeleted: () => void
+}) {
+  const [comments, setComments] = useState<AdminComment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${apiUrl}/v1/posts/${post._id}/comments-admin?limit=500`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.success) throw new Error(json?.error ?? "Failed to load")
+      setComments(json.data ?? [])
+    } catch (e) {
+      setError((e as Error).message)
+      setComments([])
+    } finally {
+      setLoading(false)
+    }
+  }, [apiUrl, post._id, token])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return comments
+    return comments.filter((c) => {
+      const name = (c.patientName ?? "").toLowerCase()
+      const phone = (c.patientPhone ?? "").toLowerCase()
+      const text = c.text.toLowerCase()
+      return name.includes(q) || phone.includes(q) || text.includes(q)
+    })
+  }, [comments, search])
+
+  const onDelete = async (commentId: string) => {
+    if (!token) return
+    if (!confirm("Delete this comment? This cannot be undone.")) return
+    setDeletingId(commentId)
+    try {
+      const res = await fetch(
+        `${apiUrl}/v1/posts/${post._id}/comments/${commentId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      )
+      const json = await res.json()
+      if (!res.ok || !json?.success) throw new Error(json?.error ?? "Failed to delete")
+      setComments((arr) => arr.filter((c) => c._id !== commentId))
+      onCommentDeleted()
+    } catch (e) {
+      alert((e as Error).message)
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-slate-200 gap-4">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={resolveUrl(apiUrl, post.imageUrls?.[0] || post.imageUrl)}
+              alt=""
+              className="w-12 h-12 rounded-lg object-cover bg-slate-100 flex-shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold text-slate-900 truncate">
+                Comments · {comments.length}
+              </h2>
+              <p className="text-xs text-slate-500 truncate">
+                {post.caption?.trim() ? post.caption : "No caption"}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 flex-shrink-0">
+            <X className="h-5 w-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="p-4 border-b border-slate-200 bg-slate-50">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by user name, phone or comment text..."
+              className="w-full h-10 pl-9 pr-9 rounded-lg border border-slate-300 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {search ? (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-slate-100"
+              >
+                <X className="h-4 w-4 text-slate-400" />
+              </button>
+            ) : null}
+          </div>
+          {search ? (
+            <p className="text-xs text-slate-500 mt-2">
+              Showing {filtered.length} of {comments.length}
+            </p>
+          ) : null}
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-slate-400">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              Loading comments...
+            </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="text-rose-600 text-sm">{error}</p>
+              <button
+                onClick={load}
+                className="mt-2 text-sm text-blue-600 font-medium hover:underline"
+              >
+                Try again
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 px-6">
+              <MessagesSquare className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-600 font-medium">
+                {comments.length === 0 ? "No comments yet" : "No matching comments"}
+              </p>
+              {comments.length === 0 ? (
+                <p className="text-sm text-slate-400 mt-1">
+                  Comments from users will appear here
+                </p>
+              ) : (
+                <p className="text-sm text-slate-400 mt-1">Try a different search term</p>
+              )}
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {filtered.map((c) => {
+                const name = commentDisplayName(c)
+                const initial = (name[0] ?? "?").toUpperCase()
+                const avatar = c.patientAvatar ? resolveUrl(apiUrl, c.patientAvatar) : null
+                const isDeleting = deletingId === c._id
+                return (
+                  <li key={c._id} className="flex items-start gap-3 p-4 hover:bg-slate-50 transition-colors">
+                    {avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatar}
+                        alt=""
+                        className="w-9 h-9 rounded-full object-cover bg-slate-100 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-sm font-bold">{initial}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-slate-900 truncate">
+                          {name}
+                        </span>
+                        {c.patientPhone && c.patientName ? (
+                          <span className="text-xs text-slate-400">{c.patientPhone}</span>
+                        ) : null}
+                        <span className="text-xs text-slate-400">{timeAgoShort(c.createdAt)}</span>
+                      </div>
+                      <p className="text-sm text-slate-700 mt-1 break-words whitespace-pre-wrap">
+                        {c.text}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onDelete(c._id)}
+                      disabled={isDeleting}
+                      className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-50 transition-colors flex-shrink-0"
+                      title="Delete comment"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
