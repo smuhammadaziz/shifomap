@@ -1,5 +1,21 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    ActivityIndicator,
+    RefreshControl,
+    Modal,
+    TextInput,
+    Alert,
+    Platform,
+    KeyboardAvoidingView,
+    Keyboard,
+    TouchableWithoutFeedback,
+    Pressable,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/auth-store';
@@ -49,6 +65,25 @@ const PillReminderScreen = () => {
     const [pillTime, setPillTime] = useState('09:00');
     const [pillNotes, setPillNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const pillNameRef = useRef<TextInput>(null);
+    const pillTimeRef = useRef<TextInput>(null);
+    const pillNotesRef = useRef<TextInput>(null);
+
+    const QUICK_TIMES = ['08:00', '12:00', '14:00', '18:00', '21:00'];
+
+    const openAddModal = () => {
+        setPillName('');
+        setPillTime('09:00');
+        setPillNotes('');
+        setModalVisible(true);
+        // Auto-focus the first field once the modal slides in.
+        setTimeout(() => pillNameRef.current?.focus(), 220);
+    };
+
+    const closeAddModal = () => {
+        Keyboard.dismiss();
+        setModalVisible(false);
+    };
 
     const load = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -106,7 +141,7 @@ const PillReminderScreen = () => {
                 notes: pillNotes.trim() || null,
                 timesPerDay: 1
             });
-            setModalVisible(false);
+            closeAddModal();
             setPillName('');
             setPillNotes('');
             setPillTime('09:00');
@@ -146,6 +181,8 @@ const PillReminderScreen = () => {
         load();
     }, [load]);
 
+    const isEmpty = !loading && list.length === 0 && customList.length === 0;
+
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -157,7 +194,10 @@ const PillReminderScreen = () => {
             </View>
 
             <ScrollView
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    isEmpty && { flexGrow: 1, paddingTop: 0 },
+                ]}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />}
             >
@@ -166,14 +206,94 @@ const PillReminderScreen = () => {
                     <View style={styles.centered}>
                         <ActivityIndicator size="large" color={colors.primary} />
                     </View>
-                ) : list.length === 0 ? (
-                    <View style={styles.centered}>
-                        <Ionicons name="file-tray-outline" size={48} color={colors.textTertiary} />
-                        <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-                            {t.noPrescriptionsYet}
+                ) : isEmpty ? (
+                    <View style={styles.emptyHeroWrap}>
+                        <View
+                            style={[
+                                styles.emptyIconCircle,
+                                {
+                                    backgroundColor: theme === 'dark' ? colors.primaryBg : '#EEF2FF',
+                                    borderColor: theme === 'dark' ? colors.border : '#C7D2FE',
+                                },
+                            ]}
+                        >
+                            <Ionicons name="medical" size={44} color={colors.primary} />
+                        </View>
+
+                        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                            {language === 'uz'
+                                ? "Doringizni hech qachon unutmang"
+                                : 'Никогда не забывайте принимать лекарства'}
                         </Text>
+                        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                            {language === 'uz'
+                                ? "Dori nomi va vaqtini qo'shing — vaqt kelganda telefoningizga eslatma yuboramiz."
+                                : 'Добавьте название и время — мы отправим уведомление, когда придёт время принять.'}
+                        </Text>
+
+                        <View
+                            style={[
+                                styles.benefitsCard,
+                                {
+                                    backgroundColor: colors.backgroundCard,
+                                    borderColor: colors.border,
+                                },
+                            ]}
+                        >
+                            {[
+                                {
+                                    icon: 'add-circle-outline' as const,
+                                    title: language === 'uz' ? 'Dori qo\'shing' : 'Добавьте лекарство',
+                                    desc: language === 'uz' ? "Nomi va vaqtini ko'rsating" : 'Укажите название и время',
+                                },
+                                {
+                                    icon: 'notifications-outline' as const,
+                                    title: language === 'uz' ? 'Push-eslatma oling' : 'Получайте уведомления',
+                                    desc: language === 'uz' ? "Vaqt kelganda darhol bildiramiz" : 'Сообщим, когда наступит время',
+                                },
+                                {
+                                    icon: 'checkmark-done-outline' as const,
+                                    title: language === 'uz' ? 'Belgilab boring' : 'Отмечайте приём',
+                                    desc: language === 'uz' ? "Har bir qabulni bir tugma bilan" : 'Один тап — и приём отмечен',
+                                },
+                            ].map((b, i, arr) => (
+                                <View
+                                    key={b.icon}
+                                    style={[
+                                        styles.benefitRow,
+                                        i < arr.length - 1 && {
+                                            borderBottomColor: colors.borderLight,
+                                            borderBottomWidth: StyleSheet.hairlineWidth,
+                                        },
+                                    ]}
+                                >
+                                    <View style={[styles.benefitIcon, { backgroundColor: colors.primaryBg }]}>
+                                        <Ionicons name={b.icon} size={18} color={colors.primary} />
+                                    </View>
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                        <Text style={[styles.benefitTitle, { color: colors.text }]} numberOfLines={1}>
+                                            {b.title}
+                                        </Text>
+                                        <Text style={[styles.benefitDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+                                            {b.desc}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.emptyCta, { backgroundColor: colors.primary }]}
+                            activeOpacity={0.88}
+                            onPress={openAddModal}
+                        >
+                            <Ionicons name="add" size={22} color="#fff" />
+                            <Text style={styles.emptyCtaText}>
+                                {language === 'uz' ? "Birinchi eslatmani qo'shish" : 'Добавить первое напоминание'}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
-                ) : (
+                ) : list.length === 0 ? null : (
                     <>
                         <Text style={[styles.sectionTitle, { color: colors.text }]}>{t.myPrescriptions}</Text>
                         {list.map((p) => (
@@ -269,118 +389,196 @@ const PillReminderScreen = () => {
                 <View style={{ height: Math.max(insets.bottom, 20) + 80 }} />
             </ScrollView>
 
-            <TouchableOpacity 
-                style={[styles.fab, { backgroundColor: colors.primary, bottom: Math.max(insets.bottom, 20) + 16 }]}
-                onPress={() => setModalVisible(true)}
-                activeOpacity={0.8}
-            >
-                <Ionicons name="add" size={32} color="#FFF" />
-            </TouchableOpacity>
+            {!isEmpty && !loading ? (
+                <TouchableOpacity
+                    style={[styles.fab, { backgroundColor: colors.primary, bottom: Math.max(insets.bottom, 20) + 16 }]}
+                    onPress={openAddModal}
+                    activeOpacity={0.85}
+                >
+                    <Ionicons name="add" size={32} color="#FFF" />
+                </TouchableOpacity>
+            ) : null}
 
             <Modal
                 visible={modalVisible}
                 animationType="slide"
-                transparent={true}
-                onRequestClose={() => setModalVisible(false)}
+                transparent
+                onRequestClose={closeAddModal}
             >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={insets.bottom + 24}
-                    style={styles.modalOverlay}
-                >
-                    <View style={[styles.modalContent, { backgroundColor: colors.backgroundCard }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>
-                                {language === 'uz' ? 'Yangi eslatma' : 'Новое напоминание'}
-                            </Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color={colors.text} />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
-                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                {language === 'uz' ? 'Dori nomi' : 'Название лекарства'}
-                            </Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    {
-                                        color: colors.text,
-                                        borderColor: colors.border,
-                                        backgroundColor: colors.backgroundInput,
-                                    },
-                                ]}
-                                value={pillName}
-                                onChangeText={setPillName}
-                                placeholder="..."
-                                placeholderTextColor={colors.textPlaceholder}
-                            />
-
-                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                {language === 'uz' ? 'Vaqti (m: 09:00)' : 'Время (н: 09:00)'}
-                            </Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    {
-                                        color: colors.text,
-                                        borderColor: colors.border,
-                                        backgroundColor: colors.backgroundInput,
-                                    },
-                                ]}
-                                value={pillTime}
-                                onChangeText={(text) => {
-                                    const digits = text.replace(/\D/g, '').slice(0, 4);
-                                    if (digits.length <= 2) {
-                                        setPillTime(digits);
-                                    } else {
-                                        setPillTime(digits.slice(0, 2) + ':' + digits.slice(2));
-                                    }
-                                }}
-                                placeholder="09:00"
-                                placeholderTextColor={colors.textPlaceholder}
-                                keyboardType="number-pad"
-                                maxLength={5}
-                            />
-
-                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                {language === 'uz' ? 'Eslatma' : 'Заметка'}
-                            </Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    {
-                                        color: colors.text,
-                                        borderColor: colors.border,
-                                        backgroundColor: colors.backgroundInput,
-                                        height: 80,
-                                        textAlignVertical: 'top',
-                                    },
-                                ]}
-                                value={pillNotes}
-                                onChangeText={setPillNotes}
-                                multiline
-                                placeholder="..."
-                                placeholderTextColor={colors.textPlaceholder}
-                            />
-
-                            <TouchableOpacity 
-                                style={[styles.submitButton, { backgroundColor: colors.primary }]}
-                                onPress={handleAdd}
-                                disabled={submitting}
-                            >
-                                {submitting ? (
-                                    <ActivityIndicator size="small" color="#FFF" />
-                                ) : (
-                                    <Text style={styles.submitButtonText}>
-                                        {language === 'uz' ? 'Saqlash' : 'Сохранить'}
+                <Pressable style={styles.modalOverlay} onPress={closeAddModal}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        keyboardVerticalOffset={0}
+                        style={styles.kbAvoidWrap}
+                        pointerEvents="box-none"
+                    >
+                        <Pressable
+                            style={[
+                                styles.modalContent,
+                                {
+                                    backgroundColor: colors.backgroundCard,
+                                    paddingBottom: Math.max(insets.bottom, 14) + 14,
+                                    borderColor: colors.border,
+                                },
+                            ]}
+                            onPress={(e) => e.stopPropagation()}
+                        >
+                            <View style={styles.modalHandle} />
+                            <View style={styles.modalHeader}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                        {language === 'uz' ? 'Yangi eslatma' : 'Новое напоминание'}
                                     </Text>
-                                )}
-                            </TouchableOpacity>
-                        </ScrollView>
-                    </View>
-                </KeyboardAvoidingView>
+                                    <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                                        {language === 'uz'
+                                            ? "Vaqti kelganda telefoningizga bildirishnoma kelib turadi"
+                                            : 'Уведомление придёт в указанное время'}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity onPress={closeAddModal} hitSlop={10} style={styles.modalCloseBtn}>
+                                    <Ionicons name="close" size={22} color={colors.text} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
+                                <ScrollView
+                                    style={styles.modalScroll}
+                                    keyboardShouldPersistTaps="handled"
+                                    showsVerticalScrollIndicator={false}
+                                >
+                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                                        {language === 'uz' ? 'Dori nomi' : 'Название лекарства'}
+                                    </Text>
+                                    <TextInput
+                                        ref={pillNameRef}
+                                        style={[
+                                            styles.input,
+                                            {
+                                                color: colors.text,
+                                                borderColor: colors.border,
+                                                backgroundColor: colors.backgroundInput,
+                                            },
+                                        ]}
+                                        value={pillName}
+                                        onChangeText={setPillName}
+                                        placeholder={language === 'uz' ? 'Masalan, Paratsetamol 500mg' : 'Например, Парацетамол 500мг'}
+                                        placeholderTextColor={colors.textPlaceholder}
+                                        returnKeyType="next"
+                                        onSubmitEditing={() => pillTimeRef.current?.focus()}
+                                    />
+
+                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                                        {language === 'uz' ? 'Qabul qilish vaqti' : 'Время приёма'}
+                                    </Text>
+                                    <TextInput
+                                        ref={pillTimeRef}
+                                        style={[
+                                            styles.input,
+                                            {
+                                                color: colors.text,
+                                                borderColor: colors.border,
+                                                backgroundColor: colors.backgroundInput,
+                                            },
+                                        ]}
+                                        value={pillTime}
+                                        onChangeText={(text) => {
+                                            const digits = text.replace(/\D/g, '').slice(0, 4);
+                                            if (digits.length <= 2) {
+                                                setPillTime(digits);
+                                            } else {
+                                                setPillTime(digits.slice(0, 2) + ':' + digits.slice(2));
+                                            }
+                                        }}
+                                        placeholder="09:00"
+                                        placeholderTextColor={colors.textPlaceholder}
+                                        keyboardType="number-pad"
+                                        maxLength={5}
+                                        returnKeyType="next"
+                                        onSubmitEditing={() => pillNotesRef.current?.focus()}
+                                    />
+                                    <View style={styles.quickTimesRow}>
+                                        {QUICK_TIMES.map((qt) => {
+                                            const active = pillTime === qt;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={qt}
+                                                    onPress={() => setPillTime(qt)}
+                                                    activeOpacity={0.85}
+                                                    style={[
+                                                        styles.quickTimeChip,
+                                                        {
+                                                            backgroundColor: active ? colors.primary : colors.backgroundSecondary,
+                                                            borderColor: active ? colors.primary : colors.border,
+                                                        },
+                                                    ]}
+                                                >
+                                                    <Text
+                                                        style={{
+                                                            color: active ? '#fff' : colors.text,
+                                                            fontSize: 12,
+                                                            fontWeight: '700',
+                                                        }}
+                                                    >
+                                                        {qt}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+
+                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                                        {language === 'uz' ? 'Eslatma (ixtiyoriy)' : 'Заметка (необязательно)'}
+                                    </Text>
+                                    <TextInput
+                                        ref={pillNotesRef}
+                                        style={[
+                                            styles.input,
+                                            {
+                                                color: colors.text,
+                                                borderColor: colors.border,
+                                                backgroundColor: colors.backgroundInput,
+                                                height: 80,
+                                                textAlignVertical: 'top',
+                                            },
+                                        ]}
+                                        value={pillNotes}
+                                        onChangeText={setPillNotes}
+                                        multiline
+                                        placeholder={language === 'uz' ? "Ovqatdan keyin..." : 'После еды...'}
+                                        placeholderTextColor={colors.textPlaceholder}
+                                        returnKeyType="done"
+                                        blurOnSubmit
+                                        onSubmitEditing={() => Keyboard.dismiss()}
+                                    />
+
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.submitButton,
+                                            {
+                                                backgroundColor: colors.primary,
+                                                opacity: !pillName.trim() || submitting ? 0.55 : 1,
+                                            },
+                                        ]}
+                                        onPress={handleAdd}
+                                        disabled={submitting || !pillName.trim()}
+                                        activeOpacity={0.88}
+                                    >
+                                        {submitting ? (
+                                            <ActivityIndicator size="small" color="#FFF" />
+                                        ) : (
+                                            <>
+                                                <Ionicons name="checkmark" size={20} color="#fff" />
+                                                <Text style={styles.submitButtonText}>
+                                                    {language === 'uz' ? 'Saqlash' : 'Сохранить'}
+                                                </Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </ScrollView>
+                            </TouchableWithoutFeedback>
+                        </Pressable>
+                    </KeyboardAvoidingView>
+                </Pressable>
             </Modal>
         </SafeAreaView>
     );
@@ -415,6 +613,75 @@ const styles = StyleSheet.create({
     },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
     emptyText: { marginTop: 12, fontSize: 14 },
+    emptyHeroWrap: {
+        flexGrow: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+        paddingVertical: 24,
+        gap: 14,
+    },
+    emptyIconCircle: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.2,
+        marginBottom: 4,
+    },
+    emptyTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        textAlign: 'center',
+        letterSpacing: -0.3,
+        paddingHorizontal: 8,
+    },
+    emptySubtitle: {
+        fontSize: 14,
+        textAlign: 'center',
+        lineHeight: 20,
+        paddingHorizontal: 16,
+        marginBottom: 4,
+    },
+    benefitsCard: {
+        width: '100%',
+        borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: 14,
+        marginVertical: 4,
+    },
+    benefitRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 14,
+    },
+    benefitIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    benefitTitle: { fontSize: 14, fontWeight: '700' },
+    benefitDesc: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+    emptyCta: {
+        width: '100%',
+        height: 54,
+        borderRadius: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 6,
+        shadowColor: '#0A2FB8',
+        shadowOpacity: 0.22,
+        shadowOffset: { width: 0, height: 8 },
+        shadowRadius: 14,
+        elevation: 5,
+    },
+    emptyCtaText: { color: '#fff', fontSize: 15, fontWeight: '800', letterSpacing: -0.1 },
     card: {
         borderRadius: 20,
         borderWidth: 1.2,
@@ -503,27 +770,64 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.55)',
         justifyContent: 'flex-end',
+    },
+    kbAvoidWrap: {
+        width: '100%',
     },
     modalContent: {
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        padding: 24,
-        maxHeight: '80%',
+        paddingHorizontal: 22,
+        paddingTop: 8,
+        maxHeight: '90%',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderLeftWidth: StyleSheet.hairlineWidth,
+        borderRightWidth: StyleSheet.hairlineWidth,
+    },
+    modalHandle: {
+        width: 44,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: 'rgba(120,120,128,0.35)',
+        alignSelf: 'center',
+        marginTop: 4,
+        marginBottom: 12,
     },
     modalHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: 10,
+        marginBottom: 18,
+    },
+    modalCloseBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         alignItems: 'center',
-        marginBottom: 20,
+        justifyContent: 'center',
     },
     modalTitle: {
         fontSize: 20,
         fontWeight: '800',
+        letterSpacing: -0.2,
     },
+    modalSubtitle: { fontSize: 12, marginTop: 4, lineHeight: 16 },
     modalScroll: {
-        marginBottom: 20,
+        marginBottom: 4,
+    },
+    quickTimesRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 8,
+    },
+    quickTimeChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 999,
+        borderWidth: 1,
     },
     inputLabel: {
         fontSize: 13,
@@ -544,10 +848,12 @@ const styles = StyleSheet.create({
     submitButton: {
         height: 52,
         borderRadius: 16,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 24,
-        marginBottom: 40,
+        gap: 8,
+        marginTop: 22,
+        marginBottom: 8,
     },
     submitButtonText: {
         color: '#FFF',

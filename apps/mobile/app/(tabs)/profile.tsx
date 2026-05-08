@@ -262,7 +262,7 @@ export default function ProfileScreen() {
               <Ionicons name="open-outline" size={16} color={tokens.colors.textTertiary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.menuRow}
+              style={[styles.menuRow, { borderBottomColor: tokens.colors.borderLight, borderBottomWidth: StyleSheet.hairlineWidth }]}
               onPress={() => Linking.openURL('https://instagram.com/shifoyol')}
               activeOpacity={0.75}
             >
@@ -272,6 +272,38 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>Instagram</Text>
                 <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, marginTop: 2 }}>@shifoyol</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={tokens.colors.textTertiary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuRow, { borderBottomColor: tokens.colors.borderLight, borderBottomWidth: StyleSheet.hairlineWidth }]}
+              onPress={() => Linking.openURL('https://shifoyol.uz')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: menuIconBg(theme, '#e0e7ff') }]}>
+                <Ionicons name="globe-outline" size={18} color="#4f46e5" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>
+                  {language === 'uz' ? 'Veb-sayt' : 'Веб-сайт'}
+                </Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, marginTop: 2 }}>shifoyol.uz</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={tokens.colors.textTertiary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => Linking.openURL('https://t.me/shifoyol_contact_bot')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: menuIconBg(theme, '#dbeafe') }]}>
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#0088cc" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: tokens.colors.text, fontWeight: '700', fontSize: 14 }}>
+                  {language === 'uz' ? 'Telegram bot' : 'Telegram-бот'}
+                </Text>
+                <Text style={{ color: tokens.colors.textTertiary, fontSize: 12, marginTop: 2 }}>@shifoyol_contact_bot</Text>
               </View>
               <Ionicons name="open-outline" size={16} color={tokens.colors.textTertiary} />
             </TouchableOpacity>
