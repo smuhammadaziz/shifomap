@@ -933,7 +933,6 @@ export interface PublicClinicListItem {
  */
 export async function publicListClinics(limit: number = 100): Promise<PublicClinicListItem[]> {
   const docs = await findActiveClinicsForPublic(limit)
-  console.log('[DEBUG-BACKEND] First Clinic Doc from DB:', JSON.stringify(docs[0], null, 2))
   return docs.map((d) => ({
     id: d._id.toHexString(),
     clinicDisplayName: d.clinicDisplayName,
