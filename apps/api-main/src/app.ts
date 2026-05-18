@@ -21,6 +21,8 @@ import { chatPatientRoutes, chatDoctorRoutes } from "@/modules/chat/chat.routes"
 import { postsPublicRoutes, postsPatientRoutes, postsAdminRoutes } from "@/modules/posts/posts.routes"
 import { aiChatPatientRoutes, aiChatAdminRoutes } from "@/modules/ai-chat/ai-chat.routes"
 import { storiesRoutes, storiesAdminRoutes } from "@/modules/stories/stories.routes"
+import { homeVisitsPatientRoutes } from "@/modules/home-visits/home-visits.routes"
+import { homeVisitsManageRoutes } from "@/modules/home-visits/home-visits.manage.routes"
 import { AppError } from "@/common/errors"
 
 // V1 API routes
@@ -52,6 +54,8 @@ const v1 = new Elysia({ prefix: "/v1" })
 .use(storiesRoutes)
 .use(storiesAdminRoutes)
 .use(prescriptionsAdminRoutes)
+.use(homeVisitsPatientRoutes)
+.use(homeVisitsManageRoutes)
 
 // Main Elysia app
 export const app = new Elysia()

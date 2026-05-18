@@ -5,8 +5,9 @@ import { useRouter } from 'expo-router';
 
 /**
  * Navigates to /chat/[id] when patient taps Expo Push (doctor message).
+ * Lives outside `app/` so Expo Router does not register it as a route.
  */
-export function PushNotificationsBridge() {
+export default function PushNotificationsBridge() {
   const router = useRouter();
   const last = Notifications.useLastNotificationResponse();
   const handledTap = useRef<string | null>(null);
@@ -21,8 +22,7 @@ export function PushNotificationsBridge() {
     const data = raw as Record<string, unknown>;
 
     if (data.type !== 'chat_message') return;
-    const conversationId =
-      typeof data.conversationId === 'string' ? data.conversationId : null;
+    const conversationId = typeof data.conversationId === 'string' ? data.conversationId : null;
     if (!conversationId?.trim()) return;
 
     const tapKey = `${last.notification.request.identifier}-${conversationId}`;

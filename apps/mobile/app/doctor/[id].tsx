@@ -188,7 +188,7 @@ export default function DoctorDetailScreen() {
   return (
     <View style={[styles.root, { backgroundColor: tokens.colors.background }]}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: 200 }}
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
@@ -346,6 +346,21 @@ export default function DoctorDetailScreen() {
 
       <View style={[styles.ctaBar, { backgroundColor: tokens.colors.background, borderTopColor: tokens.colors.border, paddingBottom: insets.bottom + 10 }]}>
         <Button
+          title={language === 'uz' ? 'Uyga chaqirish' : language === 'en' ? 'Home visit' : 'Вызов на дом'}
+          variant="outline"
+          leftIcon="home-outline"
+          onPress={() =>
+            router.push({
+              pathname: '/home-visit-request',
+              params: { doctorId: doctorId as string, clinicId: clinicId as string },
+            })
+          }
+          fullWidth
+          size="md"
+          style={{ marginBottom: 10 }}
+        />
+        <View style={styles.ctaRow}>
+        <Button
           title={language === 'uz' ? 'Yozish' : language === 'en' ? 'Write' : 'Написать'}
           variant="outline"
           leftIcon="chatbubble-ellipses-outline"
@@ -370,6 +385,7 @@ export default function DoctorDetailScreen() {
           style={{ flex: 1.2 }}
           size="md"
         />
+        </View>
       </View>
 
       <ReviewBottomSheet
@@ -461,8 +477,11 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 16,
     paddingTop: 12,
+    flexDirection: 'column',
+    gap: 0,
+  },
+  ctaRow: {
     flexDirection: 'row',
     gap: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

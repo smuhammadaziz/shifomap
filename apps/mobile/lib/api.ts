@@ -1059,3 +1059,35 @@ export async function submitAiConversationFeedback(
   if (!data.success) throw new Error('Failed to submit feedback');
   return data.data;
 }
+
+// --- Home visit (doctor to patient's home) ---
+
+export type HomeVisitRequest = {
+  _id: string;
+  patientName: string;
+  patientPhone: string;
+  doctorName: string;
+  doctorSpecialty: string;
+  clinicName: string;
+  address: { street: string; building: string | null; apartment: string | null };
+  addressFormatted: string;
+  symptoms: string[];
+  notes: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  createdAt: string;
+};
+
+export async function createHomeVisitRequest(body: {
+  clinicId: string;
+  doctorId: string;
+  address: { street: string; building?: string | null; apartment?: string | null };
+  symptoms: string[];
+  notes?: string;
+}): Promise<HomeVisitRequest> {
+  const { data } = await api.post<{ success: boolean; data: HomeVisitRequest }>(
+    '/patients/me/home-visits',
+    body,
+  );
+  if (!data.success) throw new Error('Failed to submit home visit request');
+  return data.data;
+}

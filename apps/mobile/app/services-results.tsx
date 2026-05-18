@@ -85,19 +85,19 @@ export default function ServicesResultsScreen() {
   const slideAnim = useRef(new Animated.Value(300)).current;
 
   const buildFilters = useCallback(
-    (overrides?: { minPrice?: number; maxPrice?: number }): ServiceFilters => ({
-      q: searchQuery.trim() || undefined,
-      categoryId: params.categoryId || undefined,
+    (overrides?: Partial<ServiceFilters>): ServiceFilters => ({
+      q: overrides?.q !== undefined ? overrides.q : searchQuery.trim() || undefined,
+      categoryId: overrides?.categoryId ?? (params.categoryId || undefined),
       minPrice: overrides?.minPrice !== undefined ? overrides.minPrice : appliedMinPrice,
       maxPrice: overrides?.maxPrice !== undefined ? overrides.maxPrice : appliedMaxPrice,
-      durationMin: params.durationMin != null ? Number(params.durationMin) : undefined,
-      clinicId: params.clinicId || undefined,
+      durationMin: overrides?.durationMin ?? (params.durationMin != null ? Number(params.durationMin) : undefined),
+      clinicId: overrides?.clinicId ?? (params.clinicId || undefined),
     }),
     [searchQuery.trim(), params.categoryId, appliedMinPrice, appliedMaxPrice, params.durationMin, params.clinicId]
   );
 
   const load = useCallback(
-    async (pageNum: number = 1, append: boolean = false, filterOverrides?: { minPrice?: number; maxPrice?: number }) => {
+    async (pageNum: number = 1, append: boolean = false, filterOverrides?: Partial<ServiceFilters>) => {
       if (savedOnly) {
         if (append) setRefreshing(true);
         else setLoading(true);
@@ -168,8 +168,20 @@ export default function ServicesResultsScreen() {
   };
 
   useEffect(() => {
-    load(1, false);
-  }, [load, savedOnly]);
+    const q = typeof params.q === 'string' ? params.q : '';
+    const minRaw = params.minPrice;
+    const maxRaw = params.maxPrice;
+    const min = minRaw != null && minRaw !== '' ? Number(minRaw) : undefined;
+    const max = maxRaw != null && maxRaw !== '' ? Number(maxRaw) : undefined;
+    const minPrice = min != null && !Number.isNaN(min) ? min : undefined;
+    const maxPrice = max != null && !Number.isNaN(max) ? max : undefined;
+    setSearchQuery(q);
+    setAppliedMinPrice(minPrice);
+    setAppliedMaxPrice(maxPrice);
+    setLocalMinPrice(minRaw != null ? String(minRaw) : '');
+    setLocalMaxPrice(maxRaw != null ? String(maxRaw) : '');
+    load(1, false, { q: q.trim() || undefined, minPrice, maxPrice });
+  }, [params.q, params.minPrice, params.maxPrice, savedOnly]);
 
   const onRefresh = () => load(1, false);
   const onEndReached = () => {
@@ -322,6 +334,28 @@ export default function ServicesResultsScreen() {
         </View>
       ) : null}
 
+      {!savedOnly && (appliedMinPrice != null || appliedMaxPrice != null || searchQuery.trim()) ? (
+        <View style={[styles.activeFiltersRow, { paddingHorizontal: 20, paddingBottom: 8 }]}>
+          {searchQuery.trim() ? (
+            <View style={[styles.activeFilterChip, { backgroundColor: colors.primaryBg }]}>
+              <Ionicons name="search" size={12} color={tokens.brand.iris} />
+              <Text style={[styles.activeFilterChipText, { color: tokens.brand.iris }]} numberOfLines={1}>
+                {searchQuery.trim()}
+              </Text>
+            </View>
+          ) : null}
+          {appliedMinPrice != null || appliedMaxPrice != null ? (
+            <View style={[styles.activeFilterChip, { backgroundColor: colors.primaryBg }]}>
+              <Ionicons name="cash-outline" size={12} color={tokens.brand.iris} />
+              <Text style={[styles.activeFilterChipText, { color: tokens.brand.iris }]}>
+                {appliedMinPrice != null ? appliedMinPrice.toLocaleString() : '0'} –{' '}
+                {appliedMaxPrice != null ? appliedMaxPrice.toLocaleString() : '∞'} UZS
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
         {loading && services.length === 0 ? (
           <View style={styles.skeletonList}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -463,6 +497,17 @@ const styles = StyleSheet.create({
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, paddingVertical: 4 },
   headerFilterBtn: { padding: 8 },
+  activeFiltersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  activeFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    maxWidth: '100%',
+  },
+  activeFilterChipText: { fontSize: 12, fontWeight: '700', flexShrink: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   filterBackdrop: {
     ...StyleSheet.absoluteFillObject,

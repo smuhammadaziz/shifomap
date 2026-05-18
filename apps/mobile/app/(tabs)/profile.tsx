@@ -97,14 +97,6 @@ export default function ProfileScreen() {
     onPress: () => void;
   }> = [
     {
-      icon: 'pulse',
-      color: tokens.brand.rose,
-      bgLight: '#fce7f3',
-      title: language === 'uz' ? 'Kasalliklar tarixi' : 'История заболеваний',
-      subtitle: language === 'uz' ? 'Tashxislar va davolanishlar' : 'Диагнозы и лечение',
-      onPress: () => router.push('/medical-history'),
-    },
-    {
       icon: 'calendar',
       color: tokens.brand.iris,
       bgLight: '#e0e7ff',

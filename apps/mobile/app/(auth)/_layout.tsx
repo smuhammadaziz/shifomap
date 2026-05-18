@@ -1,8 +1,11 @@
 import { Stack } from 'expo-router';
-
-const BG = '#09090b';
+import { useThemeStore } from '../../store/theme-store';
+import { getColors } from '../../lib/theme';
 
 export default function AuthLayout() {
+  const theme = useThemeStore((s) => s.theme);
+  const colors = getColors(theme);
+
   return (
     <Stack
       screenOptions={{
@@ -10,7 +13,7 @@ export default function AuthLayout() {
         animation: 'slide_from_right',
         animationDuration: 280,
         gestureEnabled: true,
-        contentStyle: { backgroundColor: BG },
+        contentStyle: { backgroundColor: colors.background },
       }}
     />
   );

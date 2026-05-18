@@ -350,9 +350,17 @@ export async function getAdminPillCheckStats(fromStr: string, toStr: string, q: 
 
 export async function publicCreateCustomReminder(auth: { role?: string; sub: string }, body: { pillName: string; time: string; notes?: string | null; timesPerDay: number }) {
   if (auth.role !== "patient") throw unauthorized("Patient access only")
+  if (!ObjectId.isValid(auth.sub)) throw badRequest("Invalid patient id")
   const userId = new ObjectId(auth.sub)
   const doc = await upsertCustomReminder(userId, body)
-  return { id: doc._id.toHexString(), ...body }
+  return {
+    id: doc._id.toHexString(),
+    pillName: doc.pillName,
+    time: doc.time,
+    notes: doc.notes,
+    timesPerDay: doc.timesPerDay,
+    isActive: doc.isActive,
+  }
 }
 
 export async function publicListCustomReminders(auth: { role?: string; sub: string }) {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -7,14 +7,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     RefreshControl,
-    Modal,
-    TextInput,
     Alert,
-    Platform,
-    KeyboardAvoidingView,
-    Keyboard,
-    TouchableWithoutFeedback,
-    Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,15 +18,15 @@ import { getColors } from '../lib/theme';
 import {
   getMyPrescriptions,
   getCustomReminders,
-  addCustomReminder,
   deleteCustomReminder,
-  submitCustomReminderPillEvent,
-  getApiErrorMessage,
   type PrescriptionCard,
   type CustomReminder,
 } from '../lib/api';
 import { syncPillReminderNotifications } from '../lib/pill-local-notifications';
 import { useRouter } from 'expo-router';
+import { getTokens } from '../lib/design';
+import PillCreateWizard, { parseReminderMeta } from './components/PillCreateWizard';
+import { PillIcon } from '../lib/pill-icons';
 
 const REMINDER_COLORS = [
     { bg: '#EEF2FF', iconBg: '#E0E7FF', icon: '#4F46E5', ring: '#C7D2FE' },
@@ -47,11 +40,30 @@ function pickReminderColor(i: number) {
     return REMINDER_COLORS[i % REMINDER_COLORS.length];
 }
 
+function groupRemindersByTime(list: CustomReminder[]): [string, CustomReminder[]][] {
+    const map = new Map<string, CustomReminder[]>();
+    for (const item of list) {
+        const bucket = map.get(item.time) ?? [];
+        bucket.push(item);
+        map.set(item.time, bucket);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function formatTodayHeading(language: string): string {
+    const d = new Date();
+    const monthsUz = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentyabr', 'oktyabr', 'noyabr', 'dekabr'];
+    const monthsRu = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    if (language === 'ru') return `Сегодня, ${d.getDate()} ${monthsRu[d.getMonth()]}`;
+    return `Bugun, ${d.getDate()}-${monthsUz[d.getMonth()]}`;
+}
+
 const PillReminderScreen = () => {
     const language = useAuthStore((s) => s.language) ?? 'uz';
     const theme = useThemeStore((s) => s.theme);
     const t = getTranslations(language);
     const colors = getColors(theme);
+    const tokens = getTokens(theme);
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [loading, setLoading] = useState(true);
@@ -59,31 +71,10 @@ const PillReminderScreen = () => {
     const [list, setList] = useState<PrescriptionCard[]>([]);
     const [customList, setCustomList] = useState<CustomReminder[]>([]);
     
-    // Form State
-    const [modalVisible, setModalVisible] = useState(false);
-    const [pillName, setPillName] = useState('');
-    const [pillTime, setPillTime] = useState('09:00');
-    const [pillNotes, setPillNotes] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-    const pillNameRef = useRef<TextInput>(null);
-    const pillTimeRef = useRef<TextInput>(null);
-    const pillNotesRef = useRef<TextInput>(null);
+    const [wizardVisible, setWizardVisible] = useState(false);
 
-    const QUICK_TIMES = ['08:00', '12:00', '14:00', '18:00', '21:00'];
-
-    const openAddModal = () => {
-        setPillName('');
-        setPillTime('09:00');
-        setPillNotes('');
-        setModalVisible(true);
-        // Auto-focus the first field once the modal slides in.
-        setTimeout(() => pillNameRef.current?.focus(), 220);
-    };
-
-    const closeAddModal = () => {
-        Keyboard.dismiss();
-        setModalVisible(false);
-    };
+    const openAddWizard = () => setWizardVisible(true);
+    const closeAddWizard = () => setWizardVisible(false);
 
     const load = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -106,54 +97,8 @@ const PillReminderScreen = () => {
         }
     }, []);
 
-    const todayStr = () => new Date().toISOString().slice(0, 10);
-
-    const handleIchdim = async (reminderId: string, time: string) => {
-        try {
-            await submitCustomReminderPillEvent({
-                reminderId,
-                action: 'taken',
-                date: todayStr(),
-                time,
-            });
-            load();
-        } catch (err) {
-            const msg =
-                err instanceof Error ? err.message : getApiErrorMessage(err) ?? 'Failed';
-            Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', msg);
-        }
-    };
-
-    const handleAdd = async () => {
-        if (!pillName.trim()) {
-            Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', language === 'uz' ? 'Dori nomi kiritilishi shart' : 'Название лекарства обязательно');
-            return;
-        }
-        if (!/^\d{2}:\d{2}$/.test(pillTime)) {
-            Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', language === 'uz' ? 'Vaqtni HH:MM formatda kiriting (m: 09:00)' : 'Введите время в формате ЧЧ:ММ (н: 09:00)');
-            return;
-        }
-        setSubmitting(true);
-        try {
-            await addCustomReminder({
-                pillName: pillName.trim(),
-                time: pillTime,
-                notes: pillNotes.trim() || null,
-                timesPerDay: 1
-            });
-            closeAddModal();
-            setPillName('');
-            setPillNotes('');
-            setPillTime('09:00');
-            load();
-        } catch (err) {
-            const msg =
-                err instanceof Error ? err.message : getApiErrorMessage(err) ?? 'Failed to add reminder';
-            Alert.alert(language === 'uz' ? 'Xato' : 'Ошибка', msg);
-        } finally {
-            setSubmitting(false);
-        }
-    };
+    const groupedReminders = useMemo(() => groupRemindersByTime(customList), [customList]);
+    const todayHeading = useMemo(() => formatTodayHeading(language), [language]);
 
     const handleDelete = (id: string) => {
         Alert.alert(
@@ -252,9 +197,9 @@ const PillReminderScreen = () => {
                                     desc: language === 'uz' ? "Vaqt kelganda darhol bildiramiz" : 'Сообщим, когда наступит время',
                                 },
                                 {
-                                    icon: 'checkmark-done-outline' as const,
-                                    title: language === 'uz' ? 'Belgilab boring' : 'Отмечайте приём',
-                                    desc: language === 'uz' ? "Har bir qabulni bir tugma bilan" : 'Один тап — и приём отмечен',
+                                    icon: 'home-outline' as const,
+                                    title: language === 'uz' ? 'Asosiy sahifada belgilang' : 'Отмечайте на главной',
+                                    desc: language === 'uz' ? "Vaqtida «Ichdim» tugmasini bosing" : 'Нажмите «Принял(а)» на главном экране',
                                 },
                             ].map((b, i, arr) => (
                                 <View
@@ -285,7 +230,7 @@ const PillReminderScreen = () => {
                         <TouchableOpacity
                             style={[styles.emptyCta, { backgroundColor: colors.primary }]}
                             activeOpacity={0.88}
-                            onPress={openAddModal}
+                            onPress={openAddWizard}
                         >
                             <Ionicons name="add" size={22} color="#fff" />
                             <Text style={styles.emptyCtaText}>
@@ -323,67 +268,66 @@ const PillReminderScreen = () => {
                 )}
 
                 {!loading && customList.length > 0 && (
-                    <>
-                        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>
-                            {language === 'uz' ? 'Mening eslatmalarim' : 'Мои напоминания'}
-                        </Text>
-                        {customList.map((c, idx) => {
-                            const tone = pickReminderColor(idx);
-                            const cardBg = theme === 'dark' ? colors.backgroundCard : tone.bg;
-                            const cardBorder = theme === 'dark' ? colors.border : tone.ring;
-                            const iconBg = theme === 'dark' ? colors.primaryBg : tone.iconBg;
-                            const iconCol = theme === 'dark' ? colors.primary : tone.icon;
-                            return (
-                            <View
-                                key={c.id}
-                                style={[
-                                    styles.card,
-                                    {
-                                        backgroundColor: cardBg,
-                                        borderColor: cardBorder,
-                                        borderWidth: 1.2,
-                                    },
-                                ]}
-                            >
-                                <View style={styles.cardRow}>
-                                    <View style={[styles.iconMini, { backgroundColor: iconBg }]}>
-                                        <Ionicons name="notifications-outline" size={16} color={iconCol} />
-                                    </View>
-                                    <View style={styles.cardBody}>
-                                        <Text style={[styles.pillName, { color: colors.text }]} numberOfLines={1}>
-                                            {c.pillName}
-                                        </Text>
-                                        <Text style={[styles.pillMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-                                            {language === 'uz' ? "Vaqt" : "Время"}: {c.time}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.cardActions}>
-                                    <TouchableOpacity
-                                        onPress={() => handleIchdim(c.id, c.time)}
-                                        style={[styles.ichdimBtn, { backgroundColor: colors.primary }]}
-                                        activeOpacity={0.85}
-                                    >
-                                        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                                        <Text style={styles.ichdimBtnText}>
-                                            {language === 'uz' ? 'Ichdim' : 'Принял(а)'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={() => handleDelete(c.id)}
-                                        style={[styles.deleteWrap, { backgroundColor: colors.backgroundSecondary }]}
-                                    >
-                                        <Ionicons name="trash-outline" size={17} color="#ef4444" />
-                                    </TouchableOpacity>
-                                    </View>
-                                </View>
-                                {c.notes && (
-                                    <Text style={[styles.notesText, { color: colors.textSecondary }]} numberOfLines={2}>
-                                        {c.notes}
-                                    </Text>
-                                )}
+                    <View style={styles.scheduleSection}>
+                        <View style={[styles.todayBanner, { backgroundColor: tokens.brand.iris + '12', borderColor: tokens.brand.iris + '28' }]}>
+                            <Text style={[styles.todayBannerText, { color: tokens.brand.iris }]}>{todayHeading}</Text>
+                            <Text style={[styles.todayBannerSub, { color: colors.textSecondary }]}>
+                                {language === 'uz'
+                                    ? "Qabul qilganingizni asosiy sahifada belgilang"
+                                    : 'Отметьте приём на главном экране'}
+                            </Text>
+                        </View>
+
+                        {groupedReminders.map(([time, items]) => (
+                            <View key={time} style={styles.timeBlock}>
+                                <Text style={[styles.timeHeading, { color: colors.text }]}>{time}</Text>
+                                {items.map((c, idx) => {
+                                    const tone = pickReminderColor(idx + time.charCodeAt(0));
+                                    const meta = parseReminderMeta(c.notes);
+                                    const cardBg = theme === 'dark' ? '#1c1c1e' : colors.backgroundCard;
+                                    const accentColor = meta?.color ?? tokens.brand.iris;
+                                    const subtitle =
+                                        meta?.label ||
+                                        c.notes?.trim() ||
+                                        (language === 'uz'
+                                            ? "Belgilangan vaqtda qabul qiling"
+                                            : 'Примите в назначенное время');
+                                    return (
+                                        <View
+                                            key={c.id}
+                                            style={[
+                                                styles.scheduleCard,
+                                                {
+                                                    backgroundColor: cardBg,
+                                                    borderColor: theme === 'dark' ? colors.border : tone.ring + '55',
+                                                },
+                                            ]}
+                                        >
+                                            <View style={[styles.scheduleIcon, { backgroundColor: accentColor }]}>
+                                                <PillIcon iconId={meta?.shape} size={24} color="#fff" />
+                                            </View>
+                                            <View style={styles.scheduleBody}>
+                                                <Text style={[styles.scheduleTitle, { color: colors.text }]} numberOfLines={2}>
+                                                    {c.pillName}
+                                                </Text>
+                                                <Text style={[styles.scheduleHint, { color: colors.textSecondary }]} numberOfLines={2}>
+                                                    {subtitle}
+                                                </Text>
+                                            </View>
+                                            <TouchableOpacity
+                                                onPress={() => handleDelete(c.id)}
+                                                hitSlop={10}
+                                                style={[styles.scheduleDelete, { backgroundColor: colors.backgroundSecondary }]}
+                                                activeOpacity={0.8}
+                                            >
+                                                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                })}
                             </View>
-                        )})}
-                    </>
+                        ))}
+                    </View>
                 )}
 
                 <View style={{ height: Math.max(insets.bottom, 20) + 80 }} />
@@ -392,194 +336,20 @@ const PillReminderScreen = () => {
             {!isEmpty && !loading ? (
                 <TouchableOpacity
                     style={[styles.fab, { backgroundColor: colors.primary, bottom: Math.max(insets.bottom, 20) + 16 }]}
-                    onPress={openAddModal}
+                    onPress={openAddWizard}
                     activeOpacity={0.85}
                 >
                     <Ionicons name="add" size={32} color="#FFF" />
                 </TouchableOpacity>
             ) : null}
 
-            <Modal
-                visible={modalVisible}
-                animationType="slide"
-                transparent
-                onRequestClose={closeAddModal}
-            >
-                <Pressable style={styles.modalOverlay} onPress={closeAddModal}>
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                        keyboardVerticalOffset={0}
-                        style={styles.kbAvoidWrap}
-                        pointerEvents="box-none"
-                    >
-                        <Pressable
-                            style={[
-                                styles.modalContent,
-                                {
-                                    backgroundColor: colors.backgroundCard,
-                                    paddingBottom: Math.max(insets.bottom, 14) + 14,
-                                    borderColor: colors.border,
-                                },
-                            ]}
-                            onPress={(e) => e.stopPropagation()}
-                        >
-                            <View style={styles.modalHandle} />
-                            <View style={styles.modalHeader}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.modalTitle, { color: colors.text }]}>
-                                        {language === 'uz' ? 'Yangi eslatma' : 'Новое напоминание'}
-                                    </Text>
-                                    <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-                                        {language === 'uz'
-                                            ? "Vaqti kelganda telefoningizga bildirishnoma kelib turadi"
-                                            : 'Уведомление придёт в указанное время'}
-                                    </Text>
-                                </View>
-                                <TouchableOpacity onPress={closeAddModal} hitSlop={10} style={styles.modalCloseBtn}>
-                                    <Ionicons name="close" size={22} color={colors.text} />
-                                </TouchableOpacity>
-                            </View>
-
-                            <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
-                                <ScrollView
-                                    style={styles.modalScroll}
-                                    keyboardShouldPersistTaps="handled"
-                                    showsVerticalScrollIndicator={false}
-                                >
-                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                        {language === 'uz' ? 'Dori nomi' : 'Название лекарства'}
-                                    </Text>
-                                    <TextInput
-                                        ref={pillNameRef}
-                                        style={[
-                                            styles.input,
-                                            {
-                                                color: colors.text,
-                                                borderColor: colors.border,
-                                                backgroundColor: colors.backgroundInput,
-                                            },
-                                        ]}
-                                        value={pillName}
-                                        onChangeText={setPillName}
-                                        placeholder={language === 'uz' ? 'Masalan, Paratsetamol 500mg' : 'Например, Парацетамол 500мг'}
-                                        placeholderTextColor={colors.textPlaceholder}
-                                        returnKeyType="next"
-                                        onSubmitEditing={() => pillTimeRef.current?.focus()}
-                                    />
-
-                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                        {language === 'uz' ? 'Qabul qilish vaqti' : 'Время приёма'}
-                                    </Text>
-                                    <TextInput
-                                        ref={pillTimeRef}
-                                        style={[
-                                            styles.input,
-                                            {
-                                                color: colors.text,
-                                                borderColor: colors.border,
-                                                backgroundColor: colors.backgroundInput,
-                                            },
-                                        ]}
-                                        value={pillTime}
-                                        onChangeText={(text) => {
-                                            const digits = text.replace(/\D/g, '').slice(0, 4);
-                                            if (digits.length <= 2) {
-                                                setPillTime(digits);
-                                            } else {
-                                                setPillTime(digits.slice(0, 2) + ':' + digits.slice(2));
-                                            }
-                                        }}
-                                        placeholder="09:00"
-                                        placeholderTextColor={colors.textPlaceholder}
-                                        keyboardType="number-pad"
-                                        maxLength={5}
-                                        returnKeyType="next"
-                                        onSubmitEditing={() => pillNotesRef.current?.focus()}
-                                    />
-                                    <View style={styles.quickTimesRow}>
-                                        {QUICK_TIMES.map((qt) => {
-                                            const active = pillTime === qt;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={qt}
-                                                    onPress={() => setPillTime(qt)}
-                                                    activeOpacity={0.85}
-                                                    style={[
-                                                        styles.quickTimeChip,
-                                                        {
-                                                            backgroundColor: active ? colors.primary : colors.backgroundSecondary,
-                                                            borderColor: active ? colors.primary : colors.border,
-                                                        },
-                                                    ]}
-                                                >
-                                                    <Text
-                                                        style={{
-                                                            color: active ? '#fff' : colors.text,
-                                                            fontSize: 12,
-                                                            fontWeight: '700',
-                                                        }}
-                                                    >
-                                                        {qt}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
-
-                                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                        {language === 'uz' ? 'Eslatma (ixtiyoriy)' : 'Заметка (необязательно)'}
-                                    </Text>
-                                    <TextInput
-                                        ref={pillNotesRef}
-                                        style={[
-                                            styles.input,
-                                            {
-                                                color: colors.text,
-                                                borderColor: colors.border,
-                                                backgroundColor: colors.backgroundInput,
-                                                height: 80,
-                                                textAlignVertical: 'top',
-                                            },
-                                        ]}
-                                        value={pillNotes}
-                                        onChangeText={setPillNotes}
-                                        multiline
-                                        placeholder={language === 'uz' ? "Ovqatdan keyin..." : 'После еды...'}
-                                        placeholderTextColor={colors.textPlaceholder}
-                                        returnKeyType="done"
-                                        blurOnSubmit
-                                        onSubmitEditing={() => Keyboard.dismiss()}
-                                    />
-
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.submitButton,
-                                            {
-                                                backgroundColor: colors.primary,
-                                                opacity: !pillName.trim() || submitting ? 0.55 : 1,
-                                            },
-                                        ]}
-                                        onPress={handleAdd}
-                                        disabled={submitting || !pillName.trim()}
-                                        activeOpacity={0.88}
-                                    >
-                                        {submitting ? (
-                                            <ActivityIndicator size="small" color="#FFF" />
-                                        ) : (
-                                            <>
-                                                <Ionicons name="checkmark" size={20} color="#fff" />
-                                                <Text style={styles.submitButtonText}>
-                                                    {language === 'uz' ? 'Saqlash' : 'Сохранить'}
-                                                </Text>
-                                            </>
-                                        )}
-                                    </TouchableOpacity>
-                                </ScrollView>
-                            </TouchableWithoutFeedback>
-                        </Pressable>
-                    </KeyboardAvoidingView>
-                </Pressable>
-            </Modal>
+            <PillCreateWizard
+                visible={wizardVisible}
+                onClose={closeAddWizard}
+                onSaved={() => load()}
+                language={language}
+                theme={theme}
+            />
         </SafeAreaView>
     );
 };
@@ -737,20 +507,41 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     notesText: { fontSize: 13, marginTop: 12, fontStyle: 'italic', paddingHorizontal: 4 },
-    cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    ichdimBtn: {
+    scheduleSection: { marginTop: 8, gap: 4 },
+    todayBanner: {
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        marginBottom: 18,
+    },
+    todayBannerText: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+    todayBannerSub: { fontSize: 12, marginTop: 4, fontWeight: '500', lineHeight: 17 },
+    timeBlock: { marginBottom: 20 },
+    timeHeading: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginBottom: 10 },
+    scheduleCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-        borderRadius: 10,
+        gap: 12,
+        padding: 14,
+        borderRadius: 18,
+        borderWidth: 1,
+        marginBottom: 10,
     },
-    ichdimBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-    deleteWrap: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+    scheduleIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    scheduleBody: { flex: 1, minWidth: 0, gap: 4 },
+    scheduleTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+    scheduleHint: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+    scheduleDelete: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },

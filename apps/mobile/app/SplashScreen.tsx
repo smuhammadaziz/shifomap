@@ -15,6 +15,7 @@ const SplashScreen = () => {
   const patient = useAuthStore((s) => s.patient);
   const language = useAuthStore((s) => s.language);
   const onboardingSeen = useAuthStore((s) => s.onboardingSeen);
+  const agreementsAccepted = useAuthStore((s) => s.agreementsAccepted);
   const hydrate = useAuthStore((s) => s.hydrate);
   const theme = useThemeStore((s) => s.theme);
   const colors = getColors(theme);
@@ -53,6 +54,8 @@ const SplashScreen = () => {
       if (!token) {
         if (!onboardingSeen) {
           router.replace('/(auth)/onboarding');
+        } else if (!agreementsAccepted) {
+          router.replace('/(auth)/agreements');
         } else {
           router.replace('/(auth)/login');
         }
@@ -65,7 +68,7 @@ const SplashScreen = () => {
       router.replace('/(tabs)');
     }, 1200);
     return () => clearTimeout(t);
-  }, [hydrated, token, patient, language, onboardingSeen, router]);
+  }, [hydrated, token, patient, language, onboardingSeen, agreementsAccepted, router]);
 
   const gradientColors: readonly [string, string, ...string[]] = theme === 'light'
     ? [colors.background, colors.backgroundSecondary, colors.backgroundSecondary]

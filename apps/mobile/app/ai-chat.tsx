@@ -15,7 +15,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useThemeStore } from '../store/theme-store';
 import { getColors } from '../lib/theme';
 import { useAuthStore } from '../store/auth-store';
@@ -56,11 +56,19 @@ type DoctorSuggestion = {
   reviewsCount: number;
 };
 
+type DoctorOffer = {
+  specialtyKey: string;
+  specialtyLabel: string;
+};
+
 type ChatMessageItem = {
   role: string;
   content: string;
   doctors?: DoctorSuggestion[];
   slots?: DoctorSlotBySpecialty[];
+  /** Shown after an answer — user taps to load doctors (not auto-loaded). */
+  doctorOffer?: DoctorOffer;
+  doctorsLoading?: boolean;
 };
 
 export type ChatSession = {
@@ -78,10 +86,35 @@ function buildAddress(city?: string, street?: string) {
   return [city, street].filter(Boolean).join(', ');
 }
 
-// Patterns that indicate the user wants to see a doctor / book / take tests, even
-// when no specific specialty is mentioned. In that case we fall back to terapevt.
-const GENERIC_DOCTOR_RX =
-  /(врач(а|у|ом)?|доктор(а|у)?|приём|прием|записаться|записат|записываться|клиник|поликлиник|медцентр|больниц|медицинск|лаборатор|анализ|обследован|консультац|осмотр|check[- ]?up|appointment|book|doctor|clinic|hospital|test|lab|shifokor|qabul|tibbiy|tahlil|tekshir|bron|navbat|maslahat)/i;
+/** User explicitly asks to see / book a doctor (not generic "maslahat" / info questions). */
+const USER_EXPLICIT_DOCTOR_RX =
+  /(shifokorlarni|mutaxassislarni|врачей|показать врач|покажи врач|ko['']rsat|ko'rsating|beri shifokor|shifokor kerak|shifokorga|врач(а|у|ом)?|доктор(а|у)?|записаться|записат|записываться|qabulga|bron qil|navbat|приём|прием|appointment|book.*doctor|klinikaga)/i;
+
+const USER_AFFIRMATIVE_RX =
+  /^(ha|haa|yes|da|ok|okay|albatta|xo['']sh|xo‘sh|kerak|хочу|давай|можно|bo['']ladi)\b|^(ha|yes|da)[\s,.!]*$/i;
+
+const SPECIALTY_LABELS: Record<string, { uz: string; ru: string }> = {
+  stomatolog: { uz: 'Stomatolog', ru: 'Стоматолог' },
+  lor: { uz: 'LOR', ru: 'ЛОР' },
+  nevrolog: { uz: 'Nevrolog', ru: 'Невролог' },
+  kardiolog: { uz: 'Kardiolog', ru: 'Кардиолог' },
+  ginekolog: { uz: 'Ginekolog', ru: 'Гинеколог' },
+  pediatr: { uz: 'Pediatr', ru: 'Педиатр' },
+  dermatolog: { uz: 'Dermatolog', ru: 'Дерматолог' },
+  oftalmolog: { uz: 'Oftalmolog', ru: 'Офтальмолог' },
+  urolog: { uz: 'Urolog', ru: 'Уролог' },
+  endokrinolog: { uz: 'Endokrinolog', ru: 'Эндокринолог' },
+  gastroenterolog: { uz: 'Gastroenterolog', ru: 'Гастроэнтеролог' },
+  travmatolog: { uz: 'Travmatolog', ru: 'Травматолог' },
+  psixolog: { uz: 'Psixolog', ru: 'Психолог' },
+  terapevt: { uz: 'Terapevt', ru: 'Терапевт' },
+};
+
+function specialtyLabel(key: string, isUz: boolean): string {
+  const row = SPECIALTY_LABELS[key];
+  if (!row) return key;
+  return isUz ? row.uz : row.ru;
+}
 
 const SPECIALTY_HINTS: Array<{ key: string; rx: RegExp; aliases: string[] }> = [
   { key: 'stomatolog', rx: /(stomatolog|стоматолог|dentist|dental|tish|зуб)/i, aliases: ['stomatolog', 'стоматолог', 'dentist', 'dental', 'tish', 'зуб'] },
@@ -100,22 +133,54 @@ const SPECIALTY_HINTS: Array<{ key: string; rx: RegExp; aliases: string[] }> = [
   { key: 'terapevt', rx: /(terapevt|терапевт|therapist|family doctor|общий врач|общая практик)/i, aliases: ['terapevt', 'терапевт', 'therapist', 'family'] },
 ];
 
-function pickSpecialty(query: string, aiAnswer: string): { key: string; aliases: string[] } | null {
-  const text = `${query} ${aiAnswer}`.toLowerCase();
-  // 1) Try to find a concrete specialty mentioned anywhere.
+function pickSpecialtyFromUserQuery(query: string): { key: string; aliases: string[] } | null {
+  const text = query.toLowerCase();
   const concrete = SPECIALTY_HINTS.find((x) => x.rx.test(text));
   if (concrete) return { key: concrete.key, aliases: concrete.aliases };
-  // 2) Otherwise, if the user is clearly asking to see a doctor / book / take tests,
-  //    fall back to a general practitioner (terapevt) so we still surface options.
-  if (GENERIC_DOCTOR_RX.test(text)) {
+  if (USER_EXPLICIT_DOCTOR_RX.test(text)) {
     const fallback = SPECIALTY_HINTS.find((x) => x.key === 'terapevt');
     return fallback ? { key: fallback.key, aliases: fallback.aliases } : null;
   }
   return null;
 }
 
-async function findDoctorSuggestions(query: string, aiAnswer: string): Promise<DoctorSuggestion[]> {
-  const wanted = pickSpecialty(query, aiAnswer);
+/** Whether we may show an opt-in "see doctors" button after this user question. */
+function inferDoctorOfferForQuery(query: string, isUz: boolean): DoctorOffer | null {
+  const text = query.trim().toLowerCase();
+  if (text.length < 2) return null;
+
+  const fromUser = pickSpecialtyFromUserQuery(query);
+  if (fromUser) {
+    return { specialtyKey: fromUser.key, specialtyLabel: specialtyLabel(fromUser.key, isUz) };
+  }
+
+  if (/(og['']ri|ogriq|болит|боль|bezovta|alamat|tushkun|shish|issiq|simptom)/i.test(text)) {
+    return { specialtyKey: 'terapevt', specialtyLabel: specialtyLabel('terapevt', isUz) };
+  }
+  if (/(dori|preparat|tabletka|kapsula|zodak|лекарств|препарат|antibiotik)/i.test(text)) {
+    return { specialtyKey: 'terapevt', specialtyLabel: specialtyLabel('terapevt', isUz) };
+  }
+  if (/(davolanish|davolash|nima qil|что делать|yordam kerak)/i.test(text)) {
+    return { specialtyKey: 'terapevt', specialtyLabel: specialtyLabel('terapevt', isUz) };
+  }
+  return null;
+}
+
+function userWantsDoctorList(query: string): boolean {
+  const t = query.trim();
+  return USER_AFFIRMATIVE_RX.test(t) || USER_EXPLICIT_DOCTOR_RX.test(t);
+}
+
+function findLastDoctorOffer(msgs: ChatMessageItem[]): DoctorOffer | null {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i];
+    if (m.role === 'assistant' && m.doctorOffer) return m.doctorOffer;
+  }
+  return null;
+}
+
+async function findDoctorSuggestionsBySpecialty(specialtyKey: string): Promise<DoctorSuggestion[]> {
+  const wanted = SPECIALTY_HINTS.find((x) => x.key === specialtyKey);
   if (!wanted) return [];
 
   const clinics = await getClinicsList(80);
@@ -156,8 +221,20 @@ async function findDoctorSuggestions(query: string, aiAnswer: string): Promise<D
   return sorted.slice(0, 8);
 }
 
-function specialtyNeedleForSlots(query: string, aiAnswer: string): string | null {
-  return pickSpecialty(query, aiAnswer)?.key ?? null;
+async function fetchDoctorsAndSlots(
+  specialtyKey: string,
+  dateContextQuery: string,
+): Promise<{ doctors: DoctorSuggestion[]; slots: DoctorSlotBySpecialty[] }> {
+  const doctors = await findDoctorSuggestionsBySpecialty(specialtyKey).catch(() => []);
+  let slots: DoctorSlotBySpecialty[] = [];
+  const slotDate = pickSlotDate(dateContextQuery, '');
+  try {
+    const res = await getDoctorSlotsBySpecialty({ specialty: specialtyKey, date: slotDate, limit: 8 });
+    slots = res.slots ?? [];
+  } catch {
+    slots = [];
+  }
+  return { doctors, slots };
 }
 
 function formatDate(d: Date): string {
@@ -193,6 +270,7 @@ function pickSlotDate(query: string, aiAnswer: string): string {
 
 export default function AiChatScreen() {
   const router = useRouter();
+  const { initialMessage } = useLocalSearchParams<{ initialMessage?: string }>();
   const theme = useThemeStore((s: any) => s.theme);
   const language = useAuthStore((s: any) => s.language) ?? 'uz';
   const colors = getColors(theme);
@@ -209,6 +287,7 @@ export default function AiChatScreen() {
   const [feedbackText, setFeedbackText] = useState('');
   const [pendingFeedbackConversationId, setPendingFeedbackConversationId] = useState<string | null>(null);
   const feedbackShownForConvId = useRef<string | null>(null);
+  const initialMessageHandled = useRef(false);
 
   const isUz = language === 'uz';
 
@@ -280,6 +359,40 @@ export default function AiChatScreen() {
     await saveSessions(fresh);
   };
 
+  const persistMessages = (sessionId: string | null, nextMessages: ChatMessageItem[], sessionList: ChatSession[]) => {
+    setMessages(nextMessages);
+    if (!sessionId) return;
+    const updatedList = [...sessionList];
+    const idx = updatedList.findIndex((s) => s.id === sessionId);
+    if (idx !== -1) {
+      updatedList[idx].messages = nextMessages;
+      saveSessions(updatedList);
+    }
+  };
+
+  const showDoctorsForAssistantMessage = async (
+    assistantIndex: number,
+    offer: DoctorOffer,
+    baseMessages: ChatMessageItem[],
+    sessionId: string | null,
+    sessionList: ChatSession[],
+    dateContextQuery: string,
+  ): Promise<ChatMessageItem[]> => {
+    const loadingMessages = baseMessages.map((m, i) =>
+      i === assistantIndex ? { ...m, doctorsLoading: true, doctorOffer: offer } : m,
+    );
+    persistMessages(sessionId, loadingMessages, sessionList);
+
+    const { doctors, slots } = await fetchDoctorsAndSlots(offer.specialtyKey, dateContextQuery);
+    const doneMessages = loadingMessages.map((m, i) =>
+      i === assistantIndex
+        ? { ...m, doctors, slots, doctorsLoading: false, doctorOffer: doctors.length > 0 ? undefined : offer }
+        : m,
+    );
+    persistMessages(sessionId, doneMessages, sessionList);
+    return doneMessages;
+  };
+
   const sendMessage = async (text: string) => {
     const val = text.trim();
     if (!val || loading) return;
@@ -309,7 +422,7 @@ export default function AiChatScreen() {
     const sessionIndex = currentSessions.findIndex(s => s.id === currentSessionId);
     if (sessionIndex === -1) return;
 
-      const newMessages: ChatMessageItem[] = [...messages, { role: 'user', content: val }];
+    const newMessages: ChatMessageItem[] = [...messages, { role: 'user', content: val }];
     setMessages(newMessages);
     setInputText('');
     setLoading(true);
@@ -318,6 +431,33 @@ export default function AiChatScreen() {
     saveSessions(currentSessions);
     if (currentSessions[sessionIndex].backendConversationId) {
       addAiConversationMessage(currentSessions[sessionIndex].backendConversationId as string, 'user', val).catch(() => null);
+    }
+
+    // User agreed to see doctors — load list without another AI reply.
+    if (userWantsDoctorList(val) && messages.length > 0) {
+      const offer = findLastDoctorOffer(messages);
+      const explicit = pickSpecialtyFromUserQuery(val);
+      const specialtyKey = explicit?.key ?? offer?.specialtyKey;
+      if (specialtyKey) {
+        const assistantIndex = messages.length - 1;
+        const prevAssistant = messages[assistantIndex];
+        if (prevAssistant?.role === 'assistant') {
+          const resolvedOffer: DoctorOffer = offer ?? {
+            specialtyKey,
+            specialtyLabel: specialtyLabel(specialtyKey, isUz),
+          };
+          setLoading(false);
+          await showDoctorsForAssistantMessage(
+            assistantIndex,
+            resolvedOffer,
+            newMessages,
+            currentSessionId,
+            currentSessions,
+            val,
+          );
+          return;
+        }
+      }
     }
 
     try {
@@ -329,13 +469,16 @@ export default function AiChatScreen() {
 
       const systemPrompt =
         'You are a helpful AI medical assistant for ShifoYol (a Uzbek medical booking app). ' +
-        'Answer clearly and concisely in ' + (isUz ? 'Uzbek' : 'Russian') + '. ' +
-        'When the user is describing symptoms or asking who to see, ALWAYS recommend a concrete specialty by name ' +
-        '(use one of: terapevt, stomatolog, lor, nevrolog, kardiolog, ginekolog, pediatr, dermatolog, ' +
-        'oftalmolog, urolog, endokrinolog, gastroenterolog, travmatolog, psixolog). ' +
-        'If the user wants to see a doctor or take tests but does not specify a specialty, recommend a "terapevt" ' +
-        '(general practitioner) and explain that they can be referred to a specialist. ' +
-        'Mention the recommended specialty word explicitly in your answer so the app can show open slots.';
+        'Answer clearly and concisely in ' +
+        (isUz ? 'Uzbek' : 'Russian') +
+        '. ' +
+        'RULES: (1) Answer the user\'s exact question first — drug info, symptoms, lifestyle, etc. ' +
+        '(2) Do NOT push doctor visits, clinic booking, or specialist names in every reply. ' +
+        '(3) For medication questions (e.g. what a drug is), explain uses, dosing basics, and safety only — do not tell them to see a terapevt unless they ask about treatment for active symptoms. ' +
+        '(4) Only when symptoms are serious or they explicitly ask who to see, briefly name one relevant specialty in passing. ' +
+        '(5) Do NOT list doctors, clinics, or appointment slots — the app offers that separately if the user wants. ' +
+        '(6) End health-related answers with ONE short optional sentence asking if they want to see doctors in the app (no pressure). ' +
+        'Keep answers focused; avoid long disclaimers.';
 
       const payload = {
         model: 'gpt-4o-mini',
@@ -358,23 +501,36 @@ export default function AiChatScreen() {
       let finalMessages: ChatMessageItem[] = newMessages;
       if (data.choices && data.choices[0]) {
         const answer = String(data.choices[0].message.content ?? '');
-        const doctors = await findDoctorSuggestions(val, answer).catch(() => []);
-        let slots: DoctorSlotBySpecialty[] = [];
-        const needle = specialtyNeedleForSlots(val, answer);
-        if (needle) {
-          const slotDate = pickSlotDate(val, answer);
-          try {
-            const res = await getDoctorSlotsBySpecialty({
-              specialty: needle,
-              date: slotDate,
-              limit: 8,
-            });
-            slots = res.slots ?? [];
-          } catch {
-            slots = [];
+        const doctorOffer = inferDoctorOfferForQuery(val, isUz) ?? undefined;
+        const explicitDoctorAsk = USER_EXPLICIT_DOCTOR_RX.test(val) || pickSpecialtyFromUserQuery(val);
+
+        if (explicitDoctorAsk) {
+          const offer = doctorOffer ?? {
+            specialtyKey: pickSpecialtyFromUserQuery(val)?.key ?? 'terapevt',
+            specialtyLabel: specialtyLabel(pickSpecialtyFromUserQuery(val)?.key ?? 'terapevt', isUz),
+          };
+          const assistantMsg: ChatMessageItem = { role: 'assistant', content: answer, doctorOffer: offer };
+          finalMessages = [...newMessages, assistantMsg];
+          const assistantIndex = finalMessages.length - 1;
+          setLoading(false);
+          if (currentSessions[sessionIndex]?.backendConversationId) {
+            addAiConversationMessage(
+              currentSessions[sessionIndex].backendConversationId as string,
+              'assistant',
+              answer,
+            ).catch(() => null);
           }
+          finalMessages = await showDoctorsForAssistantMessage(
+            assistantIndex,
+            offer,
+            finalMessages,
+            currentSessionId,
+            currentSessions,
+            val,
+          );
         }
-        finalMessages = [...newMessages, { role: 'assistant', content: answer, doctors, slots }];
+
+        finalMessages = [...newMessages, { role: 'assistant', content: answer, doctorOffer }];
         if (currentSessions[sessionIndex]?.backendConversationId) {
           addAiConversationMessage(currentSessions[sessionIndex].backendConversationId as string, 'assistant', answer).catch(() => null);
         }
@@ -409,6 +565,19 @@ export default function AiChatScreen() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (initialMessageHandled.current) return;
+    const raw = initialMessage;
+    if (!raw || typeof raw !== 'string') return;
+    const msg = raw.trim();
+    if (!msg) return;
+    initialMessageHandled.current = true;
+    setActiveSessionId(null);
+    setMessages([]);
+    void sendMessage(msg);
+    router.setParams({ initialMessage: '' });
+  }, [initialMessage]);
 
   return (
     <>
@@ -494,6 +663,41 @@ export default function AiChatScreen() {
                         {msg.content}
                       </Text>
                     </View>
+                    {msg.role === 'assistant' && msg.doctorOffer && (!msg.doctors || msg.doctors.length === 0) ? (
+                      <TouchableOpacity
+                        style={[styles.doctorOfferBtn, { backgroundColor: colors.backgroundCard, borderColor: colors.primary }]}
+                        activeOpacity={0.85}
+                        disabled={msg.doctorsLoading || loading}
+                        onPress={() => {
+                          const lastUser = messages
+                            .slice(0, i)
+                            .reverse()
+                            .find((m) => m.role === 'user');
+                          void showDoctorsForAssistantMessage(
+                            i,
+                            msg.doctorOffer!,
+                            messages,
+                            activeSessionId,
+                            sessions,
+                            lastUser?.content ?? '',
+                          );
+                        }}
+                      >
+                        {msg.doctorsLoading ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <>
+                            <Ionicons name="medical-outline" size={20} color={colors.primary} />
+                            <Text style={[styles.doctorOfferBtnText, { color: colors.primary }]}>
+                              {isUz
+                                ? `${msg.doctorOffer.specialtyLabel} shifokorlarini ko‘rishni xohlaysizmi?`
+                                : `Показать врачей: ${msg.doctorOffer.specialtyLabel}?`}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    ) : null}
                     {msg.role === 'assistant' && msg.doctors && msg.doctors.length > 0 ? (
                       <View style={{ marginTop: 10, gap: 10 }}>
                         <Text style={[styles.suggestedTitle, { color: colors.text }]}>
@@ -881,6 +1085,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     marginLeft: 2,
+  },
+  doctorOfferBtn: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  doctorOfferBtnText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   doctorCard: {
     borderRadius: 16,

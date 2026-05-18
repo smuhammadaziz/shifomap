@@ -17,6 +17,7 @@ export default function LanguageScreen() {
   const router = useRouter();
   const setLanguage = useAuthStore((s) => s.setLanguage);
   const onboardingSeen = useAuthStore((s) => s.onboardingSeen);
+  const agreementsAccepted = useAuthStore((s) => s.agreementsAccepted);
   const theme = useThemeStore((s) => s.theme);
   const tUz = getTranslations('uz');
   const tRu = getTranslations('ru');
@@ -26,10 +27,12 @@ export default function LanguageScreen() {
 
   const confirmLanguage = async () => {
     await setLanguage(selected);
-    if (onboardingSeen) {
-      router.replace('/(auth)/login');
-    } else {
+    if (!onboardingSeen) {
       router.replace('/(auth)/onboarding');
+    } else if (!agreementsAccepted) {
+      router.replace('/(auth)/agreements');
+    } else {
+      router.replace('/(auth)/login');
     }
   };
 

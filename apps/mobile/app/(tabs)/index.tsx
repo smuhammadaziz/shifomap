@@ -45,7 +45,8 @@ import {
 import { Avatar, IconButton, SkeletonBlock } from '../../components/ui';
 import FeaturedClinics from '../components/FeaturedClinics';
 import DiscountsSlider from '../components/DiscountsSlider';
-import StoriesRibbon from '../components/StoriesRibbon';
+import HomePriceFilterSheet from '../components/HomePriceFilterSheet';
+// import StoriesRibbon from '../components/StoriesRibbon';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1576091160399-112ba8e25d1d?w=400&q=80';
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=800&q=80';
@@ -195,6 +196,7 @@ export default function HomeScreen() {
   const [quickCategory, setQuickCategory] = useState<string | null>(null);
   const [quickResults, setQuickResults] = useState<PublicServiceItem[]>([]);
   const [quickLoading, setQuickLoading] = useState(false);
+  const [priceFilterVisible, setPriceFilterVisible] = useState(false);
 
   const { getUnreadCount, hydrated, hydrate } = useNotificationStore();
   const unread = getUnreadCount();
@@ -385,6 +387,13 @@ export default function HomeScreen() {
       gradient: [tokens.brand.indigo, tokens.brand.sky],
       path: '/pill-reminder',
     },
+    {
+      title: language === 'uz' ? 'Kasalliklar tarixi' : 'История заболеваний',
+      subtitle: language === 'uz' ? 'Tashxislar va davolanishlar' : 'Диагнозы и лечение',
+      icon: 'pulse',
+      gradient: [tokens.brand.rose, tokens.brand.peach],
+      path: '/medical-history',
+    },
   ];
 
   return (
@@ -436,7 +445,7 @@ export default function HomeScreen() {
           />
         </View>
 
-        <StoriesRibbon stories={stories} language={language} />
+        {/* <StoriesRibbon stories={stories} language={language} /> */}
 
         {/* Search */}
         <View style={styles.searchWrap}>
@@ -458,6 +467,18 @@ export default function HomeScreen() {
               onChangeText={setSearchQuery}
               onFocus={() => searchQuery && setShowSuggestions(true)}
             />
+            <TouchableOpacity
+              hitSlop={8}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowSuggestions(false);
+                setPriceFilterVisible(true);
+              }}
+              style={[styles.searchFilterBtn, { borderLeftColor: tokens.colors.border }]}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="options-outline" size={20} color={tokens.brand.iris} />
+            </TouchableOpacity>
             {searchQuery ? (
               <TouchableOpacity
                 hitSlop={8}
@@ -470,6 +491,36 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
+
+          <HomePriceFilterSheet
+            visible={priceFilterVisible}
+            onClose={() => setPriceFilterVisible(false)}
+            initialQuery={searchQuery}
+            language={language}
+            tokens={tokens}
+          />
+
+          {/* <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/doctor-search')}
+            style={[
+              styles.mapShortcut,
+              { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
+            ]}
+          >
+            <View style={[styles.mapShortcutIcon, { backgroundColor: tokens.brand.rose + '18' }]}>
+              <Ionicons name="medical" size={18} color={tokens.brand.rose} />
+            </View>
+            <View style={styles.mapShortcutText}>
+              <Text style={[styles.mapShortcutTitle, { color: tokens.colors.text }]} numberOfLines={1}>
+                {language === 'ru' ? 'Поиск врача' : 'Shifokor qidirish'}
+              </Text>
+              <Text style={[styles.mapShortcutSubtitle, { color: tokens.colors.textTertiary }]} numberOfLines={1}>
+                {language === 'ru' ? 'Специализации и ФИО' : 'Mutaxassislik va F.I.Sh.'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={tokens.colors.textTertiary} />
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             activeOpacity={0.85}
@@ -583,6 +634,85 @@ export default function HomeScreen() {
             )}
           </View>
         ) : null}
+
+        {/* Pill reminder banner */}
+        {nextPill ? (
+              <View style={{ paddingHorizontal: 20, marginTop: 18 }}>
+                <View
+                  style={[
+                    styles.pillBanner,
+                    { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                    onPress={() => router.push('/pill-reminder')}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={tokens.gradients.warm as [string, string, ...string[]]}
+                      style={styles.pillIcon}
+                    >
+                      <Ionicons name="medical" size={20} color={tokens.brand.amber} />
+                    </LinearGradient>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text
+                        style={{
+                          color: tokens.colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          letterSpacing: 0.4,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {language === 'uz' ? 'Doringizni ichdingizmi?' : 'Вы приняли лекарство?'}
+                      </Text>
+                      <Text
+                        style={{ color: tokens.colors.text, fontSize: 15, fontWeight: '700', marginTop: 3 }}
+                        numberOfLines={1}
+                      >
+                        {nextPill.medicineName} · {nextPill.time}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.pillCheckBtn, { backgroundColor: tokens.brand.iris }]}
+                    activeOpacity={0.88}
+                    onPress={async () => {
+                      const pill = nextPill;
+                      setNextPill(null);
+                      try {
+                        if (pill.customReminderId) {
+                          await submitCustomReminderPillEvent({
+                            reminderId: pill.customReminderId,
+                            action: 'taken',
+                            date: pill.date,
+                            time: pill.time,
+                          });
+                        } else if (pill.prescriptionId && pill.medicineKey) {
+                          await setPrescriptionEvent({
+                            prescriptionId: pill.prescriptionId,
+                            medicineKey: pill.medicineKey,
+                            date: pill.date,
+                            time: pill.time,
+                            action: 'taken',
+                          });
+                        }
+                        const p = await getMyNextPill().catch(() => null);
+                        setNextPill(p);
+                      } catch {
+                        setNextPill(pill);
+                      }
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                    <Text style={styles.pillCheckBtnText}>
+                      {language === 'uz' ? 'Ichdim' : language === 'ru' ? 'Принял(а)' : 'Taken'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
 
         <TouchableWithoutFeedback onPress={() => setShowSuggestions(false)}>
           <View>
@@ -710,79 +840,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Pill reminder banner */}
-            {nextPill ? (
-              <View style={{ paddingHorizontal: 20, marginTop: 18 }}>
-                <View
-                  style={[
-                    styles.pillBanner,
-                    { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border },
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
-                    onPress={() => router.push('/pill-reminder')}
-                    activeOpacity={0.85}
-                  >
-                    <LinearGradient
-                      colors={tokens.gradients.warm as [string, string, ...string[]]}
-                      style={styles.pillIcon}
-                    >
-                      <Ionicons name="medical" size={20} color={tokens.brand.amber} />
-                    </LinearGradient>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text
-                        style={{
-                          color: tokens.colors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: '700',
-                          letterSpacing: 0.4,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {language === 'uz' ? 'Doringizni ichdingizmi?' : 'Вы приняли лекарство?'}
-                      </Text>
-                      <Text
-                        style={{ color: tokens.colors.text, fontSize: 15, fontWeight: '700', marginTop: 3 }}
-                        numberOfLines={1}
-                      >
-                        {nextPill.medicineName} · {nextPill.time}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.pillCheckBtn, { backgroundColor: tokens.brand.iris }]}
-                    activeOpacity={0.88}
-                    onPress={async () => {
-                      try {
-                        if (nextPill.customReminderId) {
-                          await submitCustomReminderPillEvent({
-                            reminderId: nextPill.customReminderId,
-                            action: 'taken',
-                            date: nextPill.date,
-                            time: nextPill.time,
-                          });
-                        } else if (nextPill.prescriptionId && nextPill.medicineKey) {
-                          await setPrescriptionEvent({
-                            prescriptionId: nextPill.prescriptionId,
-                            medicineKey: nextPill.medicineKey,
-                            date: nextPill.date,
-                            time: nextPill.time,
-                            action: 'taken',
-                          });
-                        }
-                        const p = await getMyNextPill().catch(() => null);
-                        setNextPill(p);
-                      } catch {
-                        /* ignore */
-                      }
-                    }}
-                  >
-                    <Ionicons name="checkmark" size={22} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : null}
+            
 
             {/* Quick category filter — morphing chips with signature colors */}
             <View style={{ marginTop: 24 }}>
@@ -811,7 +869,13 @@ export default function HomeScreen() {
                       {language === 'uz' ? 'Tozalash' : 'Сбросить'}
                     </Text>
                   </TouchableOpacity>
-                ) : null}
+                ) : (
+                  <TouchableOpacity hitSlop={10} onPress={() => router.push('/doctor-search')}>
+                    <Text style={{ color: tokens.brand.iris, fontWeight: '700', fontSize: 13 }}>
+                      {language === 'uz' ? 'Hammasi →' : 'Все →'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <ScrollView
@@ -1159,6 +1223,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   searchInput: { flex: 1, fontSize: 14, fontWeight: '500' },
+  searchFilterBtn: {
+    paddingLeft: 10,
+    marginLeft: 2,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingRight: 2,
+  },
   mapShortcut: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1239,12 +1312,14 @@ const styles = StyleSheet.create({
   },
   pillIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   pillCheckBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
   },
+  pillCheckBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
   clinicCard: {
     width: 220,
     borderRadius: 20,

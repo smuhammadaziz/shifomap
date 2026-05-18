@@ -238,30 +238,37 @@ function PostCard({
         pointerEvents="none"
       />
 
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={onLike} activeOpacity={0.8}>
-          <Ionicons name={post.likedByMe ? 'heart' : 'heart-outline'} size={30} color={post.likedByMe ? '#f43f5e' : '#fff'} />
-          <Text style={styles.actionCount}>{post.likesCount}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onCommentOpen} activeOpacity={0.8}>
-          <Ionicons name="chatbubble-outline" size={28} color="#fff" />
-          <Text style={styles.actionCount}>{post.commentsCount}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onShare} activeOpacity={0.8}>
-          <Ionicons name="paper-plane-outline" size={28} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <View style={styles.footer}>
+        {(post.tags ?? []).length > 0 ? (
+          <View style={styles.tagsRow}>
+            {(post.tags ?? []).slice(0, 4).map((tag) => (
+              <View key={tag} style={styles.tag}>
+                <Text style={styles.tagText}>#{tag}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
-      <View style={styles.bottom}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-          {(post.tags ?? []).slice(0, 4).map((tag) => (
-            <View key={tag} style={styles.tag}>
-              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>#{tag}</Text>
-            </View>
-          ))}
+        <View style={styles.actionBar}>
+          <TouchableOpacity style={styles.actionItem} onPress={onLike} activeOpacity={0.75}>
+            <Ionicons
+              name={post.likedByMe ? 'heart' : 'heart-outline'}
+              size={26}
+              color={post.likedByMe ? '#f43f5e' : '#1e293b'}
+            />
+            <Text style={styles.actionCount}>{post.likesCount}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionItem} onPress={onCommentOpen} activeOpacity={0.75}>
+            <Ionicons name="chatbubble-outline" size={24} color="#1e293b" />
+            <Text style={styles.actionCount}>{post.commentsCount}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionItem} onPress={onShare} activeOpacity={0.75}>
+            <Ionicons name="paper-plane-outline" size={24} color="#1e293b" />
+          </TouchableOpacity>
         </View>
+
         {post.caption ? (
-          <Text style={styles.caption} numberOfLines={3}>
+          <Text style={styles.caption} numberOfLines={4}>
             {post.caption}
           </Text>
         ) : null}
@@ -495,17 +502,54 @@ const styles = StyleSheet.create({
   },
   navLeft: { left: 10 },
   navRight: { right: 10 },
-  actions: { position: 'absolute', right: 14, bottom: 160, gap: 22, alignItems: 'center' },
-  actionBtn: { alignItems: 'center', gap: 4 },
-  actionCount: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  bottom: { position: 'absolute', left: 20, right: 80, bottom: 160 },
-  tag: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)' },
+  footer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 118,
+    gap: 10,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tag: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  tagText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  actionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.98)',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  actionCount: { color: '#1e293b', fontSize: 14, fontWeight: '700', minWidth: 12 },
   caption: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 22,
-    textShadowColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 2,
+    textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },

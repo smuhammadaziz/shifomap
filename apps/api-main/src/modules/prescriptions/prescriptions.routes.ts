@@ -37,7 +37,7 @@ export const prescriptionsRoutes = new Elysia({ prefix: "/prescriptions" })
     return { success: true, data }
   })
 
-// Patient routes
+// Patient routes — register /me/* before /:id so "me" is never captured as an id
 export const prescriptionsPatientRoutes = new Elysia({ prefix: "/prescriptions" })
   .use(requirePatientAuth)
   .get("/me", async ({ auth, set }) => {
@@ -47,6 +47,36 @@ export const prescriptionsPatientRoutes = new Elysia({ prefix: "/prescriptions" 
   })
   .get("/me/next", async ({ auth, set }) => {
     const data = await getMyNextPill(auth)
+    set.status = 200
+    return { success: true, data }
+  })
+  .get("/me/custom-reminders", async ({ auth, set }) => {
+    const data = await publicListCustomReminders(auth)
+    set.status = 200
+    return { success: true, data }
+  })
+  .post("/me/custom-reminders", async ({ auth, body, set }) => {
+    const parsed = createCustomReminderSchema.safeParse(body ?? {})
+    if (!parsed.success) {
+      set.status = 400
+      return { success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors }
+    }
+    const data = await publicCreateCustomReminder(auth, parsed.data)
+    set.status = 200
+    return { success: true, data }
+  })
+  .delete("/me/custom-reminders/:id", async ({ auth, params, set }) => {
+    const data = await publicDeleteCustomReminder(auth, params.id)
+    set.status = 200
+    return { success: true, data }
+  })
+  .post("/me/custom-reminders/:id/event", async ({ auth, params, body, set }) => {
+    const parsed = customReminderPillEventBodySchema.safeParse(body ?? {})
+    if (!parsed.success) {
+      set.status = 400
+      return { success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors }
+    }
+    const data = await recordCustomReminderPillEvent(auth, params.id, parsed.data)
     set.status = 200
     return { success: true, data }
   })
@@ -68,36 +98,6 @@ export const prescriptionsPatientRoutes = new Elysia({ prefix: "/prescriptions" 
       }
     }
     const data = await setMyPrescriptionEvent(auth, params.id, parsed.data)
-    set.status = 200
-    return { success: true, data }
-  })
-  .post("/me/custom-reminders", async ({ auth, body, set }) => {
-    const parsed = createCustomReminderSchema.safeParse(body ?? {})
-    if (!parsed.success) {
-      set.status = 400
-      return { success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors }
-    }
-    const data = await publicCreateCustomReminder(auth, parsed.data)
-    set.status = 200
-    return { success: true, data }
-  })
-  .get("/me/custom-reminders", async ({ auth, set }) => {
-    const data = await publicListCustomReminders(auth)
-    set.status = 200
-    return { success: true, data }
-  })
-  .delete("/me/custom-reminders/:id", async ({ auth, params, set }) => {
-    const data = await publicDeleteCustomReminder(auth, params.id)
-    set.status = 200
-    return { success: true, data }
-  })
-  .post("/me/custom-reminders/:id/event", async ({ auth, params, body, set }) => {
-    const parsed = customReminderPillEventBodySchema.safeParse(body ?? {})
-    if (!parsed.success) {
-      set.status = 400
-      return { success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors }
-    }
-    const data = await recordCustomReminderPillEvent(auth, params.id, parsed.data)
     set.status = 200
     return { success: true, data }
   })

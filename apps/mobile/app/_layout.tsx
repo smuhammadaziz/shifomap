@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { PushNotificationsBridge } from './components/PushNotificationsBridge';
+import PushNotificationsBridge from '../lib/push-notifications-bridge';
 import { initPillNotificationsForeground } from '../lib/pill-local-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useSavedServicesStore } from '../store/saved-services-store';
@@ -41,6 +41,9 @@ export default function RootLayout() {
         <Stack.Screen name="services-results" options={screenOptions} />
         <Stack.Screen name="service/[id]" options={screenOptions} />
         <Stack.Screen name="clinic-services/[id]" options={screenOptions} />
+        <Stack.Screen name="home-visit-request" options={screenOptions} />
+        <Stack.Screen name="doctor-search" options={screenOptions} />
+        <Stack.Screen name="doctors-by-specialty" options={screenOptions} />
         <Stack.Screen name="clinics" options={screenOptions} />
         <Stack.Screen name="clinic/[id]" options={screenOptions} />
         <Stack.Screen name="doctor/[id]" options={screenOptions} />

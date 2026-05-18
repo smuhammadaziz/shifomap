@@ -1,55 +1,52 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useThemeStore } from '../../store/theme-store';
-import { useAuthStore } from '../../store/auth-store';
 import { getTokens } from '../../lib/design';
-import { t, type TranslationKey } from '../../lib/translations';
+import AiTabPromptModal from './AiTabPromptModal';
 
-/**
- * Full-width docked tab bar (edge-to-edge, flush with bottom).
- * Lumora-style: active tab = dark pill + white icon/label; inactive = outline icons only.
- * Labels: Uzbek / Russian only (via content.json + `t()`).
- *
- * Order: Home · Feed · Visits · Profile
- */
+const LOGO_BLUE = '#0A2FB8';
+const BAR_ROW_HEIGHT = 56;
+const TAB_ICON_SIZE = 48;
+
+type TabDef = {
+  key: string;
+  route: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconActive: keyof typeof Ionicons.glyphMap;
+};
+
+const LEFT_TABS: TabDef[] = [
+  { key: 'index', route: 'index', icon: 'home-outline', iconActive: 'home' },
+  { key: 'feed', route: 'feed', icon: 'play-circle-outline', iconActive: 'play-circle' },
+];
+
+const RIGHT_TABS: TabDef[] = [
+  { key: 'appointments', route: 'appointments', icon: 'calendar-outline', iconActive: 'calendar' },
+  { key: 'profile', route: 'profile', icon: 'person-outline', iconActive: 'person' },
+];
+
 export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const theme = useThemeStore((s) => s.theme);
-  const language = useAuthStore((s) => s.language);
   const tokens = getTokens(theme);
   const isDark = theme === 'dark';
+  const [aiPromptVisible, setAiPromptVisible] = useState(false);
+
   const activeRouteName = state.routes[state.index]?.name;
   const isFeedActive = activeRouteName === 'feed';
 
-  // Match active tab with brand blue from logo.
-  const logoBlue = '#0A2FB8';
-  const activePillBg = isFeedActive ? 'rgba(10, 47, 184, 0.92)' : logoBlue;
+  const activePillBg = isFeedActive ? 'rgba(10, 47, 184, 0.92)' : LOGO_BLUE;
   const activePillFg = '#ffffff';
   const barBg = isFeedActive ? 'rgba(0,0,0,0.42)' : isDark ? '#09090b' : '#ffffff';
   const barBorder = isFeedActive ? 'transparent' : tokens.colors.border;
   const inactiveIcon = isFeedActive ? '#ffffff' : tokens.colors.textTertiary;
 
-  const tabs: {
-    key: string;
-    route: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    iconActive: keyof typeof Ionicons.glyphMap;
-    labelKey: TranslationKey;
-  }[] = [
-    { key: 'index', route: 'index', icon: 'home-outline', iconActive: 'home', labelKey: 'tabHome' },
-    { key: 'feed', route: 'feed', icon: 'play-circle-outline', iconActive: 'play-circle', labelKey: 'tabFeed' },
-    {
-      key: 'appointments',
-      route: 'appointments',
-      icon: 'calendar-outline',
-      iconActive: 'calendar',
-      labelKey: 'tabVisits',
-    },
-    { key: 'profile', route: 'profile', icon: 'person-outline', iconActive: 'person', labelKey: 'tabProfile' },
-  ];
+  const tabBarOffset = insets.bottom + BAR_ROW_HEIGHT + 8;
 
   const handlePress = (routeName: string) => {
     const route = state.routes.find((r) => r.name === routeName);
@@ -62,66 +59,94 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     if (!event.defaultPrevented) navigation.navigate(route.name);
   };
 
+  const openAiChat = (question: string) => {
+    setAiPromptVisible(false);
+    router.push({
+      pathname: '/ai-chat',
+      params: { initialMessage: question },
+    });
+  };
+
+  const renderTab = (tab: TabDef) => {
+    const focused = tab.route === activeRouteName;
+    return (
+      <TouchableOpacity
+        key={tab.key}
+        accessibilityRole="button"
+        accessibilityState={{ selected: focused }}
+        onPress={() => handlePress(tab.route)}
+        style={styles.slot}
+        activeOpacity={0.85}
+      >
+        {focused ? (
+          <View style={[styles.iconCircle, { backgroundColor: activePillBg }]}>
+            <Ionicons
+              name={tab.iconActive as keyof typeof Ionicons.glyphMap}
+              size={22}
+              color={activePillFg}
+            />
+          </View>
+        ) : (
+          <View style={styles.inactiveWrap}>
+            <Ionicons name={tab.icon as keyof typeof Ionicons.glyphMap} size={26} color={inactiveIcon} />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View
-      style={[
-        styles.dock,
-        {
-          backgroundColor: barBg,
-          borderTopColor: barBorder,
-          paddingBottom: insets.bottom,
-          ...(isFeedActive
-            ? {
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderTopWidth: 0,
-                shadowOpacity: 0,
-                elevation: 0,
-              }
-            : null),
-        },
-      ]}
-      pointerEvents="box-none"
-    >
-      <View style={styles.row}>
-        {tabs.map((tab) => {
-          const focused = tab.route === activeRouteName;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              accessibilityRole="button"
-              accessibilityState={{ selected: focused }}
-              onPress={() => handlePress(tab.route)}
-              style={styles.slot}
-              activeOpacity={0.85}
-            >
-              {focused ? (
-                <View style={[styles.activePill, { backgroundColor: activePillBg }]}>
-                  <Ionicons
-                    name={tab.iconActive as keyof typeof Ionicons.glyphMap}
-                    size={20}
-                    color={activePillFg}
-                  />
-                  <Text style={[styles.activeLabel, { color: activePillFg }]} numberOfLines={1}>
-                    {t(language, tab.labelKey)}
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.inactiveWrap}>
-                  <Ionicons name={tab.icon as keyof typeof Ionicons.glyphMap} size={24} color={inactiveIcon} />
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+    <>
+      <View
+        style={[
+          styles.dock,
+          {
+            backgroundColor: barBg,
+            borderTopColor: barBorder,
+            paddingBottom: insets.bottom,
+            ...(isFeedActive
+              ? {
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  borderTopWidth: 0,
+                  shadowOpacity: 0,
+                  elevation: 0,
+                }
+              : null),
+          },
+        ]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.row}>
+          {LEFT_TABS.map(renderTab)}
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="AI"
+            onPress={() => setAiPromptVisible(true)}
+            style={styles.slot}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: LOGO_BLUE }]}>
+              <Ionicons name="sparkles" size={22} color="#fff" />
+            </View>
+          </TouchableOpacity>
+
+          {RIGHT_TABS.map(renderTab)}
+        </View>
       </View>
-    </View>
+
+      <AiTabPromptModal
+        visible={aiPromptVisible}
+        onClose={() => setAiPromptVisible(false)}
+        onSubmit={openAiChat}
+        tabBarOffset={tabBarOffset}
+      />
+    </>
   );
 }
-
-const BAR_ROW_HEIGHT = 56;
 
 const styles = StyleSheet.create({
   dock: {
@@ -153,21 +178,14 @@ const styles = StyleSheet.create({
   inactiveWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    minWidth: 44,
+    width: TAB_ICON_SIZE,
+    height: TAB_ICON_SIZE,
   },
-  activePill: {
-    flexDirection: 'row',
+  iconCircle: {
+    width: TAB_ICON_SIZE,
+    height: TAB_ICON_SIZE,
+    borderRadius: TAB_ICON_SIZE / 2,
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    maxWidth: '100%',
-  },
-  activeLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    marginLeft: 6,
+    justifyContent: 'center',
   },
 });

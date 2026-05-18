@@ -9,6 +9,7 @@ import Cookies from 'js-cookie'
 import {
   LayoutDashboard,
   Home,
+  House,
   Briefcase,
   Users,
   BarChart3,
@@ -66,6 +67,7 @@ export default function Sidebar() {
       { name: t.sidebar.dashboard, href: '/dashboard', icon: LayoutDashboard },
       { name: t.sidebar.clinic, href: '/dashboard/clinic', icon: Building2 },
       { name: t.sidebar.bookings, href: '/dashboard/bookings', icon: Calendar },
+      { name: t.sidebar.invitations, href: '/dashboard/invitations', icon: House },
       { name: t.sidebar.accounts, href: '/dashboard/accounts', icon: Users },
       { name: t.sidebar.analytics, href: '/dashboard/analytics', icon: BarChart3 },
       { name: t.sidebar.ratingsAndReviews, href: '/dashboard/ratings', icon: Star },
@@ -79,6 +81,7 @@ export default function Sidebar() {
       { name: t.sidebar.home, href: '/dashboard', icon: Home },
       { name: t.sidebar.myServices, href: '/dashboard/my-services', icon: Briefcase },
       { name: t.sidebar.myAppointments, href: '/dashboard/my-appointments', icon: Calendar },
+      { name: t.sidebar.invitations, href: '/dashboard/invitations', icon: House },
       { name: t.sidebar.myClients, href: '/dashboard/my-clients', icon: Users },
       {
         name: language === 'uz' ? 'Xabarlar' : 'Сообщения',

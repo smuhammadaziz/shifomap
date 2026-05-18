@@ -52,7 +52,7 @@ export default function OnboardingScreen() {
   const steps = useMemo(
     () => [
       {
-        eyebrow: language === 'uz' ? 'SHIFOYOL' : 'ШИФОЙОЛ',
+        eyebrow: language === 'uz' ? 'SHIFOYO\'L' : 'SHIFOYO\'L',
         title: t.onboardingStep1Title,
         subtitle: t.onboardingStep1Subtitle,
         image: HERO_IMAGES[0],
@@ -77,7 +77,7 @@ export default function OnboardingScreen() {
 
   const finishOnboarding = useCallback(async () => {
     await setOnboardingSeen();
-    router.replace('/(auth)/login');
+    router.replace('/(auth)/agreements');
   }, [setOnboardingSeen, router]);
 
   const animateToIndex = useCallback(
