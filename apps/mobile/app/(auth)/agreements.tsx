@@ -7,9 +7,11 @@ import {
   Linking,
   Pressable,
   useWindowDimensions,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth-store';
 import { useThemeStore } from '../../store/theme-store';
@@ -20,6 +22,10 @@ import { Button } from '../../components/ui';
 const PRIVACY_URL = 'https://shifoyol.uz/privacy';
 const TERMS_URL = 'https://shifoyol.uz/terms';
 
+// Doctor–patient trust — fits agreements + healthcare context
+const AGREEMENTS_HERO =
+  'https://images.unsplash.com/photo-1579684385127-1ef15a5f095c?w=1000&q=80';
+
 export default function AgreementsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -28,7 +34,6 @@ export default function AgreementsScreen() {
   const theme = useThemeStore((s) => s.theme);
   const tokens = getTokens(theme);
   const t = getTranslations(language);
-  const isDark = theme === 'dark';
 
   const [checked, setChecked] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +53,7 @@ export default function AgreementsScreen() {
     }
   };
 
-  const blobSize = Math.min(width * 0.72, 280);
+  const imgSize = Math.min(width * 0.68, 260);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.background }]} edges={['top', 'bottom']}>
@@ -67,24 +72,59 @@ export default function AgreementsScreen() {
       <Text style={[styles.title, { color: tokens.colors.text }]}>{t.agreementsTitle}</Text>
 
       <View style={styles.illustrationWrap}>
-        <View
-          style={[
-            styles.blob,
-            {
-              width: blobSize,
-              height: blobSize * 0.88,
-              backgroundColor: isDark ? tokens.brand.primary + '22' : tokens.brand.primarySoft,
-            },
-          ]}
-        />
-        <View style={[styles.phoneCard, { backgroundColor: tokens.colors.backgroundCard, borderColor: tokens.colors.border }]}>
-          <Ionicons name="phone-portrait-outline" size={36} color={tokens.colors.textSecondary} />
-        </View>
-        <View style={[styles.checkBadge, { backgroundColor: tokens.colors.backgroundCard }]}>
-          <View style={[styles.checkCircle, { backgroundColor: tokens.colors.primary }]}>
-            <Ionicons name="checkmark" size={42} color="#fff" />
+        <View style={styles.heroWrap}>
+          <LinearGradient
+            colors={tokens.gradients.soft as [string, string, ...string[]]}
+            style={[styles.heroBubble, { width: imgSize, height: imgSize, borderRadius: imgSize / 2 }]}
+          >
+            <Image
+              source={{ uri: AGREEMENTS_HERO }}
+              style={[
+                styles.heroImage,
+                {
+                  width: imgSize * 0.86,
+                  height: imgSize * 0.86,
+                  borderRadius: (imgSize * 0.86) / 2,
+                },
+              ]}
+              resizeMode="cover"
+            />
+          </LinearGradient>
+
+          <View style={[styles.floatCard, styles.floatTopLeft, { backgroundColor: tokens.colors.backgroundCard }]}>
+            <View style={[styles.floatIcon, { backgroundColor: tokens.brand.iris }]}>
+              <Ionicons name="shield-checkmark" size={14} color="#fff" />
+            </View>
+            <View>
+              <Text style={[styles.floatTitle, { color: tokens.colors.text }]}>
+                {language === 'ru' ? 'Конфиден.' : 'Maxfiylik'}
+              </Text>
+              <Text style={[styles.floatSub, { color: tokens.colors.textTertiary }]}>
+                {language === 'ru' ? 'Защищено' : 'Himoyalangan'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.floatCard, styles.floatBottomRight, { backgroundColor: tokens.colors.backgroundCard }]}>
+            <View style={[styles.floatIcon, { backgroundColor: tokens.brand.mint }]}>
+              <Ionicons name="document-text" size={14} color="#fff" />
+            </View>
+            <View>
+              <Text style={[styles.floatTitle, { color: tokens.colors.text }]}>
+                {language === 'ru' ? 'Условия' : 'Shartlar'}
+              </Text>
+              <Text style={[styles.floatSub, { color: tokens.colors.textTertiary }]}>
+                {language === 'ru' ? 'Прозрачно' : 'Ochiq'}
+              </Text>
+            </View>
           </View>
         </View>
+
+        <Text style={[styles.heroCaption, { color: tokens.colors.textSecondary }]}>
+          {language === 'ru'
+            ? 'Ваши данные в безопасности — мы заботимся о вашем здоровье и конфиденциальности.'
+            : "Ma'lumotlaringiz xavfsiz — sog'ligingiz va maxfiyligingiz biz uchun muhim."}
+        </Text>
       </View>
 
       <View style={styles.consentRow}>
@@ -154,36 +194,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 220,
+    paddingHorizontal: 24,
   },
-  blob: {
-    borderRadius: 999,
-    transform: [{ rotate: '-8deg' }, { scaleX: 1.08 }],
+  heroWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  phoneCard: {
+  heroBubble: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  heroImage: {},
+  floatCard: {
     position: 'absolute',
-    width: 72,
-    height: 120,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 16,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  floatTopLeft: { top: 8, left: -12 },
+  floatBottomRight: { bottom: 16, right: -12 },
+  floatIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    left: '22%',
-    top: '28%',
-    transform: [{ rotate: '-12deg' }],
   },
-  checkBadge: {
-    position: 'absolute',
-    right: '18%',
-    top: '22%',
-    padding: 8,
-    borderRadius: 999,
-  },
-  checkCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+  floatTitle: { fontWeight: '700', fontSize: 12 },
+  floatSub: { fontSize: 10 },
+  heroCaption: {
+    marginTop: 28,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
   consentRow: {
     flexDirection: 'row',
