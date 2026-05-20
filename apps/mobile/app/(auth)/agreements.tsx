@@ -18,7 +18,7 @@ import { getTokens } from '../../lib/design';
 import { Button } from '../../components/ui';
 
 const PRIVACY_URL = 'https://shifoyol.uz/privacy';
-const TERMS_URL = 'https://shifoyol.uz/privacy';
+const TERMS_URL = 'https://shifoyol.uz/terms';
 
 export default function AgreementsScreen() {
   const router = useRouter();

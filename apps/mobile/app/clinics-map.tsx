@@ -29,8 +29,10 @@ const DEFAULT_CLINIC_COVER = 'https://www.shutterstock.com/image-photo/medical-c
 const CLINIC_MARKER = require('../assets/map-marker-clinic.webp');
 const PHARMACY_MARKER = require('../assets/map-marker-pharmacy.webp');
 
-/** Light, clean tiles — fast CDN, less visual noise than default OSM. */
-const MAP_TILES = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+/** Vector basemap — labels patched to Uzbek (name:uz) in WebView. */
+const MAP_STYLE_LIGHT = 'https://tiles.openfreemap.org/styles/liberty';
+const MAP_STYLE_DARK = 'https://tiles.openfreemap.org/styles/dark';
+const TASHKENT_CENTER = { lng: 69.240562, lat: 41.311081 };
 
 const MARKER_W = 56;
 const MARKER_H = 64;
@@ -234,24 +236,24 @@ export default function ClinicsMapScreen() {
     const pinJson = JSON.stringify(pin);
     const markersJson = JSON.stringify(markersData);
     const mapBg = theme === 'dark' ? '#18181b' : '#e8eef4';
+    const mapStyle = theme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE_LIGHT;
 
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
     html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:${mapBg}; }
     #map { width:100%; height:100%; }
-    .leaflet-control-attribution { font-size:9px; opacity:0.65; }
-    .leaflet-control-zoom { border:none !important; box-shadow:0 2px 10px rgba(15,23,42,0.12) !important; border-radius:12px !important; overflow:hidden; }
-    .leaflet-control-zoom a { border:none !important; width:34px !important; height:34px !important; line-height:34px !important; font-size:18px !important; }
-    .map-pin-wrap { background:transparent !important; border:none !important; }
+    .maplibregl-ctrl-attrib { font-size:9px !important; opacity:0.7; }
+    .maplibregl-ctrl-group { border-radius:12px !important; box-shadow:0 2px 10px rgba(15,23,42,0.12) !important; }
     .map-pin {
       width:${MARKER_W}px; height:${MARKER_H}px;
       display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
       filter: drop-shadow(0 4px 10px rgba(15,23,42,0.35));
+      cursor:pointer;
     }
     .map-pin img {
       width:46px; height:46px; object-fit:contain;
@@ -266,7 +268,7 @@ export default function ClinicsMapScreen() {
 </head>
 <body>
   <div id="map"></div>
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script>
     function postReady() {
       try {
@@ -275,76 +277,92 @@ export default function ClinicsMapScreen() {
         }
       } catch (e) {}
     }
-    function buildPinIcon(iconUrl, dotColor) {
-      return L.divIcon({
-        className: 'map-pin-wrap',
-        html: '<div class="map-pin"><img src="' + iconUrl + '" alt="" /><div class="map-pin-dot" style="background:' + dotColor + '"></div></div>',
-        iconSize: [${MARKER_W}, ${MARKER_H}],
-        iconAnchor: [${MARKER_W / 2}, ${MARKER_H}],
-        tooltipAnchor: [0, -${MARKER_H + 4}],
-      });
+
+    var UZ_LABEL = [
+      'case',
+      ['has', 'name:uz'], ['get', 'name:uz'],
+      ['has', 'name:nonlatin'], ['concat', ['coalesce', ['get', 'name:latin'], ['get', 'name']], '\\n', ['get', 'name:nonlatin']],
+      ['coalesce', ['get', 'name'], ['get', 'name:latin']]
+    ];
+
+    function applyUzbekLabels(map) {
+      var layers = map.getStyle().layers || [];
+      for (var i = 0; i < layers.length; i++) {
+        var layer = layers[i];
+        if (!layer.layout || !layer.layout['text-field']) continue;
+        if (layer.id && layer.id.indexOf('ref') !== -1) continue;
+        try {
+          map.setLayoutProperty(layer.id, 'text-field', UZ_LABEL);
+          map.setLayoutProperty(layer.id, 'text-transform', 'none');
+        } catch (e) {}
+      }
     }
+
+    function buildPinEl(iconUrl, dotColor, data) {
+      var wrap = document.createElement('div');
+      wrap.className = 'map-pin';
+      wrap.innerHTML = '<img src="' + iconUrl + '" alt="" /><div class="map-pin-dot" style="background:' + dotColor + '"></div>';
+      wrap.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(data));
+        }
+      });
+      return wrap;
+    }
+
     function init() {
-      if (typeof L === 'undefined') {
+      if (typeof maplibregl === 'undefined') {
         postReady();
         return;
       }
-      var map = L.map('map', {
-        zoomControl: true,
-        attributionControl: true,
-        preferCanvas: true,
-      }).setView([41.311081, 69.240562], 12);
 
-      L.tileLayer('${MAP_TILES}', {
-        maxZoom: 19,
-        minZoom: 4,
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
-        subdomains: 'abcd',
-        maxNativeZoom: 19,
-      }).addTo(map);
+      var map = new maplibregl.Map({
+        container: 'map',
+        style: ${JSON.stringify(mapStyle)},
+        center: [${TASHKENT_CENTER.lng}, ${TASHKENT_CENTER.lat}],
+        zoom: 12,
+        attributionControl: false,
+        pitchWithRotate: false,
+        dragRotate: false,
+      });
+
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+      map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
       var iconUrl = ${iconUrlJson};
       var dotColor = ${pinJson};
-      var markerIcon = buildPinIcon(iconUrl, dotColor);
       var markers = ${markersJson};
-      var bounds = [];
+      var bounds = new maplibregl.LngLatBounds();
 
-      markers.forEach(function(m) {
-        bounds.push([m.lat, m.lng]);
-        var mk = L.marker([m.lat, m.lng], { icon: markerIcon }).addTo(map);
-        mk.bindTooltip(m.clinicDisplayName, {
-          direction: 'top',
-          offset: [0, -${MARKER_H + 6}],
-          opacity: 0.95,
-          className: '',
+      map.on('load', function() {
+        applyUzbekLabels(map);
+
+        markers.forEach(function(m) {
+          var el = buildPinEl(iconUrl, dotColor, m);
+          new maplibregl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat([m.lng, m.lat])
+            .addTo(map);
+          bounds.extend([m.lng, m.lat]);
         });
-        mk.on('click', function() {
-          window.ReactNativeWebView.postMessage(JSON.stringify(m));
-        });
-      });
 
-      if (bounds.length > 1) {
-        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 15 });
-      } else if (bounds.length === 1) {
-        map.setView(bounds[0], 15);
-      }
+        if (markers.length > 1) {
+          map.fitBounds(bounds, { padding: 32, maxZoom: 15, duration: 0 });
+        } else if (markers.length === 1) {
+          map.setCenter([markers[0].lng, markers[0].lat]);
+          map.setZoom(15);
+        }
 
-      map.whenReady(function() {
         setTimeout(function() {
-          map.invalidateSize();
+          map.resize();
           postReady();
-        }, 80);
+        }, 120);
       });
+
+      map.on('error', function() { postReady(); });
     }
-    if (typeof L !== 'undefined') {
-      init();
-    } else {
-      var s = document.createElement('script');
-      s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      s.onload = init;
-      s.onerror = postReady;
-      document.body.appendChild(s);
-    }
+
+    init();
   </script>
 </body>
 </html>`;

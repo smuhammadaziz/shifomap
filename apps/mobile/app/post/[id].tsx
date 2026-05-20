@@ -132,11 +132,7 @@ export default function PostDetailScreen() {
   };
 
   const imageUrls = post.imageUrls?.length ? post.imageUrls : [post.imageUrl];
-  const goToImage = (next: number) => {
-    const clamped = Math.max(0, Math.min(imageUrls.length - 1, next));
-    sliderRef.current?.scrollTo({ x: clamped * SCREEN_W, animated: true });
-    setImgIndex(clamped);
-  };
+  const multiImages = imageUrls.length > 1;
 
   if (loading) {
     return (
@@ -185,19 +181,9 @@ export default function PostDetailScreen() {
           ) : (
             <Image source={{ uri: resolveImage(post.imageUrl) }} style={styles.image} resizeMode="contain" />
           )}
-          {(post.imageUrls?.length ?? 1) > 1 ? (
-            <>
-              <TouchableOpacity style={[styles.navBtn, styles.navLeft]} activeOpacity={0.85} onPress={() => goToImage(imgIndex - 1)}>
-                <Ionicons name="chevron-back" size={18} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.navBtn, styles.navRight]} activeOpacity={0.85} onPress={() => goToImage(imgIndex + 1)}>
-                <Ionicons name="chevron-forward" size={18} color="#fff" />
-              </TouchableOpacity>
-            </>
-          ) : null}
-          {(post.imageUrls?.length ?? 1) > 1 ? (
+          {multiImages ? (
             <View style={styles.slideDots}>
-              {(post.imageUrls ?? []).map((_, i) => (
+              {imageUrls.map((_, i) => (
                 <View key={i} style={[styles.slideDot, i === imgIndex ? styles.slideDotActive : null]} />
               ))}
             </View>
@@ -205,18 +191,17 @@ export default function PostDetailScreen() {
         </View>
 
         <View style={{ padding: 20, gap: 12 }}>
-          <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
-            <TouchableOpacity onPress={onLike} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name={post.likedByMe ? 'heart' : 'heart-outline'} size={26} color={post.likedByMe ? '#f43f5e' : tokens.colors.text} />
-              <Text style={{ color: tokens.colors.text, fontWeight: '700' }}>{post.likesCount}</Text>
+          <View style={styles.detailActionsRail}>
+            <TouchableOpacity onPress={onLike} style={styles.detailRailBtn}>
+              <Ionicons name={post.likedByMe ? 'heart' : 'heart-outline'} size={28} color={post.likedByMe ? '#f43f5e' : tokens.colors.text} />
+              <Text style={[styles.detailRailCount, { color: tokens.colors.text }]}>{post.likesCount}</Text>
             </TouchableOpacity>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="chatbubble-outline" size={24} color={tokens.colors.text} />
-              <Text style={{ color: tokens.colors.text, fontWeight: '700' }}>{post.commentsCount}</Text>
+            <View style={styles.detailRailBtn}>
+              <Ionicons name="chatbubble-outline" size={26} color={tokens.colors.text} />
+              <Text style={[styles.detailRailCount, { color: tokens.colors.text }]}>{post.commentsCount}</Text>
             </View>
-            <TouchableOpacity onPress={onShare} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="share-social-outline" size={24} color={tokens.colors.text} />
-              <Text style={{ color: tokens.colors.text, fontWeight: '700' }}>{tr('Ulash', 'Поделиться', 'Share')}</Text>
+            <TouchableOpacity onPress={onShare} style={styles.detailRailBtn}>
+              <Ionicons name="paper-plane-outline" size={26} color={tokens.colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -304,26 +289,23 @@ const styles = StyleSheet.create({
   image: { width: SCREEN_W, aspectRatio: 1 },
   slideDots: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 28,
     alignSelf: 'center',
     flexDirection: 'row',
     gap: 6,
+    zIndex: 4,
   },
   slideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
   slideDotActive: { width: 18, backgroundColor: '#fff' },
-  navBtn: {
-    position: 'absolute',
-    top: '50%',
-    marginTop: -18,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+  detailActionsRail: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 32,
+    paddingVertical: 8,
   },
-  navLeft: { left: 10 },
-  navRight: { right: 10 },
+  detailRailBtn: { alignItems: 'center', gap: 4 },
+  detailRailCount: { fontSize: 13, fontWeight: '700' },
   tag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   composer: {
     position: 'absolute',

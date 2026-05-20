@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React from 'react';
+import { View, TouchableOpacity, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useThemeStore } from '../../store/theme-store';
 import { getTokens } from '../../lib/design';
-import AiTabPromptModal from './AiTabPromptModal';
+import TabBarCurveBackground, { TAB_BAR_NOTCH_LIFT, TAB_BAR_NOTCH_HALF } from './TabBarCurveBackground';
 
 const LOGO_BLUE = '#0A2FB8';
-const BAR_ROW_HEIGHT = 56;
-const TAB_ICON_SIZE = 48;
+const BAR_BODY_HEIGHT = 58;
+const AI_SIZE = 54;
+const CENTER_SLOT = TAB_BAR_NOTCH_HALF * 2 + 12;
+/** AI sits in the cradle — moves with notch height. */
+const AI_BOTTOM_OFFSET = 8;
 
 type TabDef = {
   key: string;
@@ -31,22 +34,22 @@ const RIGHT_TABS: TabDef[] = [
 
 export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
   const router = useRouter();
   const theme = useThemeStore((s) => s.theme);
   const tokens = getTokens(theme);
   const isDark = theme === 'dark';
-  const [aiPromptVisible, setAiPromptVisible] = useState(false);
 
   const activeRouteName = state.routes[state.index]?.name;
-  const isFeedActive = activeRouteName === 'feed';
 
-  const activePillBg = isFeedActive ? 'rgba(10, 47, 184, 0.92)' : LOGO_BLUE;
-  const activePillFg = '#ffffff';
-  const barBg = isFeedActive ? 'rgba(0,0,0,0.42)' : isDark ? '#09090b' : '#ffffff';
-  const barBorder = isFeedActive ? 'transparent' : tokens.colors.border;
-  const inactiveIcon = isFeedActive ? '#ffffff' : tokens.colors.textTertiary;
+  if (activeRouteName === 'feed') {
+    return null;
+  }
 
-  const tabBarOffset = insets.bottom + BAR_ROW_HEIGHT + 8;
+  const barBg = isDark ? '#18181b' : '#ffffff';
+  const inactiveIcon = isDark ? '#a1a1aa' : '#94a3b8';
+  const activeIcon = LOGO_BLUE;
+  const totalHeight = BAR_BODY_HEIGHT + TAB_BAR_NOTCH_LIFT + insets.bottom;
 
   const handlePress = (routeName: string) => {
     const route = state.routes.find((r) => r.name === routeName);
@@ -59,14 +62,6 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     if (!event.defaultPrevented) navigation.navigate(route.name);
   };
 
-  const openAiChat = (question: string) => {
-    setAiPromptVisible(false);
-    router.push({
-      pathname: '/ai-chat',
-      params: { initialMessage: question },
-    });
-  };
-
   const renderTab = (tab: TabDef) => {
     const focused = tab.route === activeRouteName;
     return (
@@ -76,115 +71,130 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         accessibilityState={{ selected: focused }}
         onPress={() => handlePress(tab.route)}
         style={styles.slot}
-        activeOpacity={0.85}
+        activeOpacity={0.75}
       >
-        {focused ? (
-          <View style={[styles.iconCircle, { backgroundColor: activePillBg }]}>
-            <Ionicons
-              name={tab.iconActive as keyof typeof Ionicons.glyphMap}
-              size={22}
-              color={activePillFg}
-            />
-          </View>
-        ) : (
-          <View style={styles.inactiveWrap}>
-            <Ionicons name={tab.icon as keyof typeof Ionicons.glyphMap} size={26} color={inactiveIcon} />
-          </View>
-        )}
+        <Ionicons
+          name={(focused ? tab.iconActive : tab.icon) as keyof typeof Ionicons.glyphMap}
+          size={focused ? 25 : 24}
+          color={focused ? activeIcon : inactiveIcon}
+        />
+        <View
+          style={[
+            styles.activeDot,
+            {
+              backgroundColor: focused ? LOGO_BLUE : 'transparent',
+              opacity: focused ? 1 : 0,
+            },
+          ]}
+        />
       </TouchableOpacity>
     );
   };
 
   return (
-    <>
+    <View style={[styles.root, { height: totalHeight, width: screenW }]} pointerEvents="box-none">
+      <TabBarCurveBackground height={totalHeight} fill={barBg} isDark={isDark} />
+
       <View
         style={[
-          styles.dock,
+          styles.iconsRow,
           {
-            backgroundColor: barBg,
-            borderTopColor: barBorder,
             paddingBottom: insets.bottom,
-            ...(isFeedActive
-              ? {
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  borderTopWidth: 0,
-                  shadowOpacity: 0,
-                  elevation: 0,
-                }
-              : null),
+            marginTop: TAB_BAR_NOTCH_LIFT,
+            height: BAR_BODY_HEIGHT + insets.bottom,
           },
         ]}
-        pointerEvents="box-none"
       >
-        <View style={styles.row}>
-          {LEFT_TABS.map(renderTab)}
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="AI"
-            onPress={() => setAiPromptVisible(true)}
-            style={styles.slot}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.iconCircle, { backgroundColor: LOGO_BLUE }]}>
-              <Ionicons name="sparkles" size={22} color="#fff" />
-            </View>
-          </TouchableOpacity>
-
-          {RIGHT_TABS.map(renderTab)}
-        </View>
+        <View style={styles.sideGroup}>{LEFT_TABS.map(renderTab)}</View>
+        <View style={{ width: CENTER_SLOT }} />
+        <View style={styles.sideGroup}>{RIGHT_TABS.map(renderTab)}</View>
       </View>
 
-      <AiTabPromptModal
-        visible={aiPromptVisible}
-        onClose={() => setAiPromptVisible(false)}
-        onSubmit={openAiChat}
-        tabBarOffset={tabBarOffset}
-      />
-    </>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="AI"
+        onPress={() => router.push('/ai-chat')}
+        style={[
+          styles.aiFab,
+          {
+            bottom: insets.bottom + AI_BOTTOM_OFFSET,
+            backgroundColor: isDark ? '#27272a' : '#ffffff',
+          },
+        ]}
+        activeOpacity={0.9}
+      >
+        <View style={styles.aiInner}>
+          <Ionicons name="sparkles" size={25} color="#fff" />
+        </View>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  dock: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+  root: {
+    position: 'relative',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
+        shadowColor: '#0A2FB8',
+        shadowOffset: { width: 0, height: -6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
       },
-      android: { elevation: 16 },
+      android: { elevation: 24 },
     }),
   },
-  row: {
+  iconsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: BAR_ROW_HEIGHT,
-    paddingHorizontal: 4,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  sideGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
   },
   slot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: BAR_ROW_HEIGHT,
+    minHeight: 48,
+    gap: 5,
   },
-  inactiveWrap: {
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  aiFab: {
+    position: 'absolute',
+    alignSelf: 'center',
+    left: '50%',
+    marginLeft: -AI_SIZE / 2,
+    width: AI_SIZE,
+    height: AI_SIZE,
+    borderRadius: AI_SIZE / 2,
+    padding: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    width: TAB_ICON_SIZE,
-    height: TAB_ICON_SIZE,
+    zIndex: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0A2FB8',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+      },
+      android: { elevation: 12 },
+    }),
   },
-  iconCircle: {
-    width: TAB_ICON_SIZE,
-    height: TAB_ICON_SIZE,
-    borderRadius: TAB_ICON_SIZE / 2,
+  aiInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: (AI_SIZE - 8) / 2,
+    backgroundColor: LOGO_BLUE,
     alignItems: 'center',
     justifyContent: 'center',
   },

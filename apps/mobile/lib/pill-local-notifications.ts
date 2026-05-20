@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type { CustomReminder } from './api';
+import { formatPillNotificationBody, humanizePillNotificationText } from './pill-reminder-meta';
 
 /** AsyncStorage: user allows local pill alarms (Settings → pill reminders). Default true. */
 export const PILLS_LOCAL_NOTIF_KEY = '@shifo_pills_local_notif_enabled';
@@ -46,12 +47,20 @@ export async function initPillNotificationsForeground(): Promise<void> {
   const Notifications = await loadNotifications();
   if (!Notifications) return;
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const content = notification.request.content;
+      const title = content.title ?? undefined;
+      const body = humanizePillNotificationText(content.body ?? undefined, title);
+      if (body && body !== content.body) {
+        content.body = body;
+      }
+      return {
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      };
+    },
   });
 }
 
@@ -160,8 +169,7 @@ export async function syncPillReminderNotifications(reminders: CustomReminder[])
       const parsed = parseReminderTime(r.time);
       if (!parsed) return;
 
-      const note = r.notes?.trim();
-      const body = note ? `${r.time} • ${note}` : r.time;
+      const body = formatPillNotificationBody(r);
 
       await Notifications.scheduleNotificationAsync({
         identifier: `${PILL_IDENTIFIER_PREFIX}${r.id}`,

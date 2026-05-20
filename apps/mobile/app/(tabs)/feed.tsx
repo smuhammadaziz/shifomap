@@ -20,6 +20,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import { useThemeStore } from '../../store/theme-store';
 import { useAuthStore } from '../../store/auth-store';
 import { getTokens } from '../../lib/design';
@@ -34,6 +35,8 @@ import {
 } from '../../lib/api';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
+/** Pagination dots sit above caption + safe area (visible, not under UI). */
+const SLIDE_DOTS_BOTTOM = 108;
 
 function resolveImage(url: string): string {
   if (url.startsWith('http')) return url;
@@ -44,7 +47,6 @@ function resolveImage(url: string): string {
 function PostImageSlider({ imageUrls }: { imageUrls: string[] }) {
   const safeUrls = imageUrls.filter(Boolean);
   const [index, setIndex] = useState(0);
-  const scrollRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
     setIndex(0);
@@ -65,15 +67,9 @@ function PostImageSlider({ imageUrls }: { imageUrls: string[] }) {
     if (next !== index) setIndex(next);
   };
 
-  const goTo = (next: number) => {
-    const clamped = Math.max(0, Math.min(safeUrls.length - 1, next));
-    scrollRef.current?.scrollTo({ x: clamped * SCREEN_W, animated: true });
-    setIndex(clamped);
-  };
   return (
     <View style={{ width: '100%', height: '100%' }}>
       <ScrollView
-        ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -86,19 +82,11 @@ function PostImageSlider({ imageUrls }: { imageUrls: string[] }) {
           <Image key={`${u}-${i}`} source={{ uri: resolveImage(u) }} style={styles.mediaImage} resizeMode="contain" />
         ))}
       </ScrollView>
-      <TouchableOpacity style={[styles.navBtn, styles.navLeft]} activeOpacity={0.85} onPress={() => goTo(index - 1)}>
-        <Ionicons name="chevron-back" size={18} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity style={[styles.navBtn, styles.navRight]} activeOpacity={0.85} onPress={() => goTo(index + 1)}>
-        <Ionicons name="chevron-forward" size={18} color="#fff" />
-      </TouchableOpacity>
-      {safeUrls.length > 1 ? (
-        <View style={styles.slideDots}>
-          {safeUrls.map((_, i) => (
-            <View key={i} style={[styles.slideDot, i === index ? styles.slideDotActive : null]} />
-          ))}
-        </View>
-      ) : null}
+      <View style={[styles.slideDots, { bottom: SLIDE_DOTS_BOTTOM }]}>
+        {safeUrls.map((_, i) => (
+          <View key={i} style={[styles.slideDot, i === index ? styles.slideDotActive : null]} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -107,6 +95,7 @@ export default function FeedScreen() {
   const theme = useThemeStore((s) => s.theme);
   const language = useAuthStore((s) => s.language) ?? 'uz';
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const tokens = getTokens(theme);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -164,6 +153,13 @@ export default function FeedScreen() {
   if (!posts.length) {
     return (
       <SafeAreaView style={[{ flex: 1 }, { backgroundColor: tokens.colors.background }]} edges={['top']}>
+        <TouchableOpacity
+          style={[styles.backBtn, { top: insets.top + 8 }]}
+          onPress={() => navigation.navigate('index' as never)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="chevron-back" size={26} color="#fff" />
+        </TouchableOpacity>
         <View style={styles.center}>
           <View style={[styles.emptyIcon, { backgroundColor: tokens.colors.backgroundSecondary }]}>
             <Ionicons name="play-circle-outline" size={40} color={tokens.brand.iris} />
@@ -193,6 +189,7 @@ export default function FeedScreen() {
         renderItem={({ item }) => (
           <PostCard
             post={item}
+            bottomInset={insets.bottom}
             onLike={() => onLike(item)}
             onCommentOpen={() => setActiveCommentsFor(item)}
             onShare={() => onShare(item)}
@@ -200,6 +197,17 @@ export default function FeedScreen() {
           />
         )}
       />
+
+      <TouchableOpacity
+        style={[styles.backBtn, { top: insets.top + 8 }]}
+        onPress={() => navigation.navigate('index' as never)}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={language === 'uz' ? 'Orqaga' : 'Назад'}
+      >
+        <Ionicons name="chevron-back" size={26} color="#fff" />
+      </TouchableOpacity>
+
       <CommentsModal
         post={activeCommentsFor}
         onClose={() => setActiveCommentsFor(null)}
@@ -214,31 +222,53 @@ export default function FeedScreen() {
 
 function PostCard({
   post,
+  bottomInset,
   onLike,
   onCommentOpen,
   onShare,
   language,
 }: {
   post: FeedPost;
+  bottomInset: number;
   onLike: () => void;
   onCommentOpen: () => void;
   onShare: () => void;
   language: string;
 }) {
   const imageUrls = post.imageUrls?.length ? post.imageUrls : [post.imageUrl];
+  const footerBottom = Math.max(bottomInset, 12) + 16;
+
   return (
     <View style={[styles.card, { height: SCREEN_H }]}>
       <View style={styles.mediaWrap}>
         <PostImageSlider imageUrls={imageUrls} />
       </View>
       <LinearGradient
-        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.85)']}
-        locations={[0, 0.55, 1]}
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.75)']}
+        locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFillObject}
         pointerEvents="none"
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.actionsRail, { bottom: footerBottom + 72 }]}>
+        <TouchableOpacity style={styles.railBtn} onPress={onLike} activeOpacity={0.75}>
+          <Ionicons
+            name={post.likedByMe ? 'heart' : 'heart-outline'}
+            size={30}
+            color={post.likedByMe ? '#f43f5e' : '#fff'}
+          />
+          <Text style={styles.railCount}>{post.likesCount}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.railBtn} onPress={onCommentOpen} activeOpacity={0.75}>
+          <Ionicons name="chatbubble-outline" size={28} color="#fff" />
+          <Text style={styles.railCount}>{post.commentsCount}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.railBtn} onPress={onShare} activeOpacity={0.75}>
+          <Ionicons name="paper-plane-outline" size={28} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.footer, { bottom: footerBottom, paddingRight: 64 }]}>
         {(post.tags ?? []).length > 0 ? (
           <View style={styles.tagsRow}>
             {(post.tags ?? []).slice(0, 4).map((tag) => (
@@ -248,25 +278,6 @@ function PostCard({
             ))}
           </View>
         ) : null}
-
-        <View style={styles.actionBar}>
-          <TouchableOpacity style={styles.actionItem} onPress={onLike} activeOpacity={0.75}>
-            <Ionicons
-              name={post.likedByMe ? 'heart' : 'heart-outline'}
-              size={26}
-              color={post.likedByMe ? '#f43f5e' : '#1e293b'}
-            />
-            <Text style={styles.actionCount}>{post.likesCount}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionItem} onPress={onCommentOpen} activeOpacity={0.75}>
-            <Ionicons name="chatbubble-outline" size={24} color="#1e293b" />
-            <Text style={styles.actionCount}>{post.commentsCount}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionItem} onPress={onShare} activeOpacity={0.75}>
-            <Ionicons name="paper-plane-outline" size={24} color="#1e293b" />
-          </TouchableOpacity>
-        </View>
-
         {post.caption ? (
           <Text style={styles.caption} numberOfLines={4}>
             {post.caption}
@@ -472,6 +483,17 @@ function CommentsModal({
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  backBtn: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 30,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   card: { width: '100%', backgroundColor: '#111' },
   mediaWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -482,32 +504,37 @@ const styles = StyleSheet.create({
   mediaImage: { width: SCREEN_W, height: '100%' },
   slideDots: {
     position: 'absolute',
-    bottom: 16,
     alignSelf: 'center',
     flexDirection: 'row',
     gap: 6,
+    zIndex: 8,
   },
   slideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
   slideDotActive: { width: 18, backgroundColor: '#fff' },
-  navBtn: {
+  actionsRail: {
     position: 'absolute',
-    top: '50%',
-    marginTop: -18,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    right: 14,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 22,
+    zIndex: 12,
   },
-  navLeft: { left: 10 },
-  navRight: { right: 10 },
+  railBtn: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  railCount: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   footer: {
     position: 'absolute',
     left: 16,
-    right: 16,
-    bottom: 118,
     gap: 10,
+    zIndex: 10,
   },
   tagsRow: {
     flexDirection: 'row',
@@ -521,34 +548,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
   tagText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  actionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 22,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.98)',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  actionCount: { color: '#1e293b', fontSize: 14, fontWeight: '700', minWidth: 12 },
   caption: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 22,
-    paddingHorizontal: 2,
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,

@@ -88,10 +88,13 @@ function buildAddress(city?: string, street?: string) {
 
 /** User explicitly asks to see / book a doctor (not generic "maslahat" / info questions). */
 const USER_EXPLICIT_DOCTOR_RX =
-  /(shifokorlarni|mutaxassislarni|врачей|показать врач|покажи врач|ko['']rsat|ko'rsating|beri shifokor|shifokor kerak|shifokorga|врач(а|у|ом)?|доктор(а|у)?|записаться|записат|записываться|qabulga|bron qil|navbat|приём|прием|appointment|book.*doctor|klinikaga)/i;
+  /(shifokorlarni|mutaxassislarni|qaysi shifokor|qaysi doktor|qaysi doctor|qaysi mutaxassis|kaysi doxtir|kayci doxtir|kaysi doctor|shifokorga bor|shifokorga bori|qaysi doctorga|кайси дохтир|к какому доктору|к какому врачу|кому (из )?врач|врач(а|у|ом|ей)? (нужен|нужна|надо|идти)|доктор(а|у|ом)? (нужен|нужна|надо|идти)|показать врач|покажи врач|ko['']rsat|ko'rsating|beri shifokor|shifokor kerak|shifokorga|врач(а|у|ом)?|доктор(а|у)?|записаться|записат|записываться|qabulga|bron qil|navbat|приём|прием|appointment|book.*doctor|klinikaga)/i;
 
 const USER_AFFIRMATIVE_RX =
   /^(ha|haa|yes|da|ok|okay|albatta|xo['']sh|xo‘sh|kerak|хочу|давай|можно|bo['']ladi)\b|^(ha|yes|da)[\s,.!]*$/i;
+
+const USER_NEGATIVE_RX =
+  /^(yo['']?q|yok|йок|yoq|нет|no|kerak emas|hohlamayman|не надо|не нужно)\b/i;
 
 const SPECIALTY_LABELS: Record<string, { uz: string; ru: string }> = {
   stomatolog: { uz: 'Stomatolog', ru: 'Стоматолог' },
@@ -168,6 +171,7 @@ function inferDoctorOfferForQuery(query: string, isUz: boolean): DoctorOffer | n
 
 function userWantsDoctorList(query: string): boolean {
   const t = query.trim();
+  if (USER_NEGATIVE_RX.test(t)) return false;
   return USER_AFFIRMATIVE_RX.test(t) || USER_EXPLICIT_DOCTOR_RX.test(t);
 }
 
@@ -177,6 +181,37 @@ function findLastDoctorOffer(msgs: ChatMessageItem[]): DoctorOffer | null {
     if (m.role === 'assistant' && m.doctorOffer) return m.doctorOffer;
   }
   return null;
+}
+
+function buildAiSystemPrompt(isUz: boolean): string {
+  if (isUz) {
+    return [
+      "Siz ShifoYo'l ilovasining AI tibbiy maslahatchisiz.",
+      "MUHIM: Faqat o'zbek tilida javob bering. Faqat LOTIN yozuvidan foydalaning — kirill yoki rus tilini ishlatmang, til aralashtirmang.",
+      "Foydalanuvchi rus yoki kirill yozsa ham, javob doimo o'zbek lotinida bo'lsin (masalan: ari, o'sa emas).",
+      'FORMAT (salomatlik / alomat / dori savollariga):',
+      '1) Bir qator qisqa kirish.',
+      '2) Aniq maslahatlar raqamlangan: 1. ... 2. ... 3. ... (kerak bo\'lsa 4–5 gacha).',
+      "3) Oxirida bitta jumla: Agar yaxshilanish bo'lmasa yoki holat og'irlashsa, shifokorga murojaat qiling.",
+      'QOIDALAR:',
+      '- Qisqa, sodda, tushunarli — ortiqcha matn yo\'q.',
+      '- Birinchi navbatda savolga to\'g\'ridan-to\'g\'ri javob bering.',
+      '- Shifokor ismlari, klinika nomlari yoki navbatlarni ro\'yxatlamang.',
+      '- Har javobda shifokorga borishni majburlamang; faqat oxirgi jumlada ogohlantiring.',
+      '- Dori haqida so\'ralsa: vazifasi, qanday qabul qilish, ehtiyot choralari.',
+      '- Faqat qaysi mutaxassis kerakligi so\'ralganda, qisqa qilib bitta mutaxassis nomini ayting (masalan terapevt).',
+    ].join(' ');
+  }
+  return [
+    'Вы — AI медицинский помощник приложения ShifoYol.',
+    'Отвечайте только на русском языке. Не смешивайте языки.',
+    'ФОРМАТ:',
+    '1) Короткое вступление.',
+    '2) Нумерованный список: 1. ... 2. ... 3. ...',
+    '3) В конце одна фраза: Если улучшения нет или состояние ухудшается, обратитесь к врачу.',
+    'Не перечисляйте врачей и клиники — приложение предложит это отдельно.',
+    'Пишите кратко и понятно.',
+  ].join(' ');
 }
 
 async function findDoctorSuggestionsBySpecialty(specialtyKey: string): Promise<DoctorSuggestion[]> {
@@ -467,21 +502,11 @@ export default function AiChatScreen() {
         return;
       }
 
-      const systemPrompt =
-        'You are a helpful AI medical assistant for ShifoYol (a Uzbek medical booking app). ' +
-        'Answer clearly and concisely in ' +
-        (isUz ? 'Uzbek' : 'Russian') +
-        '. ' +
-        'RULES: (1) Answer the user\'s exact question first — drug info, symptoms, lifestyle, etc. ' +
-        '(2) Do NOT push doctor visits, clinic booking, or specialist names in every reply. ' +
-        '(3) For medication questions (e.g. what a drug is), explain uses, dosing basics, and safety only — do not tell them to see a terapevt unless they ask about treatment for active symptoms. ' +
-        '(4) Only when symptoms are serious or they explicitly ask who to see, briefly name one relevant specialty in passing. ' +
-        '(5) Do NOT list doctors, clinics, or appointment slots — the app offers that separately if the user wants. ' +
-        '(6) End health-related answers with ONE short optional sentence asking if they want to see doctors in the app (no pressure). ' +
-        'Keep answers focused; avoid long disclaimers.';
+      const systemPrompt = buildAiSystemPrompt(isUz);
 
       const payload = {
         model: 'gpt-4o-mini',
+        temperature: 0.35,
         messages: [
           { role: 'system', content: systemPrompt },
           ...newMessages,
@@ -512,7 +537,6 @@ export default function AiChatScreen() {
           const assistantMsg: ChatMessageItem = { role: 'assistant', content: answer, doctorOffer: offer };
           finalMessages = [...newMessages, assistantMsg];
           const assistantIndex = finalMessages.length - 1;
-          setLoading(false);
           if (currentSessions[sessionIndex]?.backendConversationId) {
             addAiConversationMessage(
               currentSessions[sessionIndex].backendConversationId as string,
@@ -528,11 +552,22 @@ export default function AiChatScreen() {
             currentSessions,
             val,
           );
-        }
-
-        finalMessages = [...newMessages, { role: 'assistant', content: answer, doctorOffer }];
-        if (currentSessions[sessionIndex]?.backendConversationId) {
-          addAiConversationMessage(currentSessions[sessionIndex].backendConversationId as string, 'assistant', answer).catch(() => null);
+        } else {
+          finalMessages = [
+            ...newMessages,
+            {
+              role: 'assistant',
+              content: answer,
+              ...(doctorOffer ? { doctorOffer } : {}),
+            },
+          ];
+          if (currentSessions[sessionIndex]?.backendConversationId) {
+            addAiConversationMessage(
+              currentSessions[sessionIndex].backendConversationId as string,
+              'assistant',
+              answer,
+            ).catch(() => null);
+          }
         }
       } else {
         finalMessages = [...newMessages, { role: 'assistant', content: 'Kechirasiz, xatolik yuz berdi.' }];
@@ -560,7 +595,15 @@ export default function AiChatScreen() {
       }
 
     } catch (err) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Tarmoq xatosi yoki ulanishda muammo.' }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: isUz
+            ? "Kechirasiz, hozir javob bera olmadim. Qayta urinib ko'ring."
+            : 'Извините, сейчас не удалось ответить. Попробуйте ещё раз.',
+        },
+      ]);
     } finally {
       setLoading(false);
     }

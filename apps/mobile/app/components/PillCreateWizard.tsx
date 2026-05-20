@@ -19,22 +19,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { addCustomReminder } from '../../lib/api';
 import { getTokens } from '../../lib/design';
 import { PILL_ICON_OPTIONS, type PillIconId, PillIcon, pillIconLabel } from '../../lib/pill-icons';
+import { type PillReminderMeta } from '../../lib/pill-reminder-meta';
 import type { AppTheme } from '../../store/theme-store';
 
 export type PillFormType = 'tablet' | 'injection' | 'liquid' | 'drops' | 'inhaler' | 'powder' | 'other';
 export type PillFrequency = 'daily' | 'every_other' | 'as_needed';
 export type PillFood = 'before' | 'during' | 'after' | 'any';
 
-export type PillReminderMeta = {
-  v: 1;
-  form: PillFormType;
-  frequency: PillFrequency;
-  food: PillFood;
-  color: string;
-  shape: string;
-  groupId: string;
-  label: string;
-};
+export type { PillReminderMeta } from '../../lib/pill-reminder-meta';
+export { parseReminderMeta } from '../../lib/pill-reminder-meta';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
@@ -56,17 +49,6 @@ function tr(language: string, uz: string, ru: string, en?: string) {
   if (language === 'ru') return ru;
   if (language === 'en' && en) return en;
   return uz;
-}
-
-export function parseReminderMeta(notes: string | null): PillReminderMeta | null {
-  if (!notes?.trim()) return null;
-  try {
-    const p = JSON.parse(notes) as PillReminderMeta;
-    if (p && p.v === 1 && p.label) return p;
-  } catch {
-    /* plain text notes */
-  }
-  return null;
 }
 
 export function buildMetaLabel(meta: Omit<PillReminderMeta, 'v' | 'label' | 'groupId'>, language: string): string {
