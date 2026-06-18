@@ -98,10 +98,14 @@ export default function HomeVisitRequestScreen() {
         [{ text: 'OK', onPress: () => router.back() }],
       );
     } catch (e) {
-      Alert.alert(
-        isUz ? 'Xatolik' : 'Ошибка',
-        getApiErrorMessage(e) ?? (isUz ? 'So‘rov yuborilmadi.' : 'Не удалось отправить заявку.'),
-      );
+      const code = (e as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      const message =
+        code === 'VALIDATION_ERROR'
+          ? isUz
+            ? 'Iltimos, manzilni to‘liq va to‘g‘ri kiriting.'
+            : 'Пожалуйста, укажите адрес полностью и корректно.'
+          : (getApiErrorMessage(e) ?? (isUz ? 'So‘rov yuborilmadi.' : 'Не удалось отправить заявку.'));
+      Alert.alert(isUz ? 'Xatolik' : 'Ошибка', message);
     } finally {
       setSubmitting(false);
     }

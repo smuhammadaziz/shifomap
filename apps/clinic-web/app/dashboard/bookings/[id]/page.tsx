@@ -65,7 +65,8 @@ export default function OwnerBookingDetailPage() {
   )
 
   useEffect(() => {
-    const canSee = (user as { role?: string })?.role && String((user as any).role).startsWith('clinic_')
+    const role = String((user as { role?: string } | null)?.role ?? '')
+    const canSee = role === 'owner' || role === 'admin' || role === 'super_admin' || role.startsWith('clinic_')
     if (!canSee) return
     load()
   }, [load, user])

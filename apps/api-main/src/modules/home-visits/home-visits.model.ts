@@ -31,7 +31,7 @@ export const createHomeVisitBodySchema = z.object({
   clinicId: z.string().min(1),
   doctorId: z.string().min(1),
   address: z.object({
-    street: z.string().min(3).max(300),
+    street: z.string().trim().min(1).max(300),
     building: z.string().max(50).nullable().optional(),
     apartment: z.string().max(50).nullable().optional(),
   }),
